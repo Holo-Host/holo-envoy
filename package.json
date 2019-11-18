@@ -1,0 +1,36 @@
+{
+  "name": "@holo-host/envoy",
+  "version": "0.1.0",
+  "description": "Server that facilitates communication between hosted Agents and a Host's Holochain Conductor",
+  "main": "build/index.js",
+  "scripts": {
+    "install": "npm run build",
+    "build": "tsc --esModuleInterop --lib es2015,dom --outDir ./build -p ./src",
+    "test": "mocha --recursive ./tests/"
+  },
+  "author": "Holo Inc.",
+  "contributors": [
+    "Matthew Brisebois <matthew.brisebois@holo.host>"
+  ],
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Holo-Host/envoy/"
+  },
+  "dependencies": {
+    "@whi/stdlog": "^0.3.0",
+    "rpc-websockets": "^4.6.1"
+  },
+  "devDependencies": {
+    "@holo-host/chaperone": "file:../chaperone",
+    "@types/node": "^12.11.1",
+    "braintree-jsdoc-template": "^3.3.0",
+    "chai": "^4.2.0",
+    "chokidar-cli": "^2.0.0",
+    "fetch-mock": "^8.0.0",
+    "jsdoc": "^3.6.3",
+    "mocha": "^6.2.1",
+    "node-fetch": "^2.6.0",
+    "typescript": "^3.6.4"
+  }
+}
