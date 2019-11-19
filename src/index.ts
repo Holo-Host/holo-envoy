@@ -18,8 +18,10 @@ class Envoy {
     conductor_opts	: any;
     connected		: any;
 
-    sign_req_counter	: number	= 0;
-    pending_signatures	: object	= {};
+    request_counter	: number	= 0;
+    entry_counter	: number	= 0;
+    pending_requests	: object	= {};
+    pending_entries	: object	= {};
 
     conductor		: any;
     conductor_master	: any;
@@ -51,38 +53,44 @@ class Envoy {
 
     async config () {
 	this.ws_server.on("connection", async (socket, request) => {
-	    
+	    // path should contain the HHA ID and Agent ID so we can do some checks and alert the
+	    // client-side if something is not right.
+	    log.info("URL: %s", request.url );
+	    const url			= new URL( request.url, "http://localhost");
+
+	    const agent_id		= url.searchParams.get('agent');
+	    const hha_hash		= url.searchParams.get('hha_hash');
 	});
 
 	await this.registerEndpoints();
     }
 
     async registerEndpoints () {
-	// wss.register('holo/identify', a => this.identifyAgent(a))
-	// // TODO: something in here to update the agent key subscription? i.e. re-identify?
-	// wss.register('holo/agents/new', a => this.newHostedAgent(a))
-	this.ws_server.register("holo/register/agent", async ( agent_id ) => {
-	    log.debug("Registered new Agent: %s", agent_id );
+	this.ws_server.register("holo/agent/identify", async ([ agent_id ]) => {
+	    log.debug("Initializing Agent: %s", agent_id );
+	    const event			= `${agent_id}/wormhole/request`;
 
 	    try {
-		this.ws_server.event( `${agent_id}/wormhole/request` );
+		this.ws_server.event( event );
 	    } catch (e) {
 		if ( e.message.includes('Already registered event') )
 		    log.warn("Agent '%s' is already registered", agent_id );
 		else
-		    throw e
+		    console.error( e );
 	    }
 	    
+	    return event;
+	});
+	
+	this.ws_server.register("holo/agent/signup", async ([ hha_hash, agent_id ]) => {
 	});
 
-	// wss.register('holo/clientSignature', a => this.wormholeSignature(a))  // TODO: deprecated
-	// wss.register('holo/wormholeSignature', a => this.wormholeSignature(a))
-	// wss.register('holo/serviceSignature', a => this.serviceSignature(a))
-	this.ws_server.register("holo/wormhole/response", async function ([ id, signature ]) {
-	    
+	this.ws_server.register("holo/wormhole/response", async function ([ entry_id, signature ]) {
+	});
+	
+	this.ws_server.register("holo/service/confirm", async function ([ req_id, signature ]) {
 	});
 
-	// wss.register('holo/call', a => this.zomeCall(a))
 	this.ws_server.register("holo/call", async ({ agent_id, signature, payload }) => {
 	    // - verify signature
 	    // - service logger request
@@ -113,12 +121,12 @@ class Envoy {
     }
 
     async sendSigningRequest ( agent_id, entry ) {
-	const req_id			= this.sign_req_counter++;
+	const entry_id			= this.entry_counter++;
 	const event			= `${agent_id}/wormhole/request`;
 
-	this.pending_signatures[ req_id ] = entry;
+	this.pending_entries[ entry_id ] = entry;
 
-	this.ws_server.emit( event, [ req_id, entry ] );
+	this.ws_server.emit( event, [ entry_id, entry ] );
     }
 
     async close () {
