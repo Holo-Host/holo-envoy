@@ -14,32 +14,54 @@ const WS_SERVER_PORT			= 4656;
 
 class Envoy {
     ws_server		: any;
-    
+    opts		: any;
+    conductor_opts	: any;
+    connected		: any;
+
     sign_req_counter	: number	= 0;
     pending_signatures	: object	= {};
-    
-    constructor ( port = WS_SERVER_PORT ) {
+
+    conductor		: any;
+    conductor_master	: any;
+    service_loggers	: any;
+
+
+    constructor ( opts ) {
+	this.opts			= Object.assign({}, {
+	    "port": WS_SERVER_PORT
+	}, opts);
+
+	this.conductor_opts		= {
+	    "interfaces": {
+		"master_port":		42211,
+		"service_port":		42222,
+		// "internal_port":	42233, // Used by HP Admin, not by Envoy
+		"public_port":		42244,
+	    },
+	};
+
 	this.ws_server			= new WebSocketServer({
-	    "port": port,
+	    "port": this.opts.port,
 	    "host": "localhost",
 	});
 
-	this.listen();
-	this.registerEndpoints();
+	this.config();
+	this.connections();
     }
 
-    async listen () {
+    async config () {
 	this.ws_server.on("connection", async (socket, request) => {
 	    
 	});
+
+	await this.registerEndpoints();
     }
 
     async registerEndpoints () {
-
 	// wss.register('holo/identify', a => this.identifyAgent(a))
 	// // TODO: something in here to update the agent key subscription? i.e. re-identify?
 	// wss.register('holo/agents/new', a => this.newHostedAgent(a))
-	this.ws_server.register("holo/register/agent", async function ( agent_id ) {
+	this.ws_server.register("holo/register/agent", async ( agent_id ) => {
 	    log.debug("Registered new Agent: %s", agent_id );
 
 	    try {
@@ -65,10 +87,29 @@ class Envoy {
 	    // - verify signature
 	    // - service logger request
 	    // - call conductor
+	    const response		= await this.conductor.call("call", payload );
 	    // - service logger response
 	    // - return conductor response
-	    return "Hello World";
+	    return response;
 	});
+    }
+
+    async connections () {
+	try {
+	    const ifaces		= this.conductor_opts.interfaces;
+
+	    this.conductor_master	= new WebSocket(`ws://localhost:${ifaces.master_port}`);
+	    this.service_loggers	= new WebSocket(`ws://localhost:${ifaces.service_port}`);
+	    this.conductor		= new WebSocket(`ws://localhost:${ifaces.public_port}`);
+	} catch ( err ) {
+	    console.error( err );
+	}
+
+	this.connected			= Promise.all([
+	    this.conductor_master.opened(),
+	    this.service_loggers.opened(),
+	    this.conductor.opened(),
+	]);
     }
 
     async sendSigningRequest ( agent_id, entry ) {
@@ -76,11 +117,24 @@ class Envoy {
 	const event			= `${agent_id}/wormhole/request`;
 
 	this.pending_signatures[ req_id ] = entry;
-	
+
 	this.ws_server.emit( event, [ req_id, entry ] );
     }
 
     async close () {
+	log.info("Closing Conductor clients...");
+
+	this.conductor_master.close();
+	this.service_loggers.close();
+	this.conductor.close();
+
+	await Promise.all([
+	    this.conductor_master.closed(),
+	    this.service_loggers.closed(),
+	    this.conductor.closed(),
+	]);
+
+	log.info("Closing WebSocket server...");
 	await this.ws_server.close();
     }
 

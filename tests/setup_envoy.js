@@ -16,9 +16,14 @@ async function start_envoy () {
 }
 
 async function stop_envoy () {
-    for ( let client of clients )
+    for ( let [i,client] of clients.entries() ) {
+	const ws			= client.websocket();
+
+	log.debug("Closing Chaperone client[%s]: %s", i, ws.url );
     	await client.close();
+    }
     
+    log.debug("Closing Envoy...");
     await envoy.close();
 }
 
@@ -27,7 +32,6 @@ async function create_client ( agent_id		= "I_am_an_agent_ID",
 			       timeout		= 2000 ) {
 
     const client			= new Chaperone({
-	// "mode": Chaperone.DEVELOP,
 	"port": envoy.ws_server.port,
 	"agent_id": agent_id,
 	"instance_prefix": instance_prefix,

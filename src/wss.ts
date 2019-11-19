@@ -60,10 +60,7 @@ class WebSocketServer extends RPCWebSocketServer {
     }
     
     async close () {
-	log.info("Closing %s websocket clients", this.clients.length );
-
-	log.debug("this.clients (%s) array? %s = %s", typeof this.clients, Array.isArray(this.clients), this.clients );
-	
+	log.info("Closing %s server clients", this.clients.length );
 	for ( let [i,rws] of this.clients.entries() ) {
 	    const ws			= rws.socket;
 	    
@@ -75,7 +72,7 @@ class WebSocketServer extends RPCWebSocketServer {
 	    log.silly("Ready state: %s",  ws.readyState );
 	}
 	
-	log.debug("Closing this");
+	log.debug("Closing server");
 	return super.close();
     }
     
