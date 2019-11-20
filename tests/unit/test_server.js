@@ -57,6 +57,31 @@ describe("Server", () => {
 	} finally {
 	}
     });
+
+    it("should fail wormhole request because Agent is anonymous", async () => {
+    });
+
+    it("should process signed-in request and respond", async () => {
+	try {
+	    await client.signIn( "someone@example.com", "Passw0rd!" );
+	    const agent_id		= client.agentId();
+	    
+	    conductor.general.once("call", async function ( data ) {
+		expect( data["instance_id"]	).to.equal(`made_up_happ_hash_for_test::${agent_id}-holofuel`);
+		expect( data["zome"]		).to.equal("transactions");
+		expect( data["function"]	).to.equal("list_pending");
+		expect( data["args"]		).to.be.an("object");
+
+		return [];
+	    });
+
+	    const response		= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+	    log.debug("Response: %s", response );
+
+	    expect( response		).to.deep.equal( [] );
+	} finally {
+	}
+    });
     
     it("should complete wormhole request", async () => {
 	try {

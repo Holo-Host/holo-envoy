@@ -134,6 +134,7 @@ class Envoy {
     async startHTTPServer () {
 	this.http_server		= http.createServer((req, res) => {
 	    log.silly("Received wormhole request");
+	    // Warn if method is not POST or Content-type is incorrect
 	    req.pipe( concat_stream(( buffer ) => {
 		try {
 		    log.debug("Request buffer length: %s", buffer.length );
