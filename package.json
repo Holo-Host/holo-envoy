@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@whi/stdlog": "^0.3.0",
+    "concat-stream": "^2.0.0",
     "rpc-websockets": "^4.6.1"
   },
   "devDependencies": {

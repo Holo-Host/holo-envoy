@@ -15,6 +15,7 @@ describe("Server", () => {
     let server;
     // let wormhole;
     let conductor;
+    let client;
 
     before(async () => {
 	conductor			= new Conductor();
@@ -24,8 +25,13 @@ describe("Server", () => {
 
 	log.info("Waiting for Conductor connections...");
 	await envoy.connected;
+
+	client				= await setup.client();
     });
     after(async () => {
+	log.info("Closing client...");
+	await client.close();
+	
 	log.info("Stopping Envoy...");
 	await setup.stop();
 
@@ -33,9 +39,7 @@ describe("Server", () => {
 	await conductor.stop();
     });
     
-    it("should start server, process request, and respond", async () => {
-	const client			= await setup.client();
-
+    it("should process request and respond", async () => {
 	try {
 	    conductor.general.once("call", async function ( data ) {
 		expect( data["instance_id"]	).to.equal("made_up_happ_hash_for_test::holofuel");
@@ -51,7 +55,27 @@ describe("Server", () => {
 
 	    expect( response		).to.deep.equal( [] );
 	} finally {
-	    await client.close();
+	}
+    });
+    
+    it("should complete wormhole request", async () => {
+	try {
+	    conductor.general.once("call", async function ( data ) {
+		const signature		= await conductor.wormholeRequest( "some_agent", {
+		    "some": "entry",
+		    "foo": "bar",
+		});
+
+		expect( signature	).to.equal("signature");
+
+		return true;
+	    });
+
+	    const response		= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+	    log.debug("Response: %s", response );
+
+	    expect( response		).to.equal( true );
+	} finally {
 	}
     });
     
