@@ -40,11 +40,12 @@ class Conductor {
     }
 
     async wormholeRequest ( agent_id, entry ) {
+	const message			= typeof entry === "string" ? entry : JSON.stringify( entry );
 	const resp			= await fetch(`http://localhost:${this.wormhole_port}`, {
 	    "method": "POST",
 	    "body": JSON.stringify({
 		"agent_id": agent_id,
-		"payload": entry,
+		"payload": message,
 	    }),
 	    "timeout": 1000,
 	});

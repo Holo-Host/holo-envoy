@@ -42,6 +42,9 @@ describe("Server", () => {
     it("should process request and respond", async () => {
 	try {
 	    conductor.general.once("call", async function ( data ) {
+		const keys		= Object.keys( data );
+
+		expect( keys.length		).to.equal( 4 );
 		expect( data["instance_id"]	).to.equal("made_up_happ_hash_for_test::holofuel");
 		expect( data["zome"]		).to.equal("transactions");
 		expect( data["function"]	).to.equal("list_pending");
@@ -67,6 +70,9 @@ describe("Server", () => {
 	    const agent_id		= client.agentId();
 	    
 	    conductor.general.once("call", async function ( data ) {
+		const keys		= Object.keys( data );
+
+		expect( keys.length		).to.equal( 4 );
 		expect( data["instance_id"]	).to.equal(`made_up_happ_hash_for_test::${agent_id}-holofuel`);
 		expect( data["zome"]		).to.equal("transactions");
 		expect( data["function"]	).to.equal("list_pending");
@@ -85,13 +91,15 @@ describe("Server", () => {
     
     it("should complete wormhole request", async () => {
 	try {
+	    const agent_id		= client.agentId();
+	    
 	    conductor.general.once("call", async function ( data ) {
-		const signature		= await conductor.wormholeRequest( "some_agent", {
+		const signature		= await conductor.wormholeRequest( agent_id, {
 		    "some": "entry",
 		    "foo": "bar",
 		});
 
-		expect( signature	).to.equal("signature");
+		expect( signature	).to.equal("rvSBp8PNV42G93nvzXbqw1wybgVUSNpFhXx6WLzt/Rd3ssc+VHZltOcWB00i8WzYH2e9wllL1m7YmBBDymYGCw==");
 
 		return true;
 	    });

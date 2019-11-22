@@ -12,6 +12,11 @@ import { Server as WebSocketServer,
 
 const WS_SERVER_PORT			= 4656; // holo
 const WH_SERVER_PORT			= 9676; // worm
+const RPC_CLIENT_OPTS			= {
+    "reconnect_interval": 1000,
+    "max_reconnects": 30,
+};
+const CONDUCTOR_TIMEOUT			= RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
 
 
 
@@ -55,17 +60,17 @@ class Envoy {
 	try {
 	    const ifaces		= this.conductor_opts.interfaces;
 
-	    this.conductor_master	= new WebSocket(`ws://localhost:${ifaces.master_port}`);
-	    this.service_loggers	= new WebSocket(`ws://localhost:${ifaces.service_port}`);
-	    this.conductor		= new WebSocket(`ws://localhost:${ifaces.public_port}`);
+	    this.conductor_master	= new WebSocket(`ws://localhost:${ifaces.master_port}`,  RPC_CLIENT_OPTS );
+	    this.service_loggers	= new WebSocket(`ws://localhost:${ifaces.service_port}`, RPC_CLIENT_OPTS );
+	    this.conductor		= new WebSocket(`ws://localhost:${ifaces.public_port}`,  RPC_CLIENT_OPTS );
 	} catch ( err ) {
 	    console.error( err );
 	}
 
 	this.connected			= Promise.all([
-	    this.conductor_master.opened(),
-	    this.service_loggers.opened(),
-	    this.conductor.opened(),
+	    this.conductor_master.opened( CONDUCTOR_TIMEOUT ),
+	    this.service_loggers.opened( CONDUCTOR_TIMEOUT ),
+	    this.conductor.opened( CONDUCTOR_TIMEOUT ),
 	]);
     }
 
@@ -109,22 +114,45 @@ class Envoy {
 	    // - return success
 	});
 
-	this.ws_server.register("holo/wormhole/response", async function ([ entry_id, signature ]) {
+	this.ws_server.register("holo/wormhole/response", async ([ entry_id, signature ]) => {
+	    log.debug("Reveived signing response #%s with signature %s", entry_id, signature );
+	    
 	    // - match entry ID to entry
+	    const [entry,f,r]		= this.pending_entries[ entry_id ];
+
 	    // - respond to HTTP request
+	    f( signature );
+
 	    // - return success
+	    return true;
 	});
 	
-	this.ws_server.register("holo/service/confirm", async function ([ req_id, signature ]) {
+	this.ws_server.register("holo/service/confirm", async ([ req_id, signature ]) => {
 	    // - service logger confirmation
 	    // - return success
 	});
 
-	this.ws_server.register("holo/call", async ({ agent_id, signature, payload }) => {
+	this.ws_server.register("holo/call", async ({ anonymous, agent_id, signature, hash, hash_signature, payload }) => {
+	    // Example of request package
+	    // 
+	    //     {
+	    //         "anonymous"          : boolean,
+	    //         "agent_id"           : string,
+	    //         "signature"          : string,
+	    //         "hash"               : string,
+	    //         "hash_signature"     : string,
+	    //         "payload"            : object,
+	    //     }
+	    //     
 	    // - verify signature
 	    // - service logger request
 	    // - call conductor
-	    const response		= await this.conductor.call("call", payload );
+	    const response		= await this.conductor.call("call", {
+		"instance_id":	payload["instance_id"],
+		"zome":		payload["zome"],
+		"function":	payload["function"],
+		"args":		payload["args"],
+	    });
 	    // - service logger response
 	    // - return conductor response
 	    return response;
@@ -135,14 +163,16 @@ class Envoy {
 	this.http_server		= http.createServer((req, res) => {
 	    log.silly("Received wormhole request");
 	    // Warn if method is not POST or Content-type is incorrect
-	    req.pipe( concat_stream(( buffer ) => {
+	    req.pipe( concat_stream(async ( buffer ) => {
 		try {
 		    log.debug("Request buffer length: %s", buffer.length );
-		    let data		= JSON.parse( buffer.toString() );
-		    log.silly("Request data: %s", data );
+		    const { agent_id,
+			    entry }	= JSON.parse( buffer.toString() );
+		    
+		    const signature	= await this.signingRequest( agent_id, entry );
 		    
 		    log.silly("Respond to wormhole request");
-		    res.end( "signature" );
+		    res.end( signature );
 		} catch ( err ) {
 		    console.error( err );
 		}
@@ -174,13 +204,16 @@ class Envoy {
 	await this.http_server.close();
     }
 
-    async sendSigningRequest ( agent_id, entry ) {
-	const entry_id			= this.entry_counter++;
-	const event			= `${agent_id}/wormhole/request`;
+    signingRequest ( agent_id : string, entry : string ) {
+	return new Promise((f,r) => {
+	    const entry_id		= this.entry_counter++;
+	    const event			= `${agent_id}/wormhole/request`;
+	    
+	    this.pending_entries[ entry_id ] = [ entry, f, r ];
 
-	this.pending_entries[ entry_id ] = entry;
-
-	this.ws_server.emit( event, [ entry_id, entry ] );
+	    log.debug("Send signing request #%s to Agent %s", entry_id, agent_id );
+	    this.ws_server.emit( event, [ entry_id, entry ] );
+	});
     }
 
 }
