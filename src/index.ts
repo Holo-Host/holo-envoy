@@ -7,6 +7,8 @@ const log				= logger(path.basename( __filename ), {
 
 import http				from 'http';
 import concat_stream			from 'concat-stream';
+import SerializeJSON			from 'json-stable-stringify';
+import { KeyManager }			from '@holo-host/wasm-key-manager';
 import { Server as WebSocketServer,
 	 Client as WebSocket }		from './wss';
 
@@ -32,10 +34,7 @@ class Envoy {
     pending_requests	: object	= {};
     pending_entries	: object	= {};
 
-    conductor		: any;
-    conductor_master	: any;
-    service_loggers	: any;
-
+    hcc_clients		: any		= {};
 
     constructor ( opts ) {
 	this.opts			= Object.assign({}, {
@@ -60,18 +59,15 @@ class Envoy {
 	try {
 	    const ifaces		= this.conductor_opts.interfaces;
 
-	    this.conductor_master	= new WebSocket(`ws://localhost:${ifaces.master_port}`,  RPC_CLIENT_OPTS );
-	    this.service_loggers	= new WebSocket(`ws://localhost:${ifaces.service_port}`, RPC_CLIENT_OPTS );
-	    this.conductor		= new WebSocket(`ws://localhost:${ifaces.public_port}`,  RPC_CLIENT_OPTS );
+	    this.hcc_clients.master	= new WebSocket(`ws://localhost:${ifaces.master_port}`,  RPC_CLIENT_OPTS );
+	    this.hcc_clients.service	= new WebSocket(`ws://localhost:${ifaces.service_port}`, RPC_CLIENT_OPTS );
+	    this.hcc_clients.general	= new WebSocket(`ws://localhost:${ifaces.public_port}`,  RPC_CLIENT_OPTS );
 	} catch ( err ) {
 	    console.error( err );
 	}
 
-	this.connected			= Promise.all([
-	    this.conductor_master.opened( CONDUCTOR_TIMEOUT ),
-	    this.service_loggers.opened( CONDUCTOR_TIMEOUT ),
-	    this.conductor.opened( CONDUCTOR_TIMEOUT ),
-	]);
+	const clients			= Object.values( this.hcc_clients );
+	this.connected			= Promise.all( clients.map( (client:any) => client.opened( CONDUCTOR_TIMEOUT ) ))
     }
 
     async startWebsocketServer () {
@@ -132,7 +128,7 @@ class Envoy {
 	    // - return success
 	});
 
-	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload }) => {
+	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, signature }) => {
 	    // Example of request package
 	    // 
 	    //     {
@@ -152,18 +148,28 @@ class Envoy {
 	    //         "signature"            : string,
 	    //     }
 	    //
-
-	    // - verify signature
-	    // - service logger request
-	    // - call conductor
 	    const call_spec		= payload.call_spec;
-	    const response		= await this.conductor.call("call", {
+	    const [happ_id, _]		= call_spec["instance_id"].split("::");
+
+	    // - service logger request
+	    const req_log_hash		= await this.logServiceRequest( happ_id, agent_id, payload, signature );
+	    
+	    // - call conductor
+	    const response		= await this.callConductor( "general", {
 		"instance_id":	call_spec["instance_id"],
 		"zome":		call_spec["zome"],
 		"function":	call_spec["function"],
 		"args":		call_spec["args"],
 	    });
+
+	    const entries		= [];
+	    const metrics		= {};
 	    // - service logger response
+	    const res_log_hash		= await this.logServiceResponse( happ_id, req_log_hash, response, metrics, entries );
+
+	    log.debug("Request  log commit hash: %s", req_log_hash );
+	    log.debug("Response log commit hash: %s", res_log_hash );
+	    
 	    // - return conductor response
 	    return response;
 	});
@@ -197,15 +203,10 @@ class Envoy {
     async close () {
 	log.info("Closing Conductor clients...");
 
-	this.conductor_master.close();
-	this.service_loggers.close();
-	this.conductor.close();
+	const clients			= Object.values( this.hcc_clients );
+	clients.map( (client:any) => client.close() );
 
-	await Promise.all([
-	    this.conductor_master.closed(),
-	    this.service_loggers.closed(),
-	    this.conductor.closed(),
-	]);
+	await Promise.all( clients.map( (client:any) => client.closed() ));
 
 	log.info("Closing WebSocket server...");
 	await this.ws_server.close();
@@ -223,6 +224,61 @@ class Envoy {
 
 	    log.debug("Send signing request #%s to Agent %s", entry_id, agent_id );
 	    this.ws_server.emit( event, [ entry_id, entry ] );
+	});
+    }
+    
+    async callConductor ( client, call_spec ) {
+	if ( typeof client === "string" )
+	    client			= this.hcc_clients[ client ];
+	
+	const resp			= await client.call("call", call_spec );
+
+	if ( resp.error )
+	    throw new Error(`${resp.error}: ${resp.message}`);
+
+	return resp;
+    }
+
+    // Service Logger Methods
+
+    async logServiceRequest ( happ_id, agent_id, payload, signature ) {
+	const call_spec			= payload.call_spec;
+	
+	return await this.callConductor( "service", {
+	    "instance_id":	`${happ_id}::service_logger`,
+	    "zome":		"service",
+	    "function":		"log_request",
+	    "args":		{
+		"agent_id": agent_id,
+		"request": [
+		    payload.timestamp,
+		    payload.host_id,
+		    [
+			call_spec["instance_id"],
+			call_spec["zome"],
+			call_spec["function"],
+			call_spec["args_hash"],
+		    ]
+		],
+		"signature": signature,
+	    },
+	});
+    }
+
+    async logServiceResponse ( happ_id, request_log_hash, response, metrics, entries ) {
+	const response_digest		= KeyManager.digest( SerializeJSON( response ) );
+	const response_hash		= KeyManager.encodeDigest( response_digest );
+	
+	return await this.callConductor( "service", {
+	    "instance_id":	`${happ_id}::service_logger`,
+	    "zome":		"service",
+	    "function":		"log_response",
+	    "args":		{
+		"request_commit":	request_log_hash,
+		"response_hash":	response_hash,
+		"metrics":		metrics,
+		"entries":		entries,
+	    },
 	});
     }
 

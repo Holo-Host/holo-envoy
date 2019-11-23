@@ -18,8 +18,10 @@
     "url": "https://github.com/Holo-Host/envoy/"
   },
   "dependencies": {
+    "@holo-host/wasm-key-manager": "file:../chaperone/key-manager/pkg",
     "@whi/stdlog": "^0.3.0",
     "concat-stream": "^2.0.0",
+    "json-stable-stringify": "^1.0.1",
     "rpc-websockets": "^4.6.1"
   },
   "devDependencies": {

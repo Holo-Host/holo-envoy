@@ -7,6 +7,37 @@ const log				= require('@whi/stdlog')(path.basename( __filename ), {
 const { Server : WebSocketServer,
 	Client : WebSocket }		= require('../build/wss.js');
 const fetch				= require('node-fetch');
+const { KeyManager }			= require('@holo-host/chaperone');
+const SerializeJSON			= require('json-stable-stringify');
+
+
+const MockServiceLogger = {
+    "verifyRequestPackage": ( agent_id, request, signature ) => {
+	const serialized		= JSON.stringify( request );
+	const sig_bytes			= KeyManager.decodeSignature( signature );
+
+	return KeyManager.verifyWithAgentId( serialized, sig_bytes, agent_id );
+    },
+
+    "service": {
+	async log_request ( args ) {
+	    const { agent_id,
+		    request,
+		    signature }		= args;
+
+	    if ( this.verifyRequestPackage( agent_id, request, signature ) !== true )
+		throw new Error("Signature does not match request package");
+
+	    const entry			= SerializeJSON( args );
+	    return KeyManager.encodeDigest( KeyManager.digest( entry ) );
+	},
+	
+	async log_response ( args ) {
+	    const entry			= SerializeJSON( args );
+	    return KeyManager.encodeDigest( KeyManager.digest( entry ) );
+	}
+    }
+};
 
 
 class Conductor {
@@ -29,6 +60,20 @@ class Conductor {
 	this.general			= new WebSocketServer({
 	    "port": 42244,
 	    "host": "localhost",
+	});
+
+	this.handleServiceLogs();
+    }
+
+    handleServiceLogs () {
+	this.service.register("call", async function ( call_spec ) {
+	    // TODO: Validate call_spec format
+	    // TODO: Check if instance_id is registered/running
+	    
+	    const zome			= MockServiceLogger[ call_spec["zome"] ];
+	    const func			= zome[ call_spec["function"] ];
+
+	    return await func.call( MockServiceLogger, call_spec["args"] );
 	});
     }
 
