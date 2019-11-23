@@ -12,8 +12,8 @@ const SerializeJSON			= require('json-stable-stringify');
 
 
 const MockServiceLogger = {
-    "verifyRequestPackage": ( agent_id, request, signature ) => {
-	const serialized		= JSON.stringify( request );
+    "verifyPayload": ( agent_id, payload, signature ) => {
+	const serialized		= SerializeJSON( payload );
 	const sig_bytes			= KeyManager.decodeSignature( signature );
 
 	return KeyManager.verifyWithAgentId( serialized, sig_bytes, agent_id );
@@ -25,8 +25,8 @@ const MockServiceLogger = {
 		    request,
 		    signature }		= args;
 
-	    if ( this.verifyRequestPackage( agent_id, request, signature ) !== true )
-		throw new Error("Signature does not match request package");
+	    if ( this.verifyPayload( agent_id, request, signature ) !== true )
+		throw new Error("Signature does not match request payload");
 
 	    const entry			= SerializeJSON( args );
 	    return KeyManager.encodeDigest( KeyManager.digest( entry ) );
@@ -35,7 +35,19 @@ const MockServiceLogger = {
 	async log_response ( args ) {
 	    const entry			= SerializeJSON( args );
 	    return KeyManager.encodeDigest( KeyManager.digest( entry ) );
-	}
+	},
+
+	async log_service ( args ) {
+	    const { agent_id,
+		    confirmation,
+		    signature }		= args;
+
+	    if ( this.verifyPayload( agent_id, confirmation, signature ) !== true )
+		throw new Error("Signature does not match confirmation payload");
+
+	    const entry			= SerializeJSON( args );
+	    return KeyManager.encodeDigest( KeyManager.digest( entry ) );
+	},
     }
 };
 

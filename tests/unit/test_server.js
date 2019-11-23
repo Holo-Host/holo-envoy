@@ -111,5 +111,12 @@ describe("Server", () => {
 	} finally {
 	}
     });
+
+    it("should have no pending confirmations", async () => {
+	try {
+	    expect( envoy.pending_confirms	).to.be.empty;
+	} finally {
+	}
+    });
     
 });

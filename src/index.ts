@@ -31,7 +31,7 @@ class Envoy {
 
     request_counter	: number	= 0;
     entry_counter	: number	= 0;
-    pending_requests	: object	= {};
+    pending_confirms	: object	= {};
     pending_entries	: object	= {};
 
     hcc_clients		: any		= {};
@@ -123,9 +123,18 @@ class Envoy {
 	    return true;
 	});
 	
-	this.ws_server.register("holo/service/confirm", async ([ req_id, signature ]) => {
+	this.ws_server.register("holo/service/confirm", async ([ resp_id, payload, signature ]) => {
+	    log.info("Processing pending confirmation: %s", resp_id );
+	    
 	    // - service logger confirmation
+	    const { agent_id,
+		    hha_hash }		= this.getPendingConfirmation( resp_id );
+	    const service_log_hash	= await this.logServiceConfirmation( hha_hash, agent_id, resp_id, payload, signature )
+	    
+	    this.removePendingConfirmation( resp_id );
+
 	    // - return success
+	    return true;
 	});
 
 	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, signature }) => {
@@ -137,6 +146,8 @@ class Envoy {
 	    //         "payload": {
 	    //             "timestamp"        : string,
 	    //             "host_id"          : string,
+	    //             "hha_hash"         : string,
+	    //             "dna_alias"        : string,
 	    //             "call_spec": {
 	    //                 "instance_id"  : string
 	    //                 "zome"         : string
@@ -149,10 +160,10 @@ class Envoy {
 	    //     }
 	    //
 	    const call_spec		= payload.call_spec;
-	    const [happ_id, _]		= call_spec["instance_id"].split("::");
+	    const hha_hash		= payload.hha_hash;
 
 	    // - service logger request
-	    const req_log_hash		= await this.logServiceRequest( happ_id, agent_id, payload, signature );
+	    const req_log_hash		= await this.logServiceRequest( hha_hash, agent_id, payload, signature );
 	    
 	    // - call conductor
 	    const response		= await this.callConductor( "general", {
@@ -165,13 +176,18 @@ class Envoy {
 	    const entries		= [];
 	    const metrics		= {};
 	    // - service logger response
-	    const res_log_hash		= await this.logServiceResponse( happ_id, req_log_hash, response, metrics, entries );
+	    const res_log_hash		= await this.logServiceResponse( hha_hash, req_log_hash, response, metrics, entries );
 
 	    log.debug("Request  log commit hash: %s", req_log_hash );
 	    log.debug("Response log commit hash: %s", res_log_hash );
+
+	    this.addPendingConfirmation( res_log_hash, agent_id, hha_hash );
 	    
 	    // - return conductor response
-	    return response;
+	    return {
+		"response_id": res_log_hash,
+		"result": response,
+	    };
 	});
     }
 
@@ -241,11 +257,28 @@ class Envoy {
 
     // Service Logger Methods
 
-    async logServiceRequest ( happ_id, agent_id, payload, signature ) {
+    addPendingConfirmation ( res_log_hash, agent_id, hha_hash ) {
+	log.debug("Add pending confirmation: %s", res_log_hash );
+	this.pending_confirms[ res_log_hash ] = {
+	    agent_id,
+	    hha_hash,
+	};
+    }
+
+    getPendingConfirmation ( res_log_hash ) {
+	return this.pending_confirms[ res_log_hash ];
+    }
+    
+    removePendingConfirmation ( res_log_hash ) {
+	log.debug("Remove pending confirmation: %s", res_log_hash );
+	delete this.pending_confirms[ res_log_hash ];
+    }
+
+    async logServiceRequest ( hha_hash, agent_id, payload, signature ) {
 	const call_spec			= payload.call_spec;
 	
 	return await this.callConductor( "service", {
-	    "instance_id":	`${happ_id}::service_logger`,
+	    "instance_id":	`${hha_hash}::service_logger`,
 	    "zome":		"service",
 	    "function":		"log_request",
 	    "args":		{
@@ -254,7 +287,8 @@ class Envoy {
 		    payload.timestamp,
 		    payload.host_id,
 		    [
-			call_spec["instance_id"],
+			payload.hha_hash,
+			payload.dna_alias,
 			call_spec["zome"],
 			call_spec["function"],
 			call_spec["args_hash"],
@@ -265,12 +299,12 @@ class Envoy {
 	});
     }
 
-    async logServiceResponse ( happ_id, request_log_hash, response, metrics, entries ) {
+    async logServiceResponse ( hha_hash, request_log_hash, response, metrics, entries ) {
 	const response_digest		= KeyManager.digest( SerializeJSON( response ) );
 	const response_hash		= KeyManager.encodeDigest( response_digest );
 	
 	return await this.callConductor( "service", {
-	    "instance_id":	`${happ_id}::service_logger`,
+	    "instance_id":	`${hha_hash}::service_logger`,
 	    "zome":		"service",
 	    "function":		"log_response",
 	    "args":		{
@@ -278,6 +312,20 @@ class Envoy {
 		"response_hash":	response_hash,
 		"metrics":		metrics,
 		"entries":		entries,
+	    },
+	});
+    }
+
+    async logServiceConfirmation ( hha_hash, agent_id, response_commit, confirmation_payload, signature ) {
+	return await this.callConductor( "service", {
+	    "instance_id":	`${hha_hash}::service_logger`,
+	    "zome":		"service",
+	    "function":		"log_service",
+	    "args":		{
+		"agent_id":		agent_id,
+		"response_commit":	response_commit,
+		"confirmation":		confirmation_payload,
+		"signature":		signature,
 	    },
 	});
     }
