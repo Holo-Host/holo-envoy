@@ -132,26 +132,36 @@ class Envoy {
 	    // - return success
 	});
 
-	this.ws_server.register("holo/call", async ({ anonymous, agent_id, signature, hash, hash_signature, payload }) => {
+	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload }) => {
 	    // Example of request package
 	    // 
 	    //     {
-	    //         "anonymous"          : boolean,
-	    //         "agent_id"           : string,
-	    //         "signature"          : string,
-	    //         "hash"               : string,
-	    //         "hash_signature"     : string,
-	    //         "payload"            : object,
+	    //         "anonymous"            : boolean,
+	    //         "agent_id"             : string,
+	    //         "payload": {
+	    //             "timestamp"        : string,
+	    //             "host_id"          : string,
+	    //             "call_spec": {
+	    //                 "instance_id"  : string
+	    //                 "zome"         : string
+	    //                 "function"     : string
+	    //                 "args"         : array
+	    //                 "args_hash"    : string
+	    //             }
+	    //         }
+	    //         "signature"            : string,
 	    //     }
-	    //     
+	    //
+
 	    // - verify signature
 	    // - service logger request
 	    // - call conductor
+	    const call_spec		= payload.call_spec;
 	    const response		= await this.conductor.call("call", {
-		"instance_id":	payload["instance_id"],
-		"zome":		payload["zome"],
-		"function":	payload["function"],
-		"args":		payload["args"],
+		"instance_id":	call_spec["instance_id"],
+		"zome":		call_spec["zome"],
+		"function":	call_spec["function"],
+		"args":		call_spec["args"],
 	    });
 	    // - service logger response
 	    // - return conductor response
