@@ -33,13 +33,13 @@ global.document				= {
 // Mock Resolver responses
 mock_fetch.mock(/.*resolver\.holohost.net\/?/, {
     "requestURL": "example.com",
-    "hash": "made_up_happ_hash_for_test",
+    "hash": "made_up_hha_hash_for_test",
     "hosts":[
 	"localhost"
     ],
 });
 mock_fetch.mock(/.*resolver\.holohost.net\/resolve\/hostname\/?/, {
-    "hash": "made_up_happ_hash_for_test",
+    "hash": "made_up_hha_hash_for_test",
 });
 
 

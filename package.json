@@ -22,7 +22,8 @@
     "@whi/stdlog": "^0.3.0",
     "concat-stream": "^2.0.0",
     "json-stable-stringify": "^1.0.1",
-    "rpc-websockets": "^4.6.1"
+    "rpc-websockets": "^4.6.1",
+    "sprintf-js": "^1.1.2"
   },
   "devDependencies": {
     "@holo-host/chaperone": "file:../chaperone",

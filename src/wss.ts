@@ -30,10 +30,7 @@ class WebSocketServer extends RPCWebSocketServer {
 		return await fn.apply( this, args );
 	    } catch ( err ) {
 		log.error("Handler '%s' threw an error: %s", method, String(err) );
-		return {
-		    "error": err.name,
-		    "message": err.message,
-		};
+		throw err;
 	    }
 	});
     }

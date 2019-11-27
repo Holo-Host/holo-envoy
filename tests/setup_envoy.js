@@ -36,6 +36,7 @@ async function create_client ( agent_id		= "I_am_an_agent_ID",
 	"agent_id": agent_id,
 	"instance_prefix": instance_prefix,
 	"timeout": timeout,
+	"debug": !!process.env.LOG_LEVEL,
     });
     
     await client.ready( timeout );
