@@ -81,12 +81,19 @@ const MockMaster = {
     },
 };
 
-const MockServiceLogger = {
-    "verifyPayload": ( agent_id, payload, signature ) => {
-	log.debug("Signing payload: %s", payload );
+// A fake Provenance and Iso8601 timestamp for servicelogger response "meta"
+const provenance = (
+    "HcScJhCTAB58mkeen7oKZrgxga457b69h7fV8A9CTXdTvjdx74fTp33tpcjitgz",
+    "XxHr36xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxCg=="
+);
+const timestamp = "2019-12-03T07:10:22Z";
 
-	const serialized		= SerializeJSON( payload );
-	const sig_bytes			= Codec.Signature.decode( signature );
+const MockServiceLogger = {
+    "verifyPayload": ( agent_id, request, request_signature ) => {
+	log.debug("Signing request: %s", request );
+
+	const serialized		= SerializeJSON( request );
+	const sig_bytes			= Codec.Signature.decode( request_signature );
 	const public_key		= Codec.AgentId.decode( agent_id );
 
 	return KeyManager.verifyWithPublicKey( serialized, sig_bytes, public_key );
@@ -94,47 +101,68 @@ const MockServiceLogger = {
 
     "service": {
 	async log_request ( args ) {
-	    const { agent_id,
-		    request,
-		    signature }		= args;
-	    const payload		= [
-		request.timestamp,
-		request.host_id,
-		[
-		    request.call_spec["hha_hash"],
-		    request.call_spec["dna_alias"],
-		    request.call_spec["zome"],
-		    request.call_spec["function"],
-		    request.call_spec["args_hash"],
-		]
-	    ];
-
-	    if ( this.verifyPayload( agent_id, payload, signature ) !== true )
+	    const {
+		agent_id,
+		request,
+		request_signature
+	    }				= args;
+	    if ( this.verifyPayload( agent_id, request, request_signature ) !== true )
 		throw new Error("Signature does not match request payload");
 
 	    const entry			= SerializeJSON( args );
-	    return Codec.Digest.encode( sha256( entry ) );
+
+	    const address		= Codec.Digest.encode( sha256( entry ) );
+	    return ZomeAPIResult({
+		"meta": {
+		    address,
+		    provenance,
+		    timestamp,
+		},
+		"client_request": args,
+	    });
 	},
 	
 	async log_response ( args ) {
+	    const {
+		request_commit,
+		response_hash,
+		host_metrics,
+		entries
+	    }				= args;
 	    const entry			= SerializeJSON( args );
-	    return Codec.Digest.encode( sha256( entry ) );
+
+	    const address		= Codec.Digest.encode( sha256( entry ) );
+	    return ZomeAPIResult({
+		"meta": {
+		    address,
+		    provenance,
+		    timestamp,
+		},
+		"host_response": args,
+	    });
 	},
 
 	async log_service ( args ) {
-	    const { agent_id,
-		    confirmation,
-		    signature }		= args;
-	    const payload		= [
-		confirmation.response_hash,
-		confirmation.metrics,
-	    ];
-
-	    if ( this.verifyPayload( agent_id, payload, signature ) !== true )
+	    const {
+		agent_id,
+		response_commit,
+		confirmation,
+		confirmation_signature
+	    }				= args;
+	    if ( this.verifyPayload( agent_id, confirmation, confirmation_signature ) !== true )
 		throw new Error("Signature does not match confirmation payload");
 
 	    const entry			= SerializeJSON( args );
-	    return Codec.Digest.encode( sha256( entry ) );
+
+	    const address		= Codec.Digest.encode( sha256( entry ) );
+	    return ZomeAPIResult({
+		"meta": {
+		    address,
+		    provenance,
+		    timestamp,
+		},
+		"service_log": args,
+	    });
 	},
     }
 };

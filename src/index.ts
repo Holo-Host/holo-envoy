@@ -375,8 +375,18 @@ class Envoy {
 	    const call_spec		= payload.call_spec;
 	    const hha_hash		= payload.hha_hash;
 
-	    // - service logger request
-	    const req_log_hash		= await this.logServiceRequest( hha_hash, agent_id, payload, signature );
+	    // - service logger request. If the servicelogger.log_{request/response} fail (eg. due
+	    // to bad signatures, wrong host_id, or whatever), then the request cannot proceed, and
+	    // we'll immediately return an error w/o a response_id or result.
+	    const req_log		= await this.logServiceRequest( hha_hash, agent_id, payload, signature );
+	    if ( ! req_log.Ok ) {
+		const error = `servicelogger.log_request failed: ${req_log.Err}`
+		log.warning("Request  log commit failed: %s", error );
+		return {
+		    error
+		}
+	    }
+	    const req_log_hash	    	= req_log.Ok.meta.address
 	    
 	    // - call conductor
 	    let response, holo_error;
@@ -574,7 +584,7 @@ class Envoy {
 			"args_hash":	call_spec["args_hash"],
 		    },
 		},
-		"signature": signature,
+		"request_signature": signature,
 	    },
 	});
     }
