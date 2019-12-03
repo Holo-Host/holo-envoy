@@ -616,9 +616,9 @@ class Envoy {
 		"response_commit":	response_commit,
 		"confirmation":	{
 		    "response_hash":	confirmation_payload[0],
-		    "metrics":		confirmation_payload[1],
+		    "client_metrics":	confirmation_payload[1],
 		},
-		"signature":		signature,
+		"confirmation_signature": signature,
 	    },
 	});
     }
