@@ -4,11 +4,15 @@ const log				= require('@whi/stdlog')(path.basename( __filename ), {
 });
 
 
+const fetch				= require('node-fetch');
+const SerializeJSON			= require('json-stable-stringify');
+
 const { Server : WebSocketServer,
 	Client : WebSocket }		= require('../build/wss.js');
-const fetch				= require('node-fetch');
-const { KeyManager }			= require('@holo-host/chaperone');
-const SerializeJSON			= require('json-stable-stringify');
+const { KeyManager,
+	Codec, }			= require('@holo-host/cryptolib');
+
+const sha256				= (buf) => crypto.createHash('sha256').update( Buffer.from(buf) ).digest();
 
 function ZomeAPIResult ( result ) {
     return {
@@ -82,9 +86,10 @@ const MockServiceLogger = {
 	log.debug("Signing payload: %s", payload );
 
 	const serialized		= SerializeJSON( payload );
-	const sig_bytes			= KeyManager.decodeSignature( signature );
+	const sig_bytes			= Codec.Signature.decode( signature );
+	const public_key		= Codec.AgentId.decode( agent_id );
 
-	return KeyManager.verifyWithAgentId( serialized, sig_bytes, agent_id );
+	return KeyManager.verifyWithPublicKey( serialized, sig_bytes, public_key );
     },
 
     "service": {
@@ -108,12 +113,12 @@ const MockServiceLogger = {
 		throw new Error("Signature does not match request payload");
 
 	    const entry			= SerializeJSON( args );
-	    return KeyManager.encodeDigest( KeyManager.digest( entry ) );
+	    return Codec.Digest.encode( sha256( entry ) );
 	},
 	
 	async log_response ( args ) {
 	    const entry			= SerializeJSON( args );
-	    return KeyManager.encodeDigest( KeyManager.digest( entry ) );
+	    return Codec.Digest.encode( sha256( entry ) );
 	},
 
 	async log_service ( args ) {
@@ -129,7 +134,7 @@ const MockServiceLogger = {
 		throw new Error("Signature does not match confirmation payload");
 
 	    const entry			= SerializeJSON( args );
-	    return KeyManager.encodeDigest( KeyManager.digest( entry ) );
+	    return Codec.Digest.encode( sha256( entry ) );
 	},
     }
 };

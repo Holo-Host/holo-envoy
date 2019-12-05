@@ -6,13 +6,13 @@ const log				= require('@whi/stdlog')(path.basename( __filename ), {
 const fetchMock				= require('fetch-mock');
 const mock_fetch			= fetchMock.sandbox()
 
-
 // Mock COMB before loading chaperone
 global.COMB				= {
     "connect": () => null,
     "listen": () => null,
 }
-// Filler crypto library (API is different than browser crypto)
+
+// Using node crypto instead of WebCrypto because `node-webcrypto-ossl` does not install reliably
 global.crypto				= require('crypto');
 
 // Mock browser globals
@@ -30,16 +30,18 @@ global.document				= {
     },
 };
 
+const made_up_happ_hash_for_test	= "QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS";
+
 // Mock Resolver responses
 mock_fetch.mock(/.*resolver\.holohost.net\/?/, {
     "requestURL": "example.com",
-    "hash": "made_up_hha_hash_for_test",
+    "hash": made_up_happ_hash_for_test,
     "hosts":[
 	"localhost"
     ],
 });
 mock_fetch.mock(/.*resolver\.holohost.net\/resolve\/hostname\/?/, {
-    "hash": "made_up_hha_hash_for_test",
+    "hash": made_up_happ_hash_for_test,
 });
 
 

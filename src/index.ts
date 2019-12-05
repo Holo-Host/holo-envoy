@@ -5,13 +5,16 @@ const log				= logger(path.basename( __filename ), {
     level: process.env.LOG_LEVEL || 'fatal',
 });
 
+import crypto				from 'crypto';
 import http				from 'http';
 import concat_stream			from 'concat-stream';
 import SerializeJSON			from 'json-stable-stringify';
-import { KeyManager }			from '@holo-host/wasm-key-manager';
+import { Codec }			from '@holo-host/cryptolib';
 import { sprintf }			from 'sprintf-js';
 import { Server as WebSocketServer,
 	 Client as WebSocket }		from './wss';
+
+const sha256				= (buf) => crypto.createHash('sha256').update( Buffer.from(buf) ).digest();
 
 const WS_SERVER_PORT			= 4656; // holo
 const WH_SERVER_PORT			= 9676; // worm
@@ -577,8 +580,8 @@ class Envoy {
     }
 
     async logServiceResponse ( hha_hash, request_log_hash, response, metrics, entries ) {
-	const response_digest		= KeyManager.digest( SerializeJSON( response ) );
-	const response_hash		= KeyManager.encodeDigest( response_digest );
+	const response_digest		= sha256( SerializeJSON( response ) );
+	const response_hash		= Codec.Digest.encode( response_digest );
 	
 	return await this.callConductor( "service", {
 	    "instance_id":	`${hha_hash}::service_logger`,

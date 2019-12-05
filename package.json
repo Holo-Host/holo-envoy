@@ -5,8 +5,8 @@
   "main": "build/index.js",
   "scripts": {
     "install": "npm run build",
-    "build": "tsc --esModuleInterop --lib es2015,dom --outDir ./build -p ./src",
-    "test": "mocha --recursive ./tests/"
+    "build": "tsc --esModuleInterop --lib es7,dom --outDir ./build -p ./src",
+    "test": "mocha ./tests/*/"
   },
   "author": "Holo Inc.",
   "contributors": [
@@ -18,7 +18,7 @@
     "url": "https://github.com/Holo-Host/envoy/"
   },
   "dependencies": {
-    "@holo-host/wasm-key-manager": "file:../chaperone/key-manager/pkg",
+    "@holo-host/cryptolib": "file:../chaperone/cryptolib",
     "@whi/stdlog": "^0.3.0",
     "concat-stream": "^2.0.0",
     "json-stable-stringify": "^1.0.1",

@@ -13,7 +13,7 @@ docs:			docs/index.html
 MOCHA_OPTS		= 
 
 test:			build
-	npx mocha $(MOCHA_OPTS) --recursive ./tests
+	npx mocha $(MOCHA_OPTS) --recursive ./tests/*/
 test-debug:		build
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) --recursive ./tests
 test-unit:		build

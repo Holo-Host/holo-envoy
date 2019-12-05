@@ -45,7 +45,7 @@ describe("Server", () => {
 		const keys		= Object.keys( data );
 
 		expect( keys.length		).to.equal( 4 );
-		expect( data["instance_id"]	).to.equal("made_up_hha_hash_for_test::holofuel");
+		expect( data["instance_id"]	).to.equal("QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS::holofuel");
 		expect( data["zome"]		).to.equal("transactions");
 		expect( data["function"]	).to.equal("list_pending");
 		expect( data["args"]		).to.be.an("object");
@@ -109,7 +109,7 @@ describe("Server", () => {
 	    await client.signUp( "someone@example.com", "Passw0rd!" );
 
 	    expect( client.anonymous	).to.be.false;
-	    expect( client.agent_id	).to.equal("HcSCI5OfRaeb3twftoo6oNAs5rtbpqufrO8ZwyH7xN3rms6pKeBPaOftd6sbzaz");
+	    expect( client.agent_id	).to.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
 	} finally {
 	}
     });
@@ -119,7 +119,7 @@ describe("Server", () => {
 	    await client.signOut();
 
 	    expect( client.anonymous	).to.be.true;
-	    expect( client.agent_id	).to.not.equal("HcSCI5OfRaeb3twftoo6oNAs5rtbpqufrO8ZwyH7xN3rms6pKeBPaOftd6sbzaz");
+	    expect( client.agent_id	).to.not.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
 	} finally {
 	}
     });
@@ -129,13 +129,13 @@ describe("Server", () => {
 	    await client.signIn( "someone@example.com", "Passw0rd!" );
 	    const agent_id		= client.agent_id;
 
-	    expect( agent_id		).to.equal("HcSCI5OfRaeb3twftoo6oNAs5rtbpqufrO8ZwyH7xN3rms6pKeBPaOftd6sbzaz");
+	    expect( agent_id		).to.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
 	    
 	    conductor.general.once("call", async function ( data ) {
 		const keys		= Object.keys( data );
 
 		expect( keys.length		).to.equal( 4 );
-		expect( data["instance_id"]	).to.equal(`made_up_hha_hash_for_test::${agent_id}-holofuel`);
+		expect( data["instance_id"]	).to.equal(`QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS::${agent_id}-holofuel`);
 		expect( data["zome"]		).to.equal("transactions");
 		expect( data["function"]	).to.equal("list_pending");
 		expect( data["args"]		).to.be.an("object");
@@ -159,7 +159,7 @@ describe("Server", () => {
 		    "foo": "bar",
 		});
 
-		expect( signature	).to.equal("6bSbImC5XLaz7njLhkCx+ReP2ASOgK8/ykpg6YlFlZxs9wqdRF2RcsQImKdugS6PTWsAdOeV8d68Vsw5RriOCg==");
+		expect( signature	).to.equal("TotZt8AGH3IxOJTYToT2sGePdy2J2rzGgF2XP4sTC3ruOQp3ac2W0XikXj+CrGkso/JuNEWxKO0Q/K7G1ThVAg==");
 
 		return true;
 	    });
