@@ -15,6 +15,7 @@ import { Server as WebSocketServer,
 	 Client as WebSocket }		from './wss';
 
 const sha256				= (buf) => crypto.createHash('sha256').update( Buffer.from(buf) ).digest();
+const digest				= (data) => Codec.Digest.encode( sha256( typeof data === "string" ? data : SerializeJSON( data ) ));
 
 const WS_SERVER_PORT			= 4656; // holo
 const WH_SERVER_PORT			= 9676; // worm
@@ -373,14 +374,13 @@ class Envoy {
 	    //                 "zome"         : string
 	    //                 "function"     : string
 	    //                 "args"         : array
-	    //                 "args_hash"    : string
 	    //             }
 	    //         }
 	    //         "service_signature"    : string,
 	    //     }
 	    //
 	    const call_spec		= payload.call_spec;
-	    const hha_hash		= payload.hha_hash;
+	    const hha_hash		= call_spec.hha_hash;
 
 
 	    // - service logger request. If the servicelogger.log_{request/response} fail (eg. due
@@ -580,6 +580,7 @@ class Envoy {
 
     async logServiceRequest ( hha_hash, agent_id, payload, signature ) {
 	const call_spec			= payload.call_spec;
+	const args_hash			= digest( call_spec["args"] );
 	
 	return await this.callConductor( "service", {
 	    "instance_id":	`${hha_hash}::service_logger`,
@@ -591,14 +592,14 @@ class Envoy {
 		    "timestamp":	payload.timestamp,
 		    "host_id":		payload.host_id,
 		    "call_spec": {
-			"hha_hash":	payload.hha_hash,
-			"dna_alias":	payload.dna_alias,
+			"hha_hash":	call_spec["hha_hash"],
+			"dna_alias":	call_spec["dna_alias"],
 			"zome":		call_spec["zome"],
 			"function":	call_spec["function"],
-			"args_hash":	call_spec["args_hash"],
+			"args_hash":	args_hash,
 		    },
 		},
-		"request_signature": signature,
+		"request_signature":	signature,
 	    },
 	});
     }
