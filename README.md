@@ -4,6 +4,8 @@ A server that facilitates communication between hosted Agents and a Host's Holoc
 
 ## Overview
 
+*TODO: Needs an introduction paragraph*
+
 **Request handling (with wormhole)**
 1. Receive request
 2. Log service request
@@ -14,13 +16,8 @@ A server that facilitates communication between hosted Agents and a Host's Holoc
 6. Receive service confirmation
 7. Log service confirmation
 
-> **NOTE:** Conductor could collect up all the entries and send them in one signing request.  When
-> multiple zome calls are running simultaneously, the entries can be committed at the end so there
-> is no conflict.  If a zome call fails to complete (eg. fails to get signatures) the entries are
-> simply discarded.
-
 ### Anonymous Agent
-These are ephemeral Agent identities that can connect to any Host running read-only instances of a
+These are ephemeral Agent identities that can connect to any Host running an anonymous instance of a
 hApp's DNA(s).  When an anonymous connection is made, Envoy does not need to do anything special for
 that Agent.
 

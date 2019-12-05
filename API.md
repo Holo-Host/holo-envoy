@@ -23,14 +23,22 @@ Arguments
 - `<request>`
   ```javascript
   {
-      "agent_id": string,
-      "signature": string | false,
+      "anonymous"            : boolean,
+      "agent_id"             : string,
       "payload": {
-          "instance_id": string,
-          "zome": string,
-          "function": string,
-          "args": {}
+          "timestamp"        : string,
+          "host_id"          : string,
+          "hha_hash"         : string,
+          "dna_alias"        : string,
+          "call_spec": {
+              "instance_id"  : string
+              "zome"         : string
+              "function"     : string
+              "args"         : array
+              "args_hash"    : string
+          }
       }
+      "service_signature"    : string
   }
   ```
 

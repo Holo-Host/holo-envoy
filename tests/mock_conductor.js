@@ -89,11 +89,11 @@ const provenance = (
 const timestamp = "2019-12-03T07:10:22Z";
 
 const MockServiceLogger = {
-    "verifyPayload": ( agent_id, request, request_signature ) => {
-	log.debug("Signing request: %s", request );
+    "verifyPayload": ( agent_id, payload, payload_signature ) => {
+	const serialized		= SerializeJSON( payload );
+	log.debug("Signed payload: %s", serialized );
 
-	const serialized		= SerializeJSON( request );
-	const sig_bytes			= Codec.Signature.decode( request_signature );
+	const sig_bytes			= Codec.Signature.decode( payload_signature );
 	const public_key		= Codec.AgentId.decode( agent_id );
 
 	return KeyManager.verifyWithPublicKey( serialized, sig_bytes, public_key );

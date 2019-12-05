@@ -342,7 +342,14 @@ class Envoy {
 	    // - service logger confirmation
 	    const { agent_id,
 		    hha_hash }		= this.getPendingConfirmation( resp_id );
-	    const service_log_hash	= await this.logServiceConfirmation( hha_hash, agent_id, resp_id, payload, signature )
+	    const service_log		= await this.logServiceConfirmation( hha_hash, agent_id, resp_id, payload, signature );
+	    if ( ! service_log.Ok ) {
+		const error		= `servicelogger.log_service failed: ${service_log.Err}`
+		log.warning("Confirm log commit failed: %s", error );
+		return {
+		    "error": (new HoloError(error)).toJSON(),
+		}
+	    }
 	    
 	    this.removePendingConfirmation( resp_id );
 
@@ -350,7 +357,7 @@ class Envoy {
 	    return true;
 	});
 
-	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, signature }) => {
+	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
 	    // Example of request package
 	    // 
 	    //     {
@@ -369,24 +376,25 @@ class Envoy {
 	    //                 "args_hash"    : string
 	    //             }
 	    //         }
-	    //         "signature"            : string,
+	    //         "service_signature"    : string,
 	    //     }
 	    //
 	    const call_spec		= payload.call_spec;
 	    const hha_hash		= payload.hha_hash;
 
+
 	    // - service logger request. If the servicelogger.log_{request/response} fail (eg. due
 	    // to bad signatures, wrong host_id, or whatever), then the request cannot proceed, and
 	    // we'll immediately return an error w/o a response_id or result.
-	    const req_log		= await this.logServiceRequest( hha_hash, agent_id, payload, signature );
+	    const req_log		= await this.logServiceRequest( hha_hash, agent_id, payload, service_signature );
 	    if ( ! req_log.Ok ) {
-		const error = `servicelogger.log_request failed: ${req_log.Err}`
-		log.warning("Request  log commit failed: %s", error );
+		const error		= `servicelogger.log_request failed: ${req_log.Err}`;
+		log.warning("Request log commit failed: %s", error );
 		return {
-		    error
-		}
+		    "error": (new HoloError(error)).toJSON(),
+		};
 	    }
-	    const req_log_hash	    	= req_log.Ok.meta.address
+	    const req_log_hash	    	= req_log.Ok.meta.address;
 	    
 	    // - call conductor
 	    let response, holo_error;
@@ -420,9 +428,15 @@ class Envoy {
 	    const entries		= [];
 	    const metrics		= {};
 	    // - service logger response
-	    const res_log_hash		= await this.logServiceResponse( hha_hash, req_log_hash, response, metrics, entries );
-
-	    log.debug("Request  log commit hash: %s", req_log_hash );
+	    const res_log		= await this.logServiceResponse( hha_hash, req_log_hash, response, metrics, entries );
+	    if ( ! res_log.Ok ) {
+		const error		= `servicelogger.log_response failed: ${res_log.Err}`
+		log.warning("Response log commit failed: %s", error );
+		return {
+		    "error": (new HoloError(error)).toJSON(),
+		}
+	    }
+	    const res_log_hash		= res_log.Ok.meta.address;
 	    log.debug("Response log commit hash: %s", res_log_hash );
 
 	    this.addPendingConfirmation( res_log_hash, agent_id, hha_hash );
@@ -614,10 +628,7 @@ class Envoy {
 	    "args":		{
 		"agent_id":		agent_id,
 		"response_commit":	response_commit,
-		"confirmation":	{
-		    "response_hash":	confirmation_payload[0],
-		    "client_metrics":	confirmation_payload[1],
-		},
+		"confirmation":		confirmation_payload,
 		"confirmation_signature": signature,
 	    },
 	});
