@@ -18,7 +18,7 @@
     "url": "https://github.com/Holo-Host/envoy/"
   },
   "dependencies": {
-    "@holo-host/cryptolib": "file:../chaperone/cryptolib",
+    "@holo-host/cryptolib": "^0.1.1",
     "@whi/stdlog": "^0.3.0",
     "concat-stream": "^2.0.0",
     "json-stable-stringify": "^1.0.1",
@@ -26,7 +26,7 @@
     "sprintf-js": "^1.1.2"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "file:../chaperone",
+    "@holo-host/chaperone": "^0.1.2",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
     "chai": "^4.2.0",

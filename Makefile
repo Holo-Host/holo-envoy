@@ -1,4 +1,9 @@
 
+package-lock.json: package.json
+	npm install
+	touch $@
+node_modules: package-lock.json
+
 build/index.js:		src/*.ts
 	npm run build
 docs/index.html:	build/index.js
@@ -7,8 +12,8 @@ docs/index.html:	build/index.js
 
 .PHONY:		src build docs docs-watch build-watch
 
-build:			build/index.js
-docs:			docs/index.html
+build:			node_modules build/index.js
+docs:			node_modules docs/index.html
 
 MOCHA_OPTS		= 
 
