@@ -7,7 +7,7 @@ const log				= logger(path.basename( __filename ), {
 
 
 const RPCWebSocketServer		= require('rpc-websockets').Server;
-const WebSocket				= require('../build/client.js');
+const WebSocket				= require('../rpc-websocket-wrappers/client.js');
 
 
 class WebSocketServer extends RPCWebSocketServer {
