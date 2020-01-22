@@ -4,3 +4,6 @@ dist
 lib
 build
 docs
+result
+conductor-*.toml
+keystore-*.key

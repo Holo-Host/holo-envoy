@@ -1,0 +1,142 @@
+
+persistence_dir = "HCC_STORAGE"
+
+signing_service_uri = "WORMHOLE"
+encryption_service_uri = "WORMHOLE"
+decryption_service_uri = "WORMHOLE"
+
+# -----------  Agents  -----------
+[[agents]]
+id = "host-agent-AGENT"
+name = "Host Agent AGENT"
+public_address = "PUBKEY"
+keystore_file = "KEYFILE"
+
+# -----------  DNA  -----------
+[[dnas]]
+id = "happ-store"
+file = "dist/happ-store.dna.json"
+hash = "QmVN32n6VHTioNEdhBHPuoSCYFt1wNTh5vv41W7QpNC5wB"
+
+[[dnas]]
+id = "holo-hosting-app"
+file = "dist/holo-hosting-app.dna.json"
+hash = "QmW3ihfvjdgLDBfhj4wK5TJ2McYLu6ENHC8pdtDn5BTae7"
+
+[[dnas]]
+id = "holofuel"
+file = "dist/holofuel.dna.json"
+hash = "QmeEqjFbA9kRcoK7Tw3TJKJ8yQ3SrK2ZLuEbGs5aP2QDug"
+
+[[dnas]]
+id = "servicelogger"
+file = "dist/servicelogger.dna.json"
+hash = "QmcYdsUMCeUAvpKdigaadkb46S8nAGCoGFfmLSP9B4Xb3i"
+
+
+[[instances]]
+id = "happ-store"
+dna = "happ-store"
+agent = "host-agent-AGENT"
+
+    [instances.logger]
+    type = "simple"
+    # file = "fuel.log"
+      
+    [instances.storage]
+    type = "file"
+    path = "HCC_STORAGE/happ-store"
+
+[[instances]]
+id = "holo-hosting-app"
+dna = "holo-hosting-app"
+agent = "host-agent-AGENT"
+
+    [instances.logger]
+    type = "simple"
+    
+    [instances.storage]
+    type = "file"
+    path = "HCC_STORAGE/holo-hosting-app"
+
+[[instances]]
+id = "holofuel"
+dna = "holofuel"
+agent = "host-agent-AGENT"
+
+    [instances.logger]
+    type = "simple"
+    
+    [instances.storage]
+    type = "file"
+    path = "HCC_STORAGE/holofuel"
+
+[[instances]]
+id = "servicelogger"
+dna = "servicelogger"
+agent = "host-agent-AGENT"
+
+    [instances.logger]
+    type = "simple"
+    
+    [instances.storage]
+    type = "file"
+    path = "HCC_STORAGE/servicelogger"
+
+
+[[interfaces]]
+id = "master-interface"
+admin = true
+
+    [interfaces.driver]
+    type = "websocket"
+    port = 42211
+
+[[interfaces]]
+id = "internal-interface"
+
+    [interfaces.driver]
+    type = "websocket"
+    port = 42222
+
+[[interfaces]]
+id = "admin-interface"
+
+    [interfaces.driver]
+    type = "websocket"
+    port = 42233
+    
+    [[interfaces.instances]]
+    id = "happ-store"
+    
+    [[interfaces.instances]]
+    id = "holo-hosting-app"
+    
+    [[interfaces.instances]]
+    id = "holofuel"
+    
+    [[interfaces.instances]]
+    id = "servicelogger"
+
+[[interfaces]]
+id = "hosted-interface"
+
+    [interfaces.driver]
+    type = "websocket"
+    port = 42244
+
+
+# [[bridges]]
+# caller_id = "servicelogger"
+# callee_id = "holofuel"
+# handle = "servicelogger-holofuel-bridge"
+
+# [[bridges]]
+# caller_id = "servicelogger"
+# callee_id = "holo-hosting-app"
+# handle = "servicelogger-hha-bridge"
+
+
+[network]
+type = "sim2h"
+sim2h_url = "S2HURI"

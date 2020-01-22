@@ -1,3 +1,4 @@
+SHELL		= bash
 
 package-lock.json: package.json
 	npm install
@@ -51,3 +52,50 @@ publish-docs:
 	@echo "\nForce push to gh-pages"
 	git push -f origin gh-pages
 	git checkout $(CURRENT_BRANCH)
+
+
+# Generate Conductor TOML config
+HCC_DIR		= ./holochain-conductor
+HCC_STORAGE	= /var/lib/holochain-conductor
+
+.PHONY:		start-hcc-%
+start-hcc-%:		DNAs conductor-%.toml
+	holochain -c conductor-$*.toml
+
+DNAs:			dist/happ-store.dna.json dist/holo-hosting-app.dna.json dist/holofuel.dna.json dist/servicelogger.dna.json
+dist/%.dna.json:
+	@for p in $$buildInputs; do \
+	    echo "Checking derivation $$p ($${p#*-} == $*)"; \
+	    if [[ "$${p#*-}" == "$*" ]]; then \
+		echo "Linking $${p} to $@"; \
+		ln -fs $${p}/$*.dna.json $@; \
+	    fi \
+	done
+
+conductor-%.toml:	keystore-%.key $(HCC_DIR)/conductor.master.toml Makefile
+	@echo "Creating Holochain conductor config for Agent $*...";			\
+	AGENT=$*;									\
+	PUBKEY=$$( ls -l $< ); PUBKEY=$${PUBKEY##*/};					\
+	KEYFILE=$<;									\
+	S2HURI=wss://sim2h.holochain.org:9000;						\
+	WORMHOLE=http://localhost:9676;							\
+	HCC_STORAGE=$(HCC_STORAGE);							\
+	sed -e "s|AGENT|$$AGENT|g"							\
+	    -e "s/PUBKEY/$$PUBKEY/g"							\
+	    -e "s/KEYFILE/$$KEYFILE/g"							\
+	    -e "s|S2HURI|$$S2HURI|g"							\
+	    -e "s|WORMHOLE|$$WORMHOLE|g"						\
+	    -e "s|HCC_STORAGE|$$HCC_STORAGE|g"						\
+	    < $(HCC_DIR)/conductor.master.toml						\
+	    > $@;									\
+	echo " ... Wrote new $@ (from $(HCC_DIR)/conductor.master.toml and $<)"
+
+keystore-%.key:
+	@echo -n "Creating Holochain key for Agent $*...";				\
+	eval $$( hc keygen --nullpass --quiet						\
+	  | python -c "import sys;						\
+	      print('\n'.join('%s=%s' % ( k, v.strip() )			\
+		for (k, v) in zip(['KEY','KEYFILE'], sys.stdin.readlines())))"	\
+	);										\
+	echo " $@ -> $$KEYFILE";							\
+	ln -fs $$KEYFILE $@

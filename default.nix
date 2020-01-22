@@ -1,9 +1,6 @@
-{ pkgs ? import ./pkgs.nix {} }:
+{ pkgs ? import ./nixpkgs.nix {} }:
 
 with pkgs;
-
-let
-in
 
 {
   holo-envoy = stdenv.mkDerivation rec {
@@ -11,7 +8,8 @@ in
     src = gitignoreSource ./.;
 
     nativeBuildInputs = [
-      nodejs-12_x
+      nodejs
+      makeWrapper
     ];
 
     preConfigure = ''
@@ -26,7 +24,9 @@ in
 
     installPhase = ''
       mkdir $out
-      mv * $out
+      mv build node_modules rpc-websocket-wrappers server.js $out
+      makeWrapper ${nodejs}/bin/node $out/bin/${name} \
+        --add-flags $out/server.js
     '';
 
     fixupPhase = ''
