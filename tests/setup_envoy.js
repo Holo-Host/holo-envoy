@@ -3,6 +3,8 @@ const log				= require('@whi/stdlog')(path.basename( __filename ), {
     level: process.env.LOG_LEVEL || 'fatal',
 });
 
+const { Codec }				= require("@holo-host/cryptolib");
+
 const { Envoy }				= require("../build/index.js");
 const { Chaperone }			= require("./setup_chaperone.js");
 
@@ -27,16 +29,18 @@ async function stop_envoy () {
     await envoy.close();
 }
 
-async function create_client ( agent_id		= "I_am_an_agent_ID",
-			       instance_prefix	= "happ-name",
+async function create_client ( agent_id		= "HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i",
+			       instance_prefix	= "QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS",
 			       timeout		= 2000 ) {
 
     const client			= new Chaperone({
 	"port": envoy.ws_server.port,
-	"agent_id": agent_id,
+	// "agent_id": agent_id,
 	"instance_prefix": instance_prefix,
 	"timeout": timeout,
 	"debug": !!process.env.LOG_LEVEL,
+	"host": "localhost",
+	"host_agent_id": "HcScjNSwOesm8iygytJfakbdm9cv879nkDGFXtCg8or6mv969c8Hj5QKUzUiikz", // HcScJhCTAB58mkeen7oKZrgxga457b69h7fV8A9CTXdTvjdx74fTp33tpcjitgz
     });
     
     await client.ready( timeout );

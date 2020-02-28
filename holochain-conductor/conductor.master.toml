@@ -31,7 +31,7 @@ hash = "QmeEqjFbA9kRcoK7Tw3TJKJ8yQ3SrK2ZLuEbGs5aP2QDug"
 [[dnas]]
 id = "servicelogger"
 file = "dist/servicelogger.dna.json"
-hash = "QmcYdsUMCeUAvpKdigaadkb46S8nAGCoGFfmLSP9B4Xb3i"
+hash = "QmbDTWfhXXHzAEcgKuyCPVsdWxygBBtRsyvqRUeBrZga7Y"
 
 
 [[instances]]
@@ -83,6 +83,21 @@ agent = "host-agent-AGENT"
     type = "file"
     path = "HCC_STORAGE/servicelogger"
 
+# Holofuel - ServiceLogger
+[[instances]]
+id = "QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS::servicelogger"
+dna = "servicelogger"
+agent = "host-agent-AGENT"
+
+    [instances.logger]
+    type = "simple"
+    # file = "fuel.log"
+      
+    [instances.storage]
+    type = "file"
+    path = "HCC_STORAGE/QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS-servicelogger"
+
+
 
 [[interfaces]]
 id = "master-interface"
@@ -98,6 +113,9 @@ id = "internal-interface"
     [interfaces.driver]
     type = "websocket"
     port = 42222
+
+    [[interfaces.instances]]
+    id = "QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS::servicelogger"
 
 [[interfaces]]
 id = "admin-interface"
@@ -124,6 +142,7 @@ id = "hosted-interface"
     [interfaces.driver]
     type = "websocket"
     port = 42244
+    
 
 
 # [[bridges]]

@@ -13,6 +13,8 @@ import { Codec }			from '@holo-host/cryptolib';
 import { sprintf }			from 'sprintf-js';
 import { Server as WebSocketServer,
 	 Client as WebSocket }		from './wss';
+import mocks				from './mocks';
+
 
 const sha256				= (buf) => crypto.createHash('sha256').update( Buffer.from(buf) ).digest();
 const digest				= (data) => Codec.Digest.encode( sha256( typeof data === "string" ? data : SerializeJSON( data ) ));
@@ -24,6 +26,14 @@ const RPC_CLIENT_OPTS			= {
     "max_reconnects": 30,
 };
 const CONDUCTOR_TIMEOUT			= RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
+const NAMESPACE				= "/hosting/";
+
+interface CallSpec {
+    instance_id?	: string;
+    zome?		: string;
+    function?		: string;
+    args?		: any;
+}
 
 
 class HoloError extends Error {
@@ -64,9 +74,9 @@ class Envoy {
     connected		: any;
 
     request_counter	: number	= 0;
-    entry_counter	: number	= 0;
+    payload_counter	: number	= 0;
     pending_confirms	: object	= {};
-    pending_entries	: object	= {};
+    pending_signatures	: object	= {};
     anonymous_agents	: any		= {};
 
     hcc_clients		: any		= {};
@@ -155,8 +165,9 @@ class Envoy {
 
 		const agent		= agents.find( agent => agent.public_address === agent_id );
 
-		if ( agent === undefined )
+		if ( agent === undefined ) {
 		    return (new HoloError("Agent '%s' is unknown to this Host", agent_id )).toJSON();
+		}
 	    } catch ( err ) {
 		console.error( err );
 		log.error("Check for hosting state of Agent %s failed with: %s", agent_id, String(err) );
@@ -164,7 +175,7 @@ class Envoy {
 	    }
 
 	    try {
-		this.ws_server.event( event );
+		this.ws_server.event( event, NAMESPACE );
 	    } catch (e) {
 		if ( e.message.includes('Already registered event') )
 		    log.warn("Agent '%s' is already registered", agent_id );
@@ -173,23 +184,29 @@ class Envoy {
 	    }
 	    
 	    return event;
-	});
+	}, NAMESPACE );
 	
 	this.ws_server.register("holo/agent/signup", async ([ hha_hash, agent_id ]) => {
 	    const failure_response	= (new HoloError("Failed to create a new hosted agent")).toJSON();
-
-	    // - add hosted agent
-	    log.info("Add hosted agent '%s' with holo_remote_key", agent_id );
-	    const status		= await this.callConductor( "master", "admin/agent/add", {
-		"id":			agent_id,
-		"name":			agent_id,
-		"holo_remote_key":	agent_id,
-	    });
-
-	    if ( status.success !== true )
-		return failure_response;
-
 	    let resp;
+
+	    // - add new hosted agent
+	    try {
+		log.info("Add new hosted agent '%s' with holo_remote_key", agent_id );
+		const status	= await this.callConductor( "master", "admin/agent/add", {
+		    "id":		agent_id,
+		    "name":		agent_id,
+		    "holo_remote_key":	agent_id,
+		});
+
+		if ( status.success !== true )
+		    return (new HoloError("Failed to add hosted agent")).toJSON();
+	    } catch ( err ) {
+		if ( err.message.includes( "already exists" ) )
+		    log.warn("Agent %s already exists", agent_id );
+		else
+		    throw err;
+	    }
 
 	    // - look-up happ store hash
 	    log.info("Look-up hApp Store hash for HHA Hash '%s'", hha_hash );
@@ -267,48 +284,72 @@ class Envoy {
 	    let failed			= false;
 	    for ( let dna of happ.app_entry.dnas ) {
 		const instance_id	= `${hha_hash}::${agent_id}-${dna.handle}`;
-		const storage		= `/var/lib/holochain-conductor/storage/${hha_hash}/${agent_id}/${dna.handle}-${dna.hash}/`;
+		const storage		= `/var/lib/holochain-conductor/storage/${instance_id}/`;
 
 		try {
 		    let status;
 
 		    // - create DNA/Agent instances
-		    log.debug("Create instance '%s' with storage path: %s", instance_id, storage );
-		    status		= await this.callConductor( "master", "admin/instance/add", {
-			"id":		instance_id,
-			"dna_id":	dna.hash,
-			"agent_id":	agent_id,
-			"storage":	storage,
-		    });
+		    try {
+			log.debug("Create instance '%s' with storage path: %s", instance_id, storage );
+			status		= await this.callConductor( "master", "admin/instance/add", {
+			    "id":		instance_id,
+			    "dna_id":	dna.handle,
+			    "agent_id":	agent_id,
+			    "storage":	"file",
+			});
 
-		    if ( status.success !== true ) {
-			failed		= true
-			break;
+			if ( status.success !== true ) {
+			    failed		= true
+			    break;
+			}
+		    } catch ( err ) {
+			if ( err.message.toLowerCase().includes( "duplicate instance" ) )
+			    log.warn("Instance ID %s already exists", instance_id );
+			else
+			    throw err;
 		    }
 
+		    
 		    // - add instances to general interface
-		    log.debug("Add instance '%s' to general interface", instance_id );
-		    status		= await this.callConductor( "master", "admin/interface/add_instance", {
-			"interface_id":	"general-interface",
-			"instance_id":	instance_id,
-			// "alias":		instance_id,
-		    });
-
-		    if ( status.success !== true ) {
-			failed		= true
-			break;
+		    try {
+			log.debug("Add instance '%s' to general interface", instance_id );
+			status		= await this.callConductor( "master", "admin/interface/add_instance", {
+			    "interface_id":	"hosted-interface",
+			    "instance_id":	instance_id,
+			    // "alias":		instance_id,
+			});
+			
+			if ( status.success !== true ) {
+			    failed		= true
+			    break;
+			}
+		    } catch ( err ) {
+			if ( err.message.toLowerCase().includes( "already in interface" ) )
+			    log.warn("Instance ID %s already added to hosted interface", instance_id );
+			else
+			    throw err;
 		    }
 
+		    
 		    // - start instances
-		    log.debug("Start instance: %s", instance_id );
-		    status		= await this.callConductor( "master", "admin/instance/start", {
-			"id":		instance_id,
-		    });
+		    try {
+			log.debug("Start instance: %s", instance_id );
+			status		= await this.callConductor( "master", "admin/instance/start", {
+			    "id":		instance_id,
+			});
 
-		    if ( status.success !== true ) {
-			failed		= true
-			break;
+			if ( status.success !== true ) {
+			    failed		= true
+			    break;
+			}
+		    } catch ( err ) {
+			if ( err.message.toLowerCase().includes( "already active" ) )
+			    log.warn("Instance ID %s already started", instance_id );
+			else
+			    throw err;
 		    }
+			
 		} catch ( err ) {
 		    failed		= true;
 		    console.log( err );
@@ -322,41 +363,20 @@ class Envoy {
 
 	    // - return success
 	    return true;
-	});
+	}, NAMESPACE );
 
-	this.ws_server.register("holo/wormhole/response", async ([ entry_id, signature ]) => {
-	    log.debug("Reveived signing response #%s with signature %s", entry_id, signature );
+	this.ws_server.register("holo/wormhole/response", async ([ payload_id, signature ]) => {
+	    log.debug("Reveived signing response #%s with signature %s", payload_id, signature );
 	    
-	    // - match entry ID to entry
-	    const [entry,f,r]		= this.pending_entries[ entry_id ];
+	    // - match payload ID to payload
+	    const [payload,f,r]		= this.pending_signatures[ payload_id ];
 
 	    // - respond to HTTP request
 	    f( signature );
 
 	    // - return success
 	    return true;
-	});
-	
-	this.ws_server.register("holo/service/confirm", async ([ resp_id, payload, signature ]) => {
-	    log.info("Processing pending confirmation: %s", resp_id );
-	    
-	    // - service logger confirmation
-	    const { agent_id,
-		    hha_hash }		= this.getPendingConfirmation( resp_id );
-	    const service_log		= await this.logServiceConfirmation( hha_hash, agent_id, resp_id, payload, signature );
-	    if ( ! service_log.Ok ) {
-		const error		= `servicelogger.log_service failed: ${service_log.Err}`
-		log.warning("Confirm log commit failed: %s", error );
-		return {
-		    "error": (new HoloError(error)).toJSON(),
-		}
-	    }
-	    
-	    this.removePendingConfirmation( resp_id );
-
-	    // - return success
-	    return true;
-	});
+	}, NAMESPACE );
 
 	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
 	    // Example of request package
@@ -367,9 +387,9 @@ class Envoy {
 	    //         "payload": {
 	    //             "timestamp"        : string,
 	    //             "host_id"          : string,
-	    //             "hha_hash"         : string,
-	    //             "dna_alias"        : string,
 	    //             "call_spec": {
+	    //                 "hha_hash"     : string,
+	    //                 "dna_alias"    : string,
 	    //                 "instance_id"  : string
 	    //                 "zome"         : string
 	    //                 "function"     : string
@@ -386,15 +406,22 @@ class Envoy {
 	    // - service logger request. If the servicelogger.log_{request/response} fail (eg. due
 	    // to bad signatures, wrong host_id, or whatever), then the request cannot proceed, and
 	    // we'll immediately return an error w/o a response_id or result.
-	    const req_log		= await this.logServiceRequest( hha_hash, agent_id, payload, service_signature );
-	    if ( ! req_log.Ok ) {
-		const error		= `servicelogger.log_request failed: ${req_log.Err}`;
-		log.warning("Request log commit failed: %s", error );
+	    let req_log;
+	    let req_log_hash;
+	    
+	    try {
+		req_log			= await this.logServiceRequest( hha_hash, agent_id, payload, service_signature );
+		log.debug( req_log );
+
+		req_log_hash	    	= req_log;
+		log.debug("Request log commit hash: %s", req_log_hash );
+	    } catch ( err ) {
+		const error		= `servicelogger.log_request failed: ${String(err)}`;
+		log.warn("log service request commit failed: %s", error );
 		return {
 		    "error": (new HoloError(error)).toJSON(),
 		};
 	    }
-	    const req_log_hash	    	= req_log.Ok.meta.address;
 	    
 	    // - call conductor
 	    let response, holo_error;
@@ -426,18 +453,26 @@ class Envoy {
 	    }
 
 	    const entries		= [];
-	    const metrics		= {};
+	    const metrics		= {
+		"duration": "1s",
+	    };
 	    // - service logger response
-	    const res_log		= await this.logServiceResponse( hha_hash, req_log_hash, response, metrics, entries );
-	    if ( ! res_log.Ok ) {
-		const error		= `servicelogger.log_response failed: ${res_log.Err}`
-		log.warning("Response log commit failed: %s", error );
+	    let res_log;
+	    let res_log_hash;
+	    
+	    try {
+		res_log		= await this.logServiceResponse( hha_hash, req_log_hash, response, metrics, entries );
+		log.debug( res_log );
+		
+		res_log_hash		= res_log;
+		log.debug("Response log commit hash: %s", res_log_hash );
+	    } catch ( err ) {
+		const error		= `servicelogger.log_response failed: ${String(err)}`;
+		log.warn("log service response commit failed: %s", error );
 		return {
 		    "error": (new HoloError(error)).toJSON(),
-		}
+		};
 	    }
-	    const res_log_hash		= res_log.Ok.meta.address;
-	    log.debug("Response log commit hash: %s", res_log_hash );
 
 	    this.addPendingConfirmation( res_log_hash, agent_id, hha_hash );
 	    
@@ -447,7 +482,32 @@ class Envoy {
 		"result": response,
 		"error": holo_error,
 	    };
-	});
+	}, NAMESPACE );
+	
+	this.ws_server.register("holo/service/confirm", async ([ resp_id, payload, signature ]) => {
+	    log.info("Processing pending confirmation: %s", resp_id );
+	    
+	    // - service logger confirmation
+	    const { agent_id,
+		    hha_hash }		= this.getPendingConfirmation( resp_id );
+
+	    let service_log;
+	    try {
+		service_log		= await this.logServiceConfirmation( hha_hash, agent_id, resp_id, payload, signature );
+		log.debug( service_log );
+	    } catch ( err ) {
+		const error		= `servicelogger.log_service failed: ${String(err)}`
+		log.warn("log service confirm commit failed: %s", error );
+		return {
+		    "error": (new HoloError(error)).toJSON(),
+		};
+	    }
+	    
+	    this.removePendingConfirmation( resp_id );
+
+	    // - return success
+	    return true;
+	}, NAMESPACE );
     }
 
     async startHTTPServer () {
@@ -457,12 +517,14 @@ class Envoy {
 	    req.pipe( concat_stream(async ( buffer ) => {
 		try {
 		    log.debug("Request buffer length: %s", buffer.length );
+		    log.silly("HTTP Body: %s", buffer.toString() );
 		    const { agent_id,
-			    entry }	= JSON.parse( buffer.toString() );
+			    payload }	= JSON.parse( buffer.toString() );
 
 		    let signature;
 		    try {
-			signature	= await this.signingRequest( agent_id, entry );
+			log.silly("HTTP Body: %s", payload );
+			signature	= await this.signingRequest( agent_id, payload );
 		    } catch ( err ) {
 			log.error("Signing request error: %s", String(err) );
 			res.writeHead(400);
@@ -473,6 +535,7 @@ class Envoy {
 		    res.end( signature );
 		} catch ( err ) {
 		    log.error("Failed to handle HTTP request: %s", err );
+		    log.silly("HTTP Request: %s", buffer.toString() );
 		}
 	    }));
 	});
@@ -497,26 +560,26 @@ class Envoy {
 	await this.http_server.close();
     }
 
-    signingRequest ( agent_id : string, entry : string ) {
+    signingRequest ( agent_id : string, payload : string ) {
 	return new Promise((f,r) => {
-	    const entry_id		= this.entry_counter++;
+	    const payload_id		= this.payload_counter++;
 	    const event			= `${agent_id}/wormhole/request`;
 
-	    if ( this.ws_server.eventList().includes( event ) === false ) {
+	    if ( this.ws_server.eventList( NAMESPACE ).includes( event ) === false ) {
 		if ( Object.keys( this.anonymous_agents ).includes( agent_id ) )
 		    throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
 		else
 		    throw new Error(`Agent ${agent_id} is not registered.  Something must have broke?`);
 	    }
 	    
-	    this.pending_entries[ entry_id ] = [ entry, f, r ];
+	    this.pending_signatures[ payload_id ] = [ payload, f, r ];
 
-	    log.debug("Send signing request #%s to Agent %s", entry_id, agent_id );
-	    this.ws_server.emit( event, [ entry_id, entry ] );
+	    log.debug("Send signing request #%s to Agent %s", payload_id, agent_id );
+	    this.ws_server.emit( event, [ payload_id, payload ] );
 	});
     }
     
-    async callConductor ( client, call_spec, args = {} ) {
+    async callConductor ( client, call_spec, args : any = {} ) {
 	if ( typeof client === "string" )
 	    client			= this.hcc_clients[ client ];
 	
@@ -529,7 +592,17 @@ class Envoy {
 
 	let resp;
 	try {
-	    resp			= await client.call( method, args );
+	    if ( ["holo-hosting-app", "happ-store"].includes( args.instance_id ) )
+		resp			= await mocks( args );
+	    else
+		resp			= await client.call( method, args );
+
+	    try {
+		resp			= JSON.parse(resp);
+	    } catch ( err ) {
+		null;
+	    }
+	
 	} catch ( err ) {
 	    // -32700
 	    //     Parse errorInvalid JSON was received by the server. An error occurred on the server while parsing the JSON text.
@@ -581,49 +654,75 @@ class Envoy {
     async logServiceRequest ( hha_hash, agent_id, payload, signature ) {
 	const call_spec			= payload.call_spec;
 	const args_hash			= digest( call_spec["args"] );
+	const request			= {
+	    "timestamp":	payload.timestamp,
+	    "host_id":		payload.host_id,
+	    "call_spec": {
+		"hha_hash":	call_spec["hha_hash"],
+		"dna_alias":	call_spec["dna_alias"],
+		"zome":		call_spec["zome"],
+		"function":	call_spec["function"],
+		"args_hash":	args_hash,
+	    },
+	};
+
+	log.silly("%s", JSON.stringify( request, null, 4 ));
+	log.silly("%s", SerializeJSON( request ));
 	
-	return await this.callConductor( "service", {
-	    "instance_id":	`${hha_hash}::service_logger`,
+	const resp			= await this.callConductor( "service", {
+	    "instance_id":	`${hha_hash}::servicelogger`,
 	    "zome":		"service",
 	    "function":		"log_request",
 	    "args":		{
 		"agent_id":		agent_id,
-		"request": {
-		    "timestamp":	payload.timestamp,
-		    "host_id":		payload.host_id,
-		    "call_spec": {
-			"hha_hash":	call_spec["hha_hash"],
-			"dna_alias":	call_spec["dna_alias"],
-			"zome":		call_spec["zome"],
-			"function":	call_spec["function"],
-			"args_hash":	args_hash,
-		    },
-		},
+		"request":		request,
 		"request_signature":	signature,
 	    },
 	});
+	
+	log.silly("Log Service Request response: %s", JSON.stringify( resp ));
+	if ( resp.Ok )
+	    return resp.Ok;
+	else if ( resp.Err ) {
+	    log.silly("resp.Err: %s", resp.Err );
+	    let err			= JSON.parse( resp.Err.Internal );
+	    throw new Error( JSON.stringify(err,null,4) );
+	}
+	else
+	    throw new Error(`Unknown service logger response format: ${JSON.stringify(resp)}`);
     }
 
     async logServiceResponse ( hha_hash, request_log_hash, response, metrics, entries ) {
 	const response_digest		= sha256( SerializeJSON( response ) );
 	const response_hash		= Codec.Digest.encode( response_digest );
 	
-	return await this.callConductor( "service", {
-	    "instance_id":	`${hha_hash}::service_logger`,
+	const resp			= await this.callConductor( "service", {
+	    "instance_id":	`${hha_hash}::servicelogger`,
 	    "zome":		"service",
 	    "function":		"log_response",
 	    "args":		{
 		"request_commit":	request_log_hash,
 		"response_hash":	response_hash,
-		"metrics":		metrics,
+		"host_metrics":		metrics,
 		"entries":		entries,
 	    },
 	});
+
+	log.silly("Log Service Response response: %s", JSON.stringify( resp ));
+	if ( resp.Ok )
+	    return resp.Ok;
+	else if ( resp.Err ) {
+	    log.silly("resp.Err: %s", resp.Err );
+	    let err			= JSON.parse( resp.Err.Internal );
+	    throw new Error( JSON.stringify(err,null,4) );
+	}
+	else
+	    throw new Error(`Unknown service logger response format: ${JSON.stringify(resp)}`);
     }
 
     async logServiceConfirmation ( hha_hash, agent_id, response_commit, confirmation_payload, signature ) {
-	return await this.callConductor( "service", {
-	    "instance_id":	`${hha_hash}::service_logger`,
+	const resp			= await this.callConductor( "service", {
+	    "instance_id":	`${hha_hash}::servicelogger`,
 	    "zome":		"service",
 	    "function":		"log_service",
 	    "args":		{
@@ -633,6 +732,17 @@ class Envoy {
 		"confirmation_signature": signature,
 	    },
 	});
+
+	log.silly("Log Service Confirmation response: %s", JSON.stringify( resp ));
+	if ( resp.Ok )
+	    return resp.Ok;
+	else if ( resp.Err ) {
+	    log.silly("resp.Err: %s", resp.Err );
+	    let err			= JSON.parse( resp.Err.Internal );
+	    throw new Error( JSON.stringify(err,null,4) );
+	}
+	else
+	    throw new Error(`Unknown service logger response format: ${JSON.stringify(resp)}`);
     }
 
 }

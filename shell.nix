@@ -3,6 +3,9 @@
 with pkgs;
 
 let
+
+  inherit (callPackage ../servicelogger {}) servicelogger;
+  
   dnas = with dnaPackages; [
     happ-store
     holo-hosting-app
@@ -100,7 +103,7 @@ mkShell {
     dnaPackages.happ-store
     dnaPackages.holo-hosting-app
     dnaPackages.holofuel
-    dnaPackages.servicelogger
+    servicelogger
     # dnaPackages.hylo-holo-dnas
   ];
 }

@@ -63,6 +63,10 @@ start-hcc-%:		DNAs conductor-%.toml
 	holochain -c conductor-$*.toml
 
 DNAs:			dist/happ-store.dna.json dist/holo-hosting-app.dna.json dist/holofuel.dna.json dist/servicelogger.dna.json
+rm-DNAs:
+	rm dist/*.json
+update-DNAs:		rm-DNAs DNAs
+
 dist/%.dna.json:
 	@for p in $$buildInputs; do \
 	    echo "Checking derivation $$p ($${p#*-} == $*)"; \
@@ -99,3 +103,13 @@ keystore-%.key:
 	);										\
 	echo " $@ -> $$KEYFILE";							\
 	ln -fs $$KEYFILE $@
+
+
+# TMP targets
+
+use-local-chaperone:
+	npm uninstall --save @holo-host/chaperone; npm install ../chaperone
+use-npm-chaperone:
+	npm uninstall --save @holo-host/chaperone; npm install @holo-host/chaperone
+use-npm-chaperone-%:
+	npm uninstall --save @holo-host/chaperone; npm install @holo-host/chaperone@$*

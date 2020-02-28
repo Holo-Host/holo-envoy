@@ -12,6 +12,7 @@ const { Server : WebSocketServer,
 const { KeyManager,
 	Codec, }			= require('@holo-host/cryptolib');
 
+const { struct, superstruct }		= require('superstruct');
 const sha256				= (buf) => crypto.createHash('sha256').update( Buffer.from(buf) ).digest();
 
 function ZomeAPIResult ( result ) {
@@ -24,6 +25,24 @@ function ZomeAPIError ( result ) {
 	"Err": result,
     };
 }
+
+const holo_struct = superstruct({
+    types: {
+	"agent_id": value => {
+	    return Codec.AgentId.decode( value ) && true;
+	},
+	"hash": value => {
+	    return Codec.Digest.decode( value ) && true;
+	},
+	"signature": value => {
+	    return Codec.Signature.decode( value ) && true;
+	},
+	"iso_string": value => {
+	    const d = new Date( value );
+	    return value === d.toISOString().replace("Z","+00:00");
+	},
+    },
+});
 
 const MockMaster = {
     "agents": {},
@@ -88,6 +107,43 @@ const provenance = (
 );
 const timestamp = "2019-12-03T07:10:22Z";
 
+
+
+const request_input_superstruct = holo_struct({
+    "agent_id": "agent_id",
+    "request": {
+	"timestamp": "iso_string",
+	"host_id": "agent_id",
+	"call_spec": {
+	    "hha_hash": "hash",
+	    "dna_alias": "string",
+	    "zome": "string",
+	    "function": "string",
+	    "args_hash": "hash"
+	}
+    },
+    "request_signature": "signature",
+});
+const response_input_superstruct = holo_struct({
+    "request_commit": "hash",
+    "response_hash": "hash",
+    "host_metrics": "object",
+    "entries": "array",
+});
+const service_input_superstruct = holo_struct({
+    "agent_id": "agent_id",
+    "response_commit": "hash",
+    "confirmation": {
+	"response_hash": "hash",
+	"client_metrics": {
+	    "duration": "string"
+	}
+    },
+    "confirmation_signature": "signature"
+});
+
+const utf8				= new TextEncoder();
+
 const MockServiceLogger = {
     "verifyPayload": ( agent_id, payload, payload_signature ) => {
 	const serialized		= SerializeJSON( payload );
@@ -96,33 +152,42 @@ const MockServiceLogger = {
 	const sig_bytes			= Codec.Signature.decode( payload_signature );
 	const public_key		= Codec.AgentId.decode( agent_id );
 
-	return KeyManager.verifyWithPublicKey( serialized, sig_bytes, public_key );
+	return KeyManager.verifyWithPublicKey( utf8.encode(serialized), sig_bytes, public_key );
     },
 
     "service": {
 	async log_request ( args ) {
+	    log.silly("Input: %s", JSON.stringify(args,null,4) );
+	    // Validate input
+	    request_input_superstruct( args );
+
 	    const {
 		agent_id,
 		request,
 		request_signature
 	    }				= args;
+
 	    if ( this.verifyPayload( agent_id, request, request_signature ) !== true )
 		throw new Error("Signature does not match request payload");
+
+
+	    if ( typeof request.timestamp !== "string" )
+		throw new Error(`invalid type: integer \`${request.timestamp}\`, expected a string at line 1 column 114`);
+
+	    if ( Date.parse( request.timestamp ) === NaN )
+		throw new Error(`invalid date: ${request.timestamp}`);
 
 	    const entry			= SerializeJSON( args );
 
 	    const address		= Codec.Digest.encode( sha256( entry ) );
-	    return ZomeAPIResult({
-		"meta": {
-		    address,
-		    provenance,
-		    timestamp,
-		},
-		"client_request": args,
-	    });
+	    return ZomeAPIResult(address);
 	},
 	
 	async log_response ( args ) {
+	    log.silly("Input: %s", JSON.stringify(args,null,4) );
+	    // Validate input
+	    response_input_superstruct( args );
+
 	    const {
 		request_commit,
 		response_hash,
@@ -132,17 +197,14 @@ const MockServiceLogger = {
 	    const entry			= SerializeJSON( args );
 
 	    const address		= Codec.Digest.encode( sha256( entry ) );
-	    return ZomeAPIResult({
-		"meta": {
-		    address,
-		    provenance,
-		    timestamp,
-		},
-		"host_response": args,
-	    });
+	    return ZomeAPIResult(address);
 	},
 
 	async log_service ( args ) {
+	    log.silly("Input: %s", JSON.stringify(args,null,4) );
+	    // Validate input
+	    service_input_superstruct( args );
+
 	    const {
 		agent_id,
 		response_commit,
@@ -155,14 +217,7 @@ const MockServiceLogger = {
 	    const entry			= SerializeJSON( args );
 
 	    const address		= Codec.Digest.encode( sha256( entry ) );
-	    return ZomeAPIResult({
-		"meta": {
-		    address,
-		    provenance,
-		    timestamp,
-		},
-		"service_log": args,
-	    });
+	    return ZomeAPIResult(address);
 	},
     }
 };
@@ -245,6 +300,12 @@ const AdminInstances = {
 };
 
 
+function dieOnError ( ws_server ) {
+    ws_server.on("error", ( err ) => {
+	console.log( err );
+	process.exit();
+    });
+}
 
 class Conductor {
 
@@ -267,6 +328,11 @@ class Conductor {
 	    "port": 42244,
 	    "host": "localhost",
 	});
+
+	dieOnError( this.master );
+	dieOnError( this.service );
+	dieOnError( this.internal );
+	dieOnError( this.general );
 
 	this.handleMaster();
 	this.handleServiceLogs();
@@ -330,6 +396,8 @@ class Conductor {
 
     async wormholeRequest ( agent_id, entry ) {
 	const message			= typeof entry === "string" ? entry : SerializeJSON( entry );
+
+	log.debug("Sending HTTP wormhole request to %s with message length %s", agent_id, message.length );
 	const resp			= await fetch(`http://localhost:${this.wormhole_port}`, {
 	    "method": "POST",
 	    "body": JSON.stringify({
@@ -338,6 +406,8 @@ class Conductor {
 	    }),
 	    "timeout": 1000,
 	});
+
+	log.debug("HTTP response status: %s", resp.status );
 
 	if ( resp.status !== 200 ) {
 	    log.error("Signing service error: %s", await resp.text() );

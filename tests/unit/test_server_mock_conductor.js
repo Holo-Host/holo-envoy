@@ -9,7 +9,7 @@ const fetch				= require('node-fetch');
 const setup				= require("../setup_envoy.js");
 const Conductor				= require("../mock_conductor.js");
 
-describe("Server", () => {
+describe("Server with mock Conductor", () => {
 
     let envoy;
     let server;
@@ -159,7 +159,7 @@ describe("Server", () => {
 		    "foo": "bar",
 		});
 
-		expect( signature	).to.equal("TotZt8AGH3IxOJTYToT2sGePdy2J2rzGgF2XP4sTC3ruOQp3ac2W0XikXj+CrGkso/JuNEWxKO0Q/K7G1ThVAg==");
+		expect( signature	).to.equal("+FNHQJAQwzUOUbBaw7HhiKMwD4NWkTscM4HZGWqTJwj6OgM0JJt1p48UnStjzI1Rgm8RzjJj2ZbKV9/pWBQlBQ==");
 
 		return true;
 	    });
