@@ -143,10 +143,36 @@ class Envoy {
 	    }
 	});
 
-	this.ws_server.register("holo/agent/identify", async ([ agent_id ]) => {
+	this.ws_server.register("holo/wormhole/event", async ([ agent_id ]) => {
 	    log.debug("Initializing Agent: %s", agent_id );
 	    const event			= `${agent_id}/wormhole/request`;
 
+	    try {
+		this.ws_server.event( event, NAMESPACE );
+	    } catch (e) {
+		if ( e.message.includes('Already registered event') )
+		    log.warn("Agent '%s' is already registered", agent_id );
+		else
+		    console.error( e );
+	    }
+
+	    return event;
+	}, NAMESPACE );
+
+	this.ws_server.register("holo/wormhole/response", async ([ payload_id, signature ]) => {
+	    log.debug("Reveived signing response #%s with signature %s", payload_id, signature );
+
+	    // - match payload ID to payload
+	    const [payload,f,r]		= this.pending_signatures[ payload_id ];
+
+	    // - respond to HTTP request
+	    f( signature );
+
+	    // - return success
+	    return true;
+	}, NAMESPACE );
+
+	this.ws_server.register("holo/agent/identify", async ([ agent_id ]) => {
 	    // Check if this agent is known to this host
 	    try {
 		let agents		= await this.callConductor( "master", "admin/agent/list" );
@@ -174,16 +200,7 @@ class Envoy {
 		return (new HoloError( String(err) )).toJSON();
 	    }
 
-	    try {
-		this.ws_server.event( event, NAMESPACE );
-	    } catch (e) {
-		if ( e.message.includes('Already registered event') )
-		    log.warn("Agent '%s' is already registered", agent_id );
-		else
-		    console.error( e );
-	    }
-	    
-	    return event;
+	    return true;
 	}, NAMESPACE );
 	
 	this.ws_server.register("holo/agent/signup", async ([ hha_hash, agent_id ]) => {
@@ -365,18 +382,6 @@ class Envoy {
 	    return true;
 	}, NAMESPACE );
 
-	this.ws_server.register("holo/wormhole/response", async ([ payload_id, signature ]) => {
-	    log.debug("Reveived signing response #%s with signature %s", payload_id, signature );
-	    
-	    // - match payload ID to payload
-	    const [payload,f,r]		= this.pending_signatures[ payload_id ];
-
-	    // - respond to HTTP request
-	    f( signature );
-
-	    // - return success
-	    return true;
-	}, NAMESPACE );
 
 	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
 	    // Example of request package

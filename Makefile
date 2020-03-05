@@ -59,8 +59,10 @@ HCC_DIR		= ./holochain-conductor
 HCC_STORAGE	= /var/lib/holochain-conductor
 
 .PHONY:		start-hcc-%
-start-hcc-%:		DNAs conductor-%.toml
-	holochain -c conductor-$*.toml
+conductor.log:
+	touch $@
+start-hcc-%:		DNAs conductor-%.toml conductor.log
+	holochain -c conductor-$*.toml > conductor.log 2>&1 & tail -f conductor.log
 
 DNAs:			dist/happ-store.dna.json dist/holo-hosting-app.dna.json dist/holofuel.dna.json dist/servicelogger.dna.json
 rm-DNAs:

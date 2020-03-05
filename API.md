@@ -10,8 +10,7 @@ Arguments
 - `<agent_id>`
 
 ### `holo/agent/identify`
-A simple maintenance endpoint for RPC WebSockets.  It creates a unique event for sending messages
-directly to the Agent.  Returns the event name so the client can subscribe to it.
+Endpoint for asking a Host if they are hosting the given Agent ID.
 
 Arguments
 - `<agent_id>`
@@ -41,6 +40,13 @@ Arguments
       "service_signature"    : string
   }
   ```
+
+### `holo/wormhole/event`
+A simple maintenance endpoint for RPC WebSockets.  It creates a unique event for sending messages
+directly to the Agent.  Returns the event name so the client can subscribe to it.
+
+Arguments
+- `<agent_id>`
 
 ### `holo/wormhole/response`
 The client sends signatures for signed entries to this endpoint.

@@ -18,7 +18,7 @@
     "url": "https://github.com/Holo-Host/envoy/"
   },
   "dependencies": {
-    "@holo-host/chaperone": "file:../chaperone",
+    "@holo-host/chaperone": "^0.1.6",
     "@holo-host/cryptolib": "^0.2.0",
     "@whi/stdlog": "^0.3.0",
     "concat-stream": "^2.0.0",
