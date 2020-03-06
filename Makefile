@@ -61,6 +61,11 @@ HCC_STORAGE	= /var/lib/holochain-conductor
 .PHONY:		start-hcc-%
 conductor.log:
 	touch $@
+
+reset-hcc:
+	rm -f conductor-*.toml
+	rm /var/lib/holochain-conductor/* -rf
+	rm -f dist/*
 start-hcc-%:		DNAs conductor-%.toml conductor.log
 	holochain -c conductor-$*.toml > conductor.log 2>&1 & tail -f conductor.log
 
