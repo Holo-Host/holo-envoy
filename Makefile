@@ -83,12 +83,15 @@ dist/%.dna.json:
 	    fi \
 	done
 
+start-sim2h:
+	sim2h_server -p 9000 > sim2h.log 2>&1 &
+
 conductor-%.toml:	keystore-%.key $(HCC_DIR)/conductor.master.toml Makefile
 	@echo "Creating Holochain conductor config for Agent $*...";			\
 	AGENT=$*;									\
 	PUBKEY=$$( ls -l $< ); PUBKEY=$${PUBKEY##*/};					\
 	KEYFILE=$<;									\
-	S2HURI=wss://sim2h.holochain.org:9000;						\
+	S2HURI=ws://localhost:9000;							\
 	WORMHOLE=http://localhost:9676;							\
 	HCC_STORAGE=$(HCC_STORAGE);							\
 	sed -e "s|AGENT|$$AGENT|g"							\

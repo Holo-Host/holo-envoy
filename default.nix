@@ -34,7 +34,7 @@ with pkgs;
     '';
 
     checkPhase = ''
-      npm run test
+      npm run test-unit
     '';
 
     doCheck = true;

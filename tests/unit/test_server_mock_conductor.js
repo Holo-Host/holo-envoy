@@ -159,7 +159,7 @@ describe("Server with mock Conductor", () => {
 		    "foo": "bar",
 		});
 
-		expect( signature	).to.equal("+FNHQJAQwzUOUbBaw7HhiKMwD4NWkTscM4HZGWqTJwj6OgM0JJt1p48UnStjzI1Rgm8RzjJj2ZbKV9/pWBQlBQ==");
+		expect( signature	).to.equal("uRMY9UXZqucO/wiB2wYGuf3bHJ9ZCspXnvLI/d2+oOse2YbYz2weURDO2OrW4yHlc2FaOR5E9P01+JE+0HSCAg==");
 
 		return true;
 	    });
