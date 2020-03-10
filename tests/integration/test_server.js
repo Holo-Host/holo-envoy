@@ -126,14 +126,28 @@ describe("Server", () => {
     	    const response		= await client.callZomeFunction( "holofuel", "transactions", "ledger_state" );
     	    log.debug("Response: %s", response );
 
-    	    expect( response		).to.deep.equal( [] );
+	    // {"Ok":{"balance":"0","credit":"0","payable":"0","receivable":"0","fees":"0","available":"0"}}
+	    expect( response.Ok			).to.be.an("object");
+	    expect( Object.keys(response.Ok)	).to.have.members([ "balance", "credit", "payable", "receivable", "fees", "available" ]);
     	} finally {
     	}
     });
+
+    function delay(t, val) {
+	return new Promise(function(resolve) {
+	    setTimeout(function() {
+		resolve(val);
+	    }, t);
+	});
+    }
     
     it("should have no pending confirmations", async () => {
 	try {
+	    // Give confirmation request some time to finish
+	    await delay( 1000 );
+
 	    expect( envoy.pending_confirms	).to.be.empty;
+	    expect( client.pending_confirms	).to.be.empty;
 	} finally {
 	}
     });

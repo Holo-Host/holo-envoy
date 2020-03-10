@@ -6,7 +6,7 @@
   "scripts": {
     "install": "npm run build",
     "build": "tsc --esModuleInterop --lib es7,dom --outDir ./build -p ./src",
-    "test": "mocha ./tests/*/"
+    "test-unit": "mocha ./tests/unit/"
   },
   "author": "Holo Inc.",
   "contributors": [
@@ -18,7 +18,7 @@
     "url": "https://github.com/Holo-Host/envoy/"
   },
   "dependencies": {
-    "@holo-host/chaperone": "^0.1.6",
+    "@holo-host/chaperone": "^0.1.7",
     "@holo-host/cryptolib": "^0.2.0",
     "@whi/stdlog": "^0.3.0",
     "concat-stream": "^2.0.0",
