@@ -29,7 +29,7 @@ make conductor-1.toml
 Start conductor
 ```bash
 holochain -c conductor-1.toml
-// or
+# or
 make start-hcc-1
 ```
 
