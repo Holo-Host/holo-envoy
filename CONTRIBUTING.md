@@ -3,10 +3,12 @@
 
 Enter `nix-shell` before running tests.
 
+
 ### Node modules
 ```bash
 npm install
 ```
+
 
 ## Unit tests
 
@@ -17,9 +19,14 @@ make test-unit
 LOG_LEVEL=silly npx mocha ./tests/unit/
 ```
 
+
 ## Integration tests
 
 ### Setup Holochain
+
+> **NOTE:** by default, Conductor's persistence directory is set to `/var/lib/holochain-conductor/`.
+> Make this directory exist and be writable, or change the configuration template before running
+> `make conductor-1.toml`.
 
 ```bash
 make DNAs # Creates local links in ./dist pointing to /nix/store DNAs
