@@ -1,4 +1,4 @@
-{ pkgs ? import ./. {} }:
+{ pkgs ? import ./pkgs.nix {} }:
 
 with pkgs;
 
