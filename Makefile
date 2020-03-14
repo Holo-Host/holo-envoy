@@ -75,6 +75,7 @@ rm-DNAs:
 update-DNAs:		rm-DNAs DNAs
 
 dist/%.dna.json:
+	mkdir -p ./dist
 	@for p in $$buildInputs; do \
 	    echo "Checking derivation $$p ($${p#*-} == $*)"; \
 	    if [[ "$${p#*-}" == "$*" ]]; then \
