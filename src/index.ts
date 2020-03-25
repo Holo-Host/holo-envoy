@@ -83,7 +83,8 @@ class Envoy {
 
     constructor ( opts ) {
 	this.opts			= Object.assign({}, {
-	    "port": WS_SERVER_PORT
+	    "port": WS_SERVER_PORT,
+	    "NS": NAMESPACE,
 	}, opts);
 
 	this.conductor_opts		= {
@@ -119,7 +120,7 @@ class Envoy {
     async startWebsocketServer () {
 	this.ws_server			= new WebSocketServer({
 	    "port": this.opts.port,
-	    "host": "localhost",
+	    "host": "0.0.0.0", // "localhost",
 	});
 
 	this.ws_server.on("connection", async (socket, request) => {
@@ -148,16 +149,16 @@ class Envoy {
 	    const event			= `${agent_id}/wormhole/request`;
 
 	    try {
-		this.ws_server.event( event, NAMESPACE );
+		this.ws_server.event( event, this.opts.NS );
 	    } catch (e) {
 		if ( e.message.includes('Already registered event') )
-		    log.warn("Agent '%s' is already registered", agent_id );
+		    log.warn("Event '%s' is already registered", agent_id );
 		else
 		    console.error( e );
 	    }
 
 	    return event;
-	}, NAMESPACE );
+	}, this.opts.NS );
 
 	this.ws_server.register("holo/wormhole/response", async ([ payload_id, signature ]) => {
 	    log.debug("Reveived signing response #%s with signature %s", payload_id, signature );
@@ -170,11 +171,12 @@ class Envoy {
 
 	    // - return success
 	    return true;
-	}, NAMESPACE );
+	}, this.opts.NS );
 
 	this.ws_server.register("holo/agent/identify", async ([ agent_id ]) => {
 	    // Check if this agent is known to this host
 	    try {
+		log.info("Fetching agent list");
 		let agents		= await this.callConductor( "master", "admin/agent/list" );
 
 		// Example response
@@ -189,9 +191,11 @@ class Envoy {
 		//     }]
 		//
 
+		log.debug("Agent list: {}", agents );
 		const agent		= agents.find( agent => agent.public_address === agent_id );
 
 		if ( agent === undefined ) {
+		    log.error("Unknown to this Host: {}", agent_id );
 		    return (new HoloError("Agent '%s' is unknown to this Host", agent_id )).toJSON();
 		}
 	    } catch ( err ) {
@@ -201,7 +205,7 @@ class Envoy {
 	    }
 
 	    return true;
-	}, NAMESPACE );
+	}, this.opts.NS );
 	
 	this.ws_server.register("holo/agent/signup", async ([ hha_hash, agent_id ]) => {
 	    const failure_response	= (new HoloError("Failed to create a new hosted agent")).toJSON();
@@ -380,7 +384,7 @@ class Envoy {
 
 	    // - return success
 	    return true;
-	}, NAMESPACE );
+	}, this.opts.NS );
 
 
 	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
@@ -487,7 +491,7 @@ class Envoy {
 		"result": response,
 		"error": holo_error,
 	    };
-	}, NAMESPACE );
+	}, this.opts.NS );
 	
 	this.ws_server.register("holo/service/confirm", async ([ resp_id, payload, signature ]) => {
 	    log.info("Processing pending confirmation: %s", resp_id );
@@ -512,7 +516,7 @@ class Envoy {
 
 	    // - return success
 	    return true;
-	}, NAMESPACE );
+	}, this.opts.NS );
     }
 
     async startHTTPServer () {
@@ -528,7 +532,7 @@ class Envoy {
 
 		    let signature;
 		    try {
-			log.silly("HTTP Body: %s", payload );
+			log.silly("Body payload: %s", payload );
 			signature	= await this.signingRequest( agent_id, payload );
 		    } catch ( err ) {
 			log.error("Signing request error: %s", String(err) );
@@ -570,7 +574,7 @@ class Envoy {
 	    const payload_id		= this.payload_counter++;
 	    const event			= `${agent_id}/wormhole/request`;
 
-	    if ( this.ws_server.eventList( NAMESPACE ).includes( event ) === false ) {
+	    if ( this.ws_server.eventList( this.opts.NS ).includes( event ) === false ) {
 		if ( Object.keys( this.anonymous_agents ).includes( agent_id ) )
 		    throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
 		else
@@ -590,10 +594,20 @@ class Envoy {
 	
 	// Assume the method is "call" unless `call_spec` is a string.
 	let method			= "call";
-	if ( typeof call_spec === "string" )
+	if ( typeof call_spec === "string" ) {
+	    log.info("Calling method %s( %s )", method, args );
 	    method			= call_spec;
-	else
+	}
+	else {
+	    log.info(
+		"Calling zome function %s:%s->%s( %s )",
+		call_spec.instance_id,
+		call_spec.zome,
+		call_spec.function,
+		typeof call_spec.args,
+	    );
 	    args			= call_spec;
+	}
 
 	let resp;
 	try {
@@ -626,7 +640,7 @@ class Envoy {
 		if ( err.data.includes("response from service is not success") )
 		    throw new HoloError("Failed to get signatures from Client");
 		else
-		    throw new HoloError("Unknown RPC Error: %s", JSON.stringify( err ));
+		    throw new HoloError("Unknown -32000 Error: %s", JSON.stringify( err ));
 	    } else if ( err instanceof Error ) {
 		throw new HoloError(String(err));
 	    } else {

@@ -6,6 +6,7 @@ const log				= require('@whi/stdlog')(path.basename( __filename ), {
 const expect				= require('chai').expect;
 const fetch				= require('node-fetch');
 
+const conductor				= require("../setup_conductor.js");
 const setup				= require("../setup_envoy.js");
 
 describe("Server", () => {
@@ -14,7 +15,12 @@ describe("Server", () => {
     let server;
     let client;
 
-    before(async () => {
+    before(async function() {
+	this.timeout(10_000);
+
+	log.info("Starting conductor");
+	await conductor.start();
+
 	envoy				= await setup.start();
 	server				= envoy.ws_server;
 
@@ -25,10 +31,13 @@ describe("Server", () => {
     });
     after(async () => {
 	log.info("Closing client...");
-	await client.close();
+	client && await client.close();
 	
 	log.info("Stopping Envoy...");
 	await setup.stop();
+
+	log.info("Stopping Conductor...");
+	await conductor.stop();
     });
     
     // it("should process request and respond", async () => {
@@ -116,7 +125,8 @@ describe("Server", () => {
 	}
     });
 
-    it("should process signed-in request and respond", async () => {
+    it("should process signed-in request and respond", async function () {
+	this.timeout(5_000);
     	try {
     	    await client.signIn( "someone@example.com", "Passw0rd!" );
     	    const agent_id		= client.agent_id;
@@ -141,10 +151,11 @@ describe("Server", () => {
 	});
     }
     
-    it("should have no pending confirmations", async () => {
+    it("should have no pending confirmations", async function () {
+	this.timeout(5_000);
 	try {
 	    // Give confirmation request some time to finish
-	    await delay( 1000 );
+	    await delay( 2_000 );
 
 	    expect( envoy.pending_confirms	).to.be.empty;
 	    expect( client.pending_confirms	).to.be.empty;

@@ -7,3 +7,6 @@ docs
 result
 conductor-*.toml
 keystore-*.key
+AGENTID
+conductor.log
+sim2h.log

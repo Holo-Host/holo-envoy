@@ -7,6 +7,16 @@ with pkgs;
     name = "holo-envoy";
     src = gitignoreSource ./.;
 
+    buildInputs = [
+      holochain-rust
+      python
+
+      dnaPackages.happ-store
+      dnaPackages.holo-hosting-app
+      dnaPackages.holofuel
+      dnaPackages.servicelogger
+    ];
+
     nativeBuildInputs = [
       nodejs
       makeWrapper
@@ -34,7 +44,8 @@ with pkgs;
     '';
 
     checkPhase = ''
-      npm run test-unit
+      make test
+      make stop-sim2h
     '';
 
     doCheck = true;

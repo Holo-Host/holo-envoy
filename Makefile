@@ -19,14 +19,22 @@ docs:			node_modules docs/index.html
 
 MOCHA_OPTS		= 
 
-test:			build
-	npx mocha $(MOCHA_OPTS) --recursive ./tests/*/
-test-debug:		build
-	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) --recursive ./tests
+test:			build DNAs conductor-1.toml start-sim2h
+	npx mocha $(MOCHA_OPTS) ./tests/unit/
+	npx mocha $(MOCHA_OPTS) ./tests/integration/
+test-debug:		build DNAs conductor-1.toml start-sim2h
+	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
+	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/integration/
+
 test-unit:		build
+	npx mocha $(MOCHA_OPTS) ./tests/unit/
+test-unit-debug:	build
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
-test-integration:	build
+
+test-integration:	build DNAs conductor-1.toml start-sim2h
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/integration/
+test-integration-debug:	build DNAs conductor-1.toml start-sim2h
+	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
 
 docs-watch:
 build-watch:
@@ -84,13 +92,17 @@ dist/%.dna.json:
 	    fi \
 	done
 
-start-sim2h:
+sim2h.log:
 	sim2h_server -p 9000 > sim2h.log 2>&1 &
+start-sim2h:		sim2h.log
+stop-sim2h:
+	killall sim2h_server || true
+	rm sim2h.log
 
 conductor-%.toml:	keystore-%.key $(HCC_DIR)/conductor.master.toml Makefile
 	@echo "Creating Holochain conductor config for Agent $*...";			\
 	AGENT=$*;									\
-	PUBKEY=$$( ls -l $< ); PUBKEY=$${PUBKEY##*/};					\
+	PUBKEY=$$(cat AGENTID);								\
 	KEYFILE=$<;									\
 	S2HURI=ws://localhost:9000;							\
 	WORMHOLE=http://localhost:9676;							\
@@ -106,15 +118,12 @@ conductor-%.toml:	keystore-%.key $(HCC_DIR)/conductor.master.toml Makefile
 	echo " ... Wrote new $@ (from $(HCC_DIR)/conductor.master.toml and $<)"
 
 keystore-%.key:
-	@echo -n "Creating Holochain key for Agent $*...";				\
-	eval $$( hc keygen --nullpass --quiet						\
-	  | python -c "import sys;						\
-	      print('\n'.join('%s=%s' % ( k, v.strip() )			\
-		for (k, v) in zip(['KEY','KEYFILE'], sys.stdin.readlines())))"	\
-	);										\
-	echo " $@ -> $$KEYFILE";							\
-	ln -fs $$KEYFILE $@
-
+	@echo "Creating Holochain key for Agent $*: keystore-$*.key";
+	echo $$( hc keygen --nullpass --quiet --path ./keystore-$*.key)			\
+		| while read key _; do							\
+			echo $$key > AGENTID;						\
+		done
+	@echo "Agent ID: $$(cat AGENTID)";
 
 # TMP targets
 
