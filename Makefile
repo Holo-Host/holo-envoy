@@ -92,12 +92,35 @@ dist/%.dna.json:
 	    fi \
 	done
 
-sim2h.log:
-	sim2h_server -p 9000 > sim2h.log 2>&1 &
-start-sim2h:		sim2h.log
+check-sim2h:
+	ps -efH | grep sim2h_server | grep 9000 | grep -v grep
+restart-sim2h:		stop-sim2h start-sim2h
+start-sim2h:
+	@if [[ $$(ps -efH | grep sim2h_server | grep 9000 | grep -v grep) ]]; then	\
+		echo "sim2h is already running on port 9000";				\
+	else										\
+		echo "Starting sim2h_server on port 9000";				\
+		sim2h_server -p 9000 > sim2h.log 2>&1 &					\
+	fi
 stop-sim2h:
-	killall sim2h_server || true
-	rm sim2h.log
+	@if [[ $$(ps -efH | grep sim2h_server | grep 9000 | grep -v grep) ]]; then	\
+		echo "Stopping sim2h_server...";					\
+		killall sim2h_server || true;						\
+	else										\
+		echo "sim2h is not running on port 9000";				\
+	fi
+
+check-conductor:	check-holochain
+check-holochain:
+	ps -efH | grep holochain | grep -E "conductor-[0-9]+.toml"
+stop-conductor:		stop-holochain
+stop-holochain:
+	@if [[ $$(ps -efH | grep holochain | grep -E "conductor-[0-9]+.toml") ]]; then	\
+		echo "Stopping holochain conductor...";					\
+		killall holochain || true;						\
+	else										\
+		echo "holochain conductor is not running";				\
+	fi
 
 conductor-%.toml:	keystore-%.key $(HCC_DIR)/conductor.master.toml Makefile
 	@echo "Creating Holochain conductor config for Agent $*...";			\
