@@ -44,6 +44,7 @@ async function create_client ( agent_id		= "HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVj
 	"timeout": timeout,
 	"debug": !!process.env.LOG_LEVEL,
 	"host": "localhost",
+	"comb": false,
 	host_agent_id,
     });
     

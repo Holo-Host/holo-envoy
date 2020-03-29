@@ -25,9 +25,7 @@ async function start_conductor () {
 	const cmd			= "holochain";
 	const args			=  "-c conductor-1.toml".split(" "); //  > conductor.log 2>&1 & tail -f conductor.log
 	log.debug("Spawning child holochain: %s %s (pwd %s)", cmd, args, process.env.PWD );
-	holochain			= ChildProcess.spawn( cmd, args, {
-	    "shell": true,
-	});
+	holochain			= ChildProcess.spawn( cmd, args );
 	log.info("Started holochain with PID: %s", holochain.pid );
 
 	const hc_log_filters		= process.env.CONDUCTOR_LOGS === undefined
@@ -84,9 +82,39 @@ async function start_conductor () {
     return holochain;
 }
 
-async function stop_conductor () {
+async function process_killed( p, timeout ) {
+    return new Promise((f,r) => {
+	let counter			= 0;
+	let iid				= setInterval(async () => {
+	    try {
+		let status		= holochain.kill( 0 );
+		if ( status === false ) {
+		    clearInterval( iid );
+		    f();
+		}
+
+		counter++;
+
+		if ( counter > timeout/100 ) {
+		    clearInterval( iid );
+		    r("Timeout exceeded: " + timeout);
+		}
+	    } catch ( err ) {
+		console.log( err );
+		clearInterval( iid );
+		r( err );
+	    }
+	}, 100 );
+    });
+}
+
+async function stop_conductor ( timeout ) {
     log.debug("Closing Conductor...");
-    holochain.kill( 1 ); // SIGTERM (15) | SIGKILL (9)
+    // SIGTERM (15) | SIGKILL (9) | SIGHUP (1)
+    log.silly("Kill process response: %s", holochain.kill( 1 ) );
+
+    log.debug("Waiting for Conductor process to stop...");
+    await process_killed( holochain, timeout );
 }
 
 

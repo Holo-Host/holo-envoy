@@ -29,7 +29,9 @@ describe("Server", () => {
 
 	client				= await setup.client();
     });
-    after(async () => {
+    after(async function () {
+	this.timeout(60_000);
+
 	log.info("Closing client...");
 	client && await client.close();
 	
@@ -37,7 +39,7 @@ describe("Server", () => {
 	await setup.stop();
 
 	log.info("Stopping Conductor...");
-	await conductor.stop();
+	await conductor.stop( 60_000 );
     });
     
     // it("should process request and respond", async () => {

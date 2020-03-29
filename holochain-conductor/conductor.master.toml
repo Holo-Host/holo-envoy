@@ -15,22 +15,22 @@ keystore_file = "KEYFILE"
 # -----------  DNA  -----------
 [[dnas]]
 id = "happ-store"
-file = "dist/happ-store.dna.json"
+file = "dnas/happ-store.dna.json"
 hash = "QmZPcGSFhgVuxnu1sH1ULfkMJhxmmj1U8dQCqyWTHbq2AM"
 
 [[dnas]]
 id = "holo-hosting-app"
-file = "dist/holo-hosting-app.dna.json"
+file = "dnas/holo-hosting-app.dna.json"
 hash = "QmfDn9pSuy1wL2bogD6s7SxE6b7wjdpEpR12M1YZhHPHXY"
 
 [[dnas]]
 id = "holofuel"
-file = "dist/holofuel.dna.json"
+file = "dnas/holofuel.dna.json"
 hash = "QmWvWtw1P2nduQqk8uKpfhAeUd72bSU2gFH7TLrQm1Bbfw"
 
 [[dnas]]
 id = "servicelogger"
-file = "dist/servicelogger.dna.json"
+file = "dnas/servicelogger.dna.json"
 hash = "QmQ8LUXxBYpVKxiFGA6f4E2Tjw89Kx3mtqCS8EXtrRKbSu"
 
 

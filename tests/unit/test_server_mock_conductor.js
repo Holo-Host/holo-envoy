@@ -96,7 +96,7 @@ describe("Server with mock Conductor", () => {
 		failed			= true;
 
 		expect( err.name	).to.include("HoloError");
-		expect( err.message	).to.include("unknown to this Host");
+		expect( err.message	).to.include("cannot identify");
 	    }
 
 	    expect( failed		).to.be.true;

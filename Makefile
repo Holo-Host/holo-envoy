@@ -20,11 +20,13 @@ docs:			node_modules docs/index.html
 MOCHA_OPTS		= 
 
 test:			build DNAs conductor-1.toml start-sim2h
-	npx mocha $(MOCHA_OPTS) ./tests/unit/
-	npx mocha $(MOCHA_OPTS) ./tests/integration/
+	make test-unit;
+	make reset-hcc; make test-integration
+	make reset-hcc; make test-e2e
 test-debug:		build DNAs conductor-1.toml start-sim2h
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
-	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/integration/
+	make reset-hcc; make test-integration-debug
+	make reset-hcc; make test-e2e-debug2
 
 test-unit:		build
 	npx mocha $(MOCHA_OPTS) ./tests/unit/
@@ -32,9 +34,16 @@ test-unit-debug:	build
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
 
 test-integration:	build DNAs conductor-1.toml start-sim2h
-	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/integration/
+	npx mocha $(MOCHA_OPTS) ./tests/integration/
 test-integration-debug:	build DNAs conductor-1.toml start-sim2h
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
+
+test-e2e:		build DNAs conductor-1.toml start-sim2h
+	npx mocha $(MOCHA_OPTS) ./tests/e2e
+test-e2e-debug:		build DNAs conductor-1.toml start-sim2h
+	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
+test-e2e-debug2:	build DNAs conductor-1.toml start-sim2h
+	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
 
 docs-watch:
 build-watch:
@@ -71,19 +80,19 @@ conductor.log:
 	touch $@
 
 reset-hcc:
-	rm -f conductor-*.toml
 	rm /var/lib/holochain-conductor/* -rf
-	rm -f dist/*
+	rm -f dnas/*
+	rm -f conductor-*.toml
 start-hcc-%:		DNAs conductor-%.toml conductor.log
 	holochain -c conductor-$*.toml > conductor.log 2>&1 & tail -f conductor.log
 
-DNAs:			dist/happ-store.dna.json dist/holo-hosting-app.dna.json dist/holofuel.dna.json dist/servicelogger.dna.json
+DNAs:			dnas/happ-store.dna.json dnas/holo-hosting-app.dna.json dnas/holofuel.dna.json dnas/servicelogger.dna.json
 rm-DNAs:
-	rm dist/*.json
+	rm dnas/*.json
 update-DNAs:		rm-DNAs DNAs
 
-dist/%.dna.json:
-	mkdir -p ./dist
+dnas/%.dna.json:
+	mkdir -p ./dnas
 	@for p in $$buildInputs; do \
 	    echo "Checking derivation $$p ($${p#*-} == $*)"; \
 	    if [[ "$${p#*-}" == "$*" ]]; then \

@@ -108,10 +108,14 @@ class Envoy {
 	    this.hcc_clients.master	= new WebSocket(`ws://localhost:${ifaces.master_port}`,   RPC_CLIENT_OPTS );
 	    this.hcc_clients.service	= new WebSocket(`ws://localhost:${ifaces.service_port}`,  RPC_CLIENT_OPTS );
 	    this.hcc_clients.internal	= new WebSocket(`ws://localhost:${ifaces.internal_port}`, RPC_CLIENT_OPTS );
-	    this.hcc_clients.general	= new WebSocket(`ws://localhost:${ifaces.public_port}`,   RPC_CLIENT_OPTS );
+	    this.hcc_clients.hosted	= new WebSocket(`ws://localhost:${ifaces.public_port}`,   RPC_CLIENT_OPTS );
 	} catch ( err ) {
 	    console.error( err );
 	}
+
+	Object.keys( this.hcc_clients ).map(k => {
+	    this.hcc_clients[k].name = k;
+	});
 
 	const clients			= Object.values( this.hcc_clients );
 	this.connected			= Promise.all( clients.map( (client:any) => client.opened( CONDUCTOR_TIMEOUT ) ))
@@ -319,6 +323,7 @@ class Envoy {
 			    "agent_id":	agent_id,
 			    "storage":	"file",
 			});
+			log.debug("Call conductor response: %s", status );
 
 			if ( status.success !== true ) {
 			    failed		= true
@@ -332,14 +337,15 @@ class Envoy {
 		    }
 
 		    
-		    // - add instances to general interface
+		    // - add instances to hosted interface
 		    try {
-			log.debug("Add instance '%s' to general interface", instance_id );
+			log.debug("Add instance '%s' to hosted interface", instance_id );
 			status		= await this.callConductor( "master", "admin/interface/add_instance", {
 			    "interface_id":	"hosted-interface",
 			    "instance_id":	instance_id,
 			    // "alias":		instance_id,
 			});
+			log.debug("Call conductor response: %s", status );
 			
 			if ( status.success !== true ) {
 			    failed		= true
@@ -359,6 +365,7 @@ class Envoy {
 			status		= await this.callConductor( "master", "admin/instance/start", {
 			    "id":		instance_id,
 			});
+			log.debug("Call conductor response: %s", status );
 
 			if ( status.success !== true ) {
 			    failed		= true
@@ -435,7 +442,7 @@ class Envoy {
 	    // - call conductor
 	    let response, holo_error;
 	    try {
-		response		= await this.callConductor( "general", {
+		response		= await this.callConductor( "hosted", {
 		    "instance_id":	call_spec["instance_id"],
 		    "zome":		call_spec["zome"],
 		    "function":		call_spec["function"],
@@ -589,13 +596,16 @@ class Envoy {
     }
     
     async callConductor ( client, call_spec, args : any = {} ) {
+
 	if ( typeof client === "string" )
 	    client			= this.hcc_clients[ client ];
-	
+
+	await client.opened();
+
 	// Assume the method is "call" unless `call_spec` is a string.
 	let method			= "call";
 	if ( typeof call_spec === "string" ) {
-	    log.info("Calling method %s( %s )", method, args );
+	    log.info("Calling method %s( %s )", call_spec, args );
 	    method			= call_spec;
 	}
 	else {
