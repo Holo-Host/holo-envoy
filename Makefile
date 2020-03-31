@@ -38,11 +38,11 @@ test-integration:	build DNAs conductor-1.toml start-sim2h
 test-integration-debug:	build DNAs conductor-1.toml start-sim2h
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
 
-test-e2e:		build DNAs conductor-1.toml start-sim2h
+test-e2e:		build DNAs conductor-1.toml start-sim2h dist/holo_hosting_chaperone.js
 	npx mocha $(MOCHA_OPTS) ./tests/e2e
-test-e2e-debug:		build DNAs conductor-1.toml start-sim2h
+test-e2e-debug:		build DNAs conductor-1.toml start-sim2h dist/holo_hosting_chaperone.js
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
-test-e2e-debug2:	build DNAs conductor-1.toml start-sim2h
+test-e2e-debug2:	build DNAs conductor-1.toml start-sim2h dist/holo_hosting_chaperone.js
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
 
 docs-watch:
@@ -73,18 +73,21 @@ publish-docs:
 
 # Generate Conductor TOML config
 HCC_DIR		= ./holochain-conductor
-HCC_STORAGE	= /var/lib/holochain-conductor
+HCC_STORAGE	= $(shell pwd)/holochain-conductor/storage
 
 .PHONY:		start-hcc-%
 conductor.log:
 	touch $@
 
 reset-hcc:
-	rm /var/lib/holochain-conductor/* -rf
+	rm $(HCC_STORAGE)/* -rf
 	rm -f dnas/*
 	rm -f conductor-*.toml
 start-hcc-%:		DNAs conductor-%.toml conductor.log
 	holochain -c conductor-$*.toml > conductor.log 2>&1 & tail -f conductor.log
+
+dist/holo_hosting_chaperone.js:
+	ln -s node_modules/@holo-host/chaperone/dist dist
 
 DNAs:			dnas/happ-store.dna.json dnas/holo-hosting-app.dna.json dnas/holofuel.dna.json dnas/servicelogger.dna.json
 rm-DNAs:

@@ -11,3 +11,4 @@ keystore-*.key
 AGENTID
 conductor.log
 sim2h.log
+holochain-conductor/storage
