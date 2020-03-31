@@ -12,6 +12,7 @@ docs/index.html:	build/index.js
 	npx jsdoc --verbose -c ./docs/.jsdoc.json --private --destination ./docs build/index.js
 
 
+.PRECIOUS:	keystore-%.key
 .PHONY:		src build docs docs-watch build-watch
 
 build:			node_modules build/index.js

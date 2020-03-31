@@ -20,6 +20,7 @@ with pkgs;
     nativeBuildInputs = [
       nodejs
       makeWrapper
+      ps
     ];
 
     preConfigure = ''

@@ -93,14 +93,4 @@ mkShell {
   inputsFrom = lib.attrValues (import ./. {
     inherit pkgs;
   });
-
-  buildInputs = [
-    holochain-rust
-
-    # hApp DNAs
-    dnaPackages.happ-store
-    dnaPackages.holo-hosting-app
-    dnaPackages.holofuel
-    dnaPackages.servicelogger
-  ];
 }
