@@ -35,7 +35,8 @@ function delay(t, val) {
     });
 }
 
-
+// NOT RANDOM: this instance_prefix matches the hha_hash hard-coded in Chaperone for DEVELOP mode
+const instance_prefix				= "QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL";
 const host_agent_id				= fs.readFileSync('./AGENTID', 'utf8').trim();
 log.info("Host Agent ID: %s", host_agent_id );
 
@@ -87,7 +88,7 @@ describe("Server", () => {
 	    const page_url		= `${http_url}/html/chaperone.html`
     	    const page			= await create_page( page_url );
 	    
-	    response			= await page.evaluate(async function ( host_agent_id )  {
+	    response			= await page.evaluate(async function ( host_agent_id, instance_prefix )  {
 		const client = new Chaperone({
 		    "mode": Chaperone.DEVELOP,
 		    
@@ -96,7 +97,9 @@ describe("Server", () => {
 		    "port": 4656,
 		    "ssl": false,
 		    
-		    "instance_prefix": "QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS",
+		    "instance_prefix": instance_prefix, // NOT RANDOM: this matches the hash
+							// hard-coded in Chaperone
+
 		    "timeout": 2000,
 		    "debug": true,
 		});
@@ -114,12 +117,21 @@ describe("Server", () => {
 		await client.signUp( "someone@example.com", "Passw0rd!" );
 
 		console.log("Finished sign-up", client.agent_id );
-		if ( client.anonymous === true || client.agent_id !== "HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i" )
-		    return new Error("Client did not sign-in");
-		
-    		return await client.callZomeFunction( "holofuel", "transactions", "ledger_state" );
-	    }, host_agent_id );
-	    
+		if ( client.anonymous === true )
+		    return console.error("Client did not sign-in");
+		if ( client.agent_id !== "HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi" )
+		    return console.error("Unexpected Agent ID:", client.agent_id );
+
+		try {
+		    console.log( "Calling zome function" );
+		    return await client.callZomeFunction( "holofuel", "transactions", "ledger_state" );
+		} catch ( err ) {
+		    console.log( err.stack );
+		    console.log( typeof err.stack, err.stack.toString() );
+		}
+	    }, host_agent_id, instance_prefix );
+
+	    log.info("Completed evaluation: %s", response );
 	    expect( Object.keys(response.Ok)	).to.have.members([ "balance", "credit", "payable", "receivable", "fees", "available" ]);
 	} finally {
 	}

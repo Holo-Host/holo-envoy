@@ -96,9 +96,8 @@ rm-DNAs:
 update-DNAs:		rm-DNAs DNAs
 
 dnas/%.dna.json:
-	mkdir -p ./dnas
+	@mkdir -p ./dnas
 	@for p in $$buildInputs; do \
-	    echo "Checking derivation $$p ($${p#*-} == $*)"; \
 	    if [[ "$${p#*-}" == "$*" ]]; then \
 		echo "Linking $${p} to $@"; \
 		ln -fs $${p}/$*.dna.json $@; \
@@ -164,8 +163,8 @@ keystore-%.key:
 # TMP targets
 
 use-local-chaperone:
-	npm uninstall --save @holo-host/chaperone; npm install ../chaperone
+	npm uninstall --save @holo-host/chaperone; npm install --save-dev ../chaperone
 use-npm-chaperone:
-	npm uninstall --save @holo-host/chaperone; npm install @holo-host/chaperone
+	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone
 use-npm-chaperone-%:
-	npm uninstall --save @holo-host/chaperone; npm install @holo-host/chaperone@$*
+	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone@$*

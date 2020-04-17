@@ -112,7 +112,7 @@ describe("Server", () => {
 	    await client.signUp( "someone@example.com", "Passw0rd!" );
 
 	    expect( client.anonymous	).to.be.false;
-	    expect( client.agent_id	).to.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
+	    expect( client.agent_id	).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
 	} finally {
 	}
     });
@@ -122,27 +122,27 @@ describe("Server", () => {
 	    await client.signOut();
 
 	    expect( client.anonymous	).to.be.true;
-	    expect( client.agent_id	).to.not.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
+	    expect( client.agent_id	).to.not.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
 	} finally {
 	}
     });
 
     it("should process signed-in request and respond", async function () {
 	this.timeout(5_000);
-    	try {
-    	    await client.signIn( "someone@example.com", "Passw0rd!" );
-    	    const agent_id		= client.agent_id;
+	try {
+	    await client.signIn( "someone@example.com", "Passw0rd!" );
+	    const agent_id		= client.agent_id;
 
-    	    expect( agent_id		).to.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
+	    expect( agent_id		).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
 	    
-    	    const response		= await client.callZomeFunction( "holofuel", "transactions", "ledger_state" );
-    	    log.debug("Response: %s", response );
+	    const response		= await client.callZomeFunction( "holofuel", "transactions", "ledger_state" );
+	    log.debug("Response: %s", response );
 
 	    // {"Ok":{"balance":"0","credit":"0","payable":"0","receivable":"0","fees":"0","available":"0"}}
 	    expect( response.Ok			).to.be.an("object");
 	    expect( Object.keys(response.Ok)	).to.have.members([ "balance", "credit", "payable", "receivable", "fees", "available" ]);
-    	} finally {
-    	}
+	} finally {
+	}
     });
 
     function delay(t, val) {
