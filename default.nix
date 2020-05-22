@@ -45,7 +45,7 @@ with pkgs;
     '';
 
     checkPhase = ''
-      make test
+      make test-nix
       make stop-sim2h
     '';
 
