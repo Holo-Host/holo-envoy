@@ -26,7 +26,7 @@ test:			build DNAs conductor-1.toml start-sim2h
 	make reset-hcc; make test-e2e
 test-nix:		build DNAs conductor-1.toml start-sim2h
 	make test-unit;
-	make reset-hcc; make test-integration
+	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make reset-hcc; make test-integration
 test-debug:		build DNAs conductor-1.toml start-sim2h
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make reset-hcc; make test-integration-debug
