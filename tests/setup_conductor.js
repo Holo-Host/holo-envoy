@@ -28,9 +28,10 @@ async function start_conductor () {
 	holochain			= ChildProcess.spawn( cmd, args );
 	log.info("Started holochain with PID: %s", holochain.pid );
 
-	const hc_log_filters		= process.env.CONDUCTOR_LOGS === undefined
-	      ? null
-	      : process.env.CONDUCTOR_LOGS.split(",").map(s => s.trim().toLowerCase());
+	const hc_log_filters		= ["error", "warn"];
+	// process.env.CONDUCTOR_LOGS === undefined
+	//       ? null
+	//       : process.env.CONDUCTOR_LOGS.split(",").map(s => s.trim().toLowerCase());
 	log.debug("HC log filters: %s", hc_log_filters );
 	
 	holochain.stdout.on("data", (data) => {
