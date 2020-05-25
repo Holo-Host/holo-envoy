@@ -1,6 +1,6 @@
 const path				= require('path');
 const log				= require('@whi/stdlog')(path.basename( __filename ), {
-    level: process.env.LOG_LEVEL || 'fatal',
+    level: process.env.LOG_LEVEL || 'silly',
 });
 
 const expect				= require('chai').expect;
@@ -107,7 +107,8 @@ describe("Server", () => {
     // 	}
     // });
 
-    it("should sign-up on this Host", async () => {
+    it("should sign-up on this Host", async function () {
+	this.timeout( 5_000 );
 	try {
 	    await client.signUp( "someone@example.com", "Passw0rd!" );
 
