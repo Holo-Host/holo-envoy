@@ -16,12 +16,12 @@ keystore_file = "KEYFILE"
 [[dnas]]
 id = "happ-store"
 file = "dnas/happ-store.dna.json"
-hash = "QmZPcGSFhgVuxnu1sH1ULfkMJhxmmj1U8dQCqyWTHbq2AM"
+hash = "QmRPeKBnrfW7xFVs727ii6TzWMubV7pu3JeQ6yYWGipyaD"
 
 [[dnas]]
 id = "holo-hosting-app"
 file = "dnas/holo-hosting-app.dna.json"
-hash = "QmfDn9pSuy1wL2bogD6s7SxE6b7wjdpEpR12M1YZhHPHXY"
+hash = "QmZqkAESUsYAGLeAEJyzGTF4jNJsBWMKuAusuhFyzcPicu"
 
 [[dnas]]
 id = "holofuel"
@@ -31,7 +31,7 @@ hash = "QmWvWtw1P2nduQqk8uKpfhAeUd72bSU2gFH7TLrQm1Bbfw"
 [[dnas]]
 id = "servicelogger"
 file = "dnas/servicelogger.dna.json"
-hash = "QmQ8LUXxBYpVKxiFGA6f4E2Tjw89Kx3mtqCS8EXtrRKbSu"
+hash = "QmbaWEKzzthgWXfc8RJyaNfErDsKEMS4UBfwL16W2GDAng"
 
 
 [[instances]]

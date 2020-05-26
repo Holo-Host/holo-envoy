@@ -7,7 +7,7 @@ let
   dnas = with dnaPackages; [
     happ-store
     holo-hosting-app
-    holofuel
+    hosted-holofuel
     servicelogger
     hylo-holo-dnas
   ];

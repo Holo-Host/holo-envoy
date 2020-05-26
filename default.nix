@@ -13,7 +13,8 @@ with pkgs;
 
       dnaPackages.happ-store
       dnaPackages.holo-hosting-app
-      dnaPackages.holofuel
+      dnaPackages.hosted-holofuel
+      # dnaPackages.holofuel
       dnaPackages.servicelogger
     ];
 

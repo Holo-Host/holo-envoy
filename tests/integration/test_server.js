@@ -16,7 +16,7 @@ describe("Server", () => {
     let client;
 
     before(async function() {
-	this.timeout(10_000);
+	this.timeout(30_000);
 
 	log.info("Starting conductor");
 	await conductor.start();
@@ -129,7 +129,7 @@ describe("Server", () => {
     });
 
     it("should process signed-in request and respond", async function () {
-	this.timeout(5_000);
+	this.timeout(10_000);
 	try {
 	    await client.signIn( "someone@example.com", "Passw0rd!" );
 	    const agent_id		= client.agent_id;
