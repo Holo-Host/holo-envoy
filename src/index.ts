@@ -118,7 +118,12 @@ class Envoy {
 	});
 
 	const clients			= Object.values( this.hcc_clients );
-	this.connected			= Promise.all( clients.map( (client:any) => client.opened( CONDUCTOR_TIMEOUT ) ))
+	this.connected			= Promise.all(
+	    clients.map( (client:any) => {
+		return client.opened( CONDUCTOR_TIMEOUT )
+		    .catch( err => console.log( client.name, err ) );
+	    })
+	);
     }
 
     async startWebsocketServer () {
@@ -395,6 +400,7 @@ class Envoy {
 
 
 	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
+	    log.silly("Received request: %s", payload.call_spec );
 	    // Example of request package
 	    // 
 	    //     {
@@ -490,7 +496,8 @@ class Envoy {
 		};
 	    }
 
-	    this.addPendingConfirmation( res_log_hash, agent_id, hha_hash );
+	    if ( typeof res_log_hash === "string" )
+		this.addPendingConfirmation( res_log_hash, agent_id, hha_hash );
 	    
 	    // - return conductor response
 	    return {
@@ -502,6 +509,8 @@ class Envoy {
 	
 	this.ws_server.register("holo/service/confirm", async ([ resp_id, payload, signature ]) => {
 	    log.info("Processing pending confirmation: %s", resp_id );
+	    if ( typeof resp_id !== "string" )
+		return false;
 	    
 	    // - service logger confirmation
 	    const { agent_id,
@@ -596,27 +605,32 @@ class Envoy {
     }
     
     async callConductor ( client, call_spec, args : any = {} ) {
+	let method;
+	try {
+	    if ( typeof client === "string" )
+		client			= this.hcc_clients[ client ];
 
-	if ( typeof client === "string" )
-	    client			= this.hcc_clients[ client ];
+	    log.silly("Waiting for opened state: %s", client.socket.readyState );
+	    await client.opened();
 
-	await client.opened();
-
-	// Assume the method is "call" unless `call_spec` is a string.
-	let method			= "call";
-	if ( typeof call_spec === "string" ) {
-	    log.info("Calling method %s( %s )", call_spec, args );
-	    method			= call_spec;
-	}
-	else {
-	    log.info(
-		"Calling zome function %s:%s->%s( %s )",
-		call_spec.instance_id,
-		call_spec.zome,
-		call_spec.function,
-		typeof call_spec.args,
-	    );
-	    args			= call_spec;
+	    // Assume the method is "call" unless `call_spec` is a string.
+	    method			= "call";
+	    if ( typeof call_spec === "string" ) {
+		log.info("Calling method %s( %s )", call_spec, args );
+		method			= call_spec;
+	    }
+	    else {
+		log.info(
+		    "Calling zome function %s:%s->%s( %s )",
+		    call_spec.instance_id,
+		    call_spec.zome,
+		    call_spec.function,
+		    typeof call_spec.args,
+		);
+		args			= call_spec;
+	    }
+	} catch ( err ) {
+	    console.log("callConductor preamble threw", err );
 	}
 
 	let resp;
@@ -633,6 +647,7 @@ class Envoy {
 	    }
 	
 	} catch ( err ) {
+	    console.log("callConductor threw", err );
 	    // -32700
 	    //     Parse errorInvalid JSON was received by the server. An error occurred on the server while parsing the JSON text.
 	    // -32600
