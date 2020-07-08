@@ -623,8 +623,10 @@ class Envoy {
 	try {
 	    if ( ["holo-hosting-app", "happ-store"].includes( args.instance_id ) )
 		resp			= await mocks( args );
-	    else
+	    else {
+		log.debug("Input of conductor call %s: %s", method, JSON.stringify(args,null,4) );
 		resp			= await client.call( method, args );
+	    }
 
 	    try {
 		resp			= JSON.parse(resp);
