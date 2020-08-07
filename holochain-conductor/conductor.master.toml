@@ -26,12 +26,12 @@ keystore_file = "KEYFILE"
 [[dnas]]
 id = "holofuel"
 file = "dnas/holofuel.dna.json"
-hash = "QmZAEavqt18btR4t5pi7f5voWTJXA5UJ8uoN5FKXe4gWjm"
+hash = "QmNZnFSLcfvAZoMijKsHVFq89FnSkDU9qpsKNCs3CvwwzY"
 
 [[dnas]]
 id = "servicelogger"
 file = "dnas/servicelogger.dna.json"
-hash = "QmdSAZRaLAYV1b6ojwEzcaH8eGwVqMh8DtVbcJdRpcJMFt"
+hash = "Qma16xrGjbg7iTtmHCv9d7HMZwGvpJ9NAidTj9KGyt5Tnm"
 
 
 # [[instances]]
