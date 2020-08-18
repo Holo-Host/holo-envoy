@@ -24,7 +24,7 @@ class WebSocketServer extends RPCWebSocketServer {
 	log.info("Started RPC WebSocket Server on port %s", this.port );
     }
     
-    register ( method, fn ) {
+    register ( method, fn, ns ) {
 	return super.register( method, async function ( ...args ) {
 	    try {
 		return await fn.apply( this, args );
@@ -32,19 +32,19 @@ class WebSocketServer extends RPCWebSocketServer {
 		log.error("Handler '%s' threw an error: %s", method, String(err) );
 		throw err;
 	    }
-	});
+	}, ns);
     }
 
     unregister ( name, ns = "/" ) {
 	delete this.namespaces[ns].rpc_methods[name];
     }
     
-    once ( method, handler ) {
+    once ( method, handler, ns ) {
 	const self			= this;
 	this.register( method, async function ( ...args ) {
 	    self.unregister( method );
 	    return await handler.apply( this, args );
-	});
+	}, ns);
     }
 
     async client () {

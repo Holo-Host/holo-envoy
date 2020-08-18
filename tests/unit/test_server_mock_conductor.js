@@ -5,11 +5,12 @@ const log				= require('@whi/stdlog')(path.basename( __filename ), {
 
 const expect				= require('chai').expect;
 const fetch				= require('node-fetch');
+const why				= require('why-is-node-running');
 
 const setup				= require("../setup_envoy.js");
 const Conductor				= require("../mock_conductor.js");
 
-describe("Server", () => {
+describe("Server with mock Conductor", () => {
 
     let envoy;
     let server;
@@ -37,6 +38,8 @@ describe("Server", () => {
 
 	log.info("Stopping Conductor...");
 	await conductor.stop();
+
+	// setTimeout( why, 1000 );
     });
     
     it("should process request and respond", async () => {
@@ -45,7 +48,7 @@ describe("Server", () => {
 		const keys		= Object.keys( data );
 
 		expect( keys.length		).to.equal( 4 );
-		expect( data["instance_id"]	).to.equal("QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS::holofuel");
+		expect( data["instance_id"]	).to.equal("QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL::holofuel");
 		expect( data["zome"]		).to.equal("transactions");
 		expect( data["function"]	).to.equal("list_pending");
 		expect( data["args"]		).to.be.an("object");
@@ -87,29 +90,20 @@ describe("Server", () => {
 	}
     });
 
-    it("should fail to sign-in because this host doesn't know this Agent", async () => {
-	try {
-	    let failed			= false;
-	    try {
-		await client.signIn( "someone@example.com", "Passw0rd!" );
-	    } catch ( err ) {
-		failed			= true;
-
-		expect( err.name	).to.include("HoloError");
-		expect( err.message	).to.include("unknown to this Host");
-	    }
-
-	    expect( failed		).to.be.true;
-	} finally {
-	}
-    });
+    it("should fail to sign-up because conductor disconnected");
+    it("should fail to sign-up because admin/agent/add returned error");
+    it("should fail to sign-up because HHA returned error");
+    it("should fail to sign-up because Happ Store returned error");
+    it("should fail to sign-up because admin/instance/add returned error");
+    it("should fail to sign-up because admin/interface/add_instance returned error");
+    it("should fail to sign-up because admin/instance/start returned error");
 
     it("should sign-up on this Host", async () => {
 	try {
 	    await client.signUp( "someone@example.com", "Passw0rd!" );
 
 	    expect( client.anonymous	).to.be.false;
-	    expect( client.agent_id	).to.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
+	    expect( client.agent_id	).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
 	} finally {
 	}
     });
@@ -119,23 +113,41 @@ describe("Server", () => {
 	    await client.signOut();
 
 	    expect( client.anonymous	).to.be.true;
-	    expect( client.agent_id	).to.not.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
+	    expect( client.agent_id	).to.not.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
 	} finally {
 	}
     });
+
+    it("should fail to sign-in because this host doesn't know this Agent", async () => {
+	try {
+	    let failed			= false;
+	    try {
+		await client.signIn( "someone@example.com", "" );
+	    } catch ( err ) {
+		failed			= true;
+
+		expect( err.name	).to.include("HoloError");
+		expect( err.message	).to.include("cannot identify");
+	    }
+
+	    expect( failed		).to.be.true;
+	} finally {
+	}
+    });
+    it("should fail to sign-in because admin/agent/list returned error");
 
     it("should process signed-in request and respond", async () => {
 	try {
 	    await client.signIn( "someone@example.com", "Passw0rd!" );
 	    const agent_id		= client.agent_id;
 
-	    expect( agent_id		).to.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
+	    expect( agent_id		).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
 	    
 	    conductor.general.once("call", async function ( data ) {
 		const keys		= Object.keys( data );
 
 		expect( keys.length		).to.equal( 4 );
-		expect( data["instance_id"]	).to.equal(`QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS::${agent_id}-holofuel`);
+		expect( data["instance_id"]	).to.equal(`QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL::${agent_id}-holofuel`);
 		expect( data["zome"]		).to.equal("transactions");
 		expect( data["function"]	).to.equal("list_pending");
 		expect( data["args"]		).to.be.an("object");
@@ -159,7 +171,7 @@ describe("Server", () => {
 		    "foo": "bar",
 		});
 
-		expect( signature	).to.equal("TotZt8AGH3IxOJTYToT2sGePdy2J2rzGgF2XP4sTC3ruOQp3ac2W0XikXj+CrGkso/JuNEWxKO0Q/K7G1ThVAg==");
+		expect( signature	).to.equal("HXjbgxHEBHyTGyvBqtZQ6irS53nCzasKKoCK+q03o9LKHgSwrCY0zqXFnUU8v6RgP737UGXNBvbgHdlFYMTqBQ==");
 
 		return true;
 	    });
@@ -172,9 +184,52 @@ describe("Server", () => {
 	}
     });
 
+    it("should handle obscure error from Conductor", async () => {
+	try {
+	    Conductor.send_serialization_error	= true;
+	    // conductor.general.once("call", async function ( data ) {
+	    // 	return true;
+	    // });
+
+	    let failed				= false;
+	    try {
+		failed				= true;
+		const response			= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+		log.debug("Response: %s", response );
+	    } catch ( err )  {
+		expect( err.message	).to.have.string("servicelogger.log_request failed");
+	    }
+
+	    expect( failed		).to.be.true;
+	} finally {
+	}
+    });
+
     it("should have no pending confirmations", async () => {
 	try {
 	    expect( envoy.pending_confirms	).to.be.empty;
+	} finally {
+	}
+    });
+
+    it("should disconnect Envoy's websocket clients", async () => {
+	try {
+	    await conductor.stop();
+
+	    log.silly("Issuing zome call while conductor stoped");
+	    const request		= client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+
+	    log.silly("Restart conductor");
+	    conductor			= new Conductor();
+	    conductor.general.once("call", async function ( data ) {
+		return true;
+	    });
+
+	    log.silly("Await zome call response");
+	    const response		= await request;
+	    log.debug("Response: %s", response );
+
+	    expect( response		).to.be.true;
 	} finally {
 	}
     });

@@ -2,16 +2,26 @@
 
 with pkgs;
 
-let
-in
-
 {
   holo-envoy = stdenv.mkDerivation rec {
     name = "holo-envoy";
     src = gitignoreSource ./.;
 
+    buildInputs = [
+      holochain-rust
+      python
+
+      dnaPackages.happ-store
+      dnaPackages.holo-hosting-app
+      dnaPackages.hosted-holofuel
+      # dnaPackages.holofuel
+      dnaPackages.servicelogger
+    ];
+
     nativeBuildInputs = [
-      nodejs-12_x
+      nodejs
+      makeWrapper
+      ps
     ];
 
     preConfigure = ''
@@ -26,7 +36,9 @@ in
 
     installPhase = ''
       mkdir $out
-      mv * $out
+      mv build node_modules rpc-websocket-wrappers server.js $out
+      makeWrapper ${nodejs}/bin/node $out/bin/${name} \
+        --add-flags $out/server.js
     '';
 
     fixupPhase = ''
@@ -34,7 +46,8 @@ in
     '';
 
     checkPhase = ''
-      npm run test
+      make test-nix
+      make stop-sim2h
     '';
 
     doCheck = true;

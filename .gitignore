@@ -1,6 +1,14 @@
 node_modules
+dnas
 dist
 .cache
 lib
 build
 docs
+result
+conductor-*.toml
+keystore-*.key
+AGENTID
+conductor.log
+sim2h.log
+holochain-conductor/storage

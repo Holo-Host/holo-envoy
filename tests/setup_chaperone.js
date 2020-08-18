@@ -21,7 +21,11 @@ global.window				= {
     "location": {},
     "parent": {
 	"location": {},
-    }
+    },
+    "localStorage": {
+	"getItem": () => undefined,
+	"setItem": () => undefined,
+    },
 }
 global.document				= {
     "referrer": "https://example.com",
@@ -30,7 +34,7 @@ global.document				= {
     },
 };
 
-const made_up_happ_hash_for_test	= "QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS";
+const made_up_happ_hash_for_test	= "QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL";
 
 // Mock Resolver responses
 mock_fetch.mock(/.*resolver\.holohost.net\/?/, {

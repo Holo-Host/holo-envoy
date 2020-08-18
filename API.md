@@ -9,12 +9,18 @@ Arguments
 - `<hha_hash>`
 - `<agent_id>`
 
+
 ### `holo/agent/identify`
-A simple maintenance endpoint for RPC WebSockets.  It creates a unique event for sending messages
-directly to the Agent.  Returns the event name so the client can subscribe to it.
+Endpoint for asking a Host if they are hosting the given Agent ID.
 
 Arguments
 - `<agent_id>`
+
+Failure modes
+- Host does not have expected instances
+- Host does not have the correct chains
+- Host does not have up-to-date chains
+
 
 ### `holo/call`
 Call a zome function.
@@ -28,19 +34,27 @@ Arguments
       "payload": {
           "timestamp"        : string,
           "host_id"          : string,
-          "hha_hash"         : string,
-          "dna_alias"        : string,
           "call_spec": {
-              "instance_id"  : string
-              "zome"         : string
-              "function"     : string
+              "hha_hash"     : string,
+              "dna_alias"    : string,
+              "instance_id"  : string,
+              "zome"         : string,
+              "function"     : string,
               "args"         : array
-              "args_hash"    : string
           }
-      }
+      },
       "service_signature"    : string
   }
   ```
+
+
+### `holo/wormhole/event`
+A simple maintenance endpoint for RPC WebSockets.  It creates a unique event for sending messages
+directly to the Agent.  Returns the event name so the client can subscribe to it.
+
+Arguments
+- `<agent_id>`
+
 
 ### `holo/wormhole/response`
 The client sends signatures for signed entries to this endpoint.
@@ -49,12 +63,14 @@ Arguments
 - `<id>`
 - `<signature>`
 
+
 ### `<agent_id>/wormhole/request`
 Each signed-in Agent has a unique endpoint so that the server can send signing requests.
 
 Arguments
 - `<id>`
 - `<entry>`
+
 
 ### `holo/service/confirm`
 The client calls this to confirm that it received a response.
