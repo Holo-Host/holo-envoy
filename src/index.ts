@@ -23,7 +23,7 @@ const WS_SERVER_PORT			= 4656; // holo
 const WH_SERVER_PORT			= 9676; // worm
 const RPC_CLIENT_OPTS			= {
     "reconnect_interval": 1000,
-    "max_reconnects": 30,
+    "max_reconnects": 300,
 };
 const CONDUCTOR_TIMEOUT			= RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
 const NAMESPACE				= "/hosting/";
@@ -137,6 +137,14 @@ class Envoy {
 	    // client-side if something is not right.
 	    log.info("URL: %s", request.url );
 	    const url			= new URL( request.url, "http://localhost");
+
+	    socket.on("message", (data) => {
+		try {
+		    log.silly("Socket incoming: %s", data );
+		} catch (err) {
+		    console.error( err );
+		}
+	    });
 
 	    const anonymous		= url.searchParams.get('anonymous') === "true" ? true : false;
 	    const agent_id		= url.searchParams.get('agent_id');
@@ -637,8 +645,10 @@ class Envoy {
 	try {
 	    if ( ["holo-hosting-app", "happ-store"].includes( args.instance_id ) )
 		resp			= await mocks( args );
-	    else
+	    else {
+		log.debug("Input of conductor call %s: %s", method, JSON.stringify(args,null,4) );
 		resp			= await client.call( method, args );
+	    }
 
 	    try {
 		resp			= JSON.parse(resp);

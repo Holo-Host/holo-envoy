@@ -13,51 +13,51 @@ public_address = "PUBKEY"
 keystore_file = "KEYFILE"
 
 # -----------  DNA  -----------
-[[dnas]]
-id = "happ-store"
-file = "dnas/happ-store.dna.json"
-hash = "QmRPeKBnrfW7xFVs727ii6TzWMubV7pu3JeQ6yYWGipyaD"
+# [[dnas]]
+# id = "happ-store"
+# file = "dnas/happ-store.dna.json"
+# hash = "QmRPeKBnrfW7xFVs727ii6TzWMubV7pu3JeQ6yYWGipyaD"
 
-[[dnas]]
-id = "holo-hosting-app"
-file = "dnas/holo-hosting-app.dna.json"
-hash = "QmZqkAESUsYAGLeAEJyzGTF4jNJsBWMKuAusuhFyzcPicu"
+# [[dnas]]
+# id = "holo-hosting-app"
+# file = "dnas/holo-hosting-app.dna.json"
+# hash = "QmZqkAESUsYAGLeAEJyzGTF4jNJsBWMKuAusuhFyzcPicu"
 
 [[dnas]]
 id = "holofuel"
 file = "dnas/holofuel.dna.json"
-hash = "QmWvWtw1P2nduQqk8uKpfhAeUd72bSU2gFH7TLrQm1Bbfw"
+hash = "QmNZnFSLcfvAZoMijKsHVFq89FnSkDU9qpsKNCs3CvwwzY"
 
 [[dnas]]
 id = "servicelogger"
 file = "dnas/servicelogger.dna.json"
-hash = "QmbaWEKzzthgWXfc8RJyaNfErDsKEMS4UBfwL16W2GDAng"
+hash = "Qma16xrGjbg7iTtmHCv9d7HMZwGvpJ9NAidTj9KGyt5Tnm"
 
 
-[[instances]]
-id = "happ-store"
-dna = "happ-store"
-agent = "host-agent-AGENT"
+# [[instances]]
+# id = "happ-store"
+# dna = "happ-store"
+# agent = "host-agent-AGENT"
 
-    [instances.logger]
-    type = "simple"
-    # file = "fuel.log"
+#     [instances.logger]
+#     type = "simple"
+#     # file = "fuel.log"
       
-    [instances.storage]
-    type = "file"
-    path = "HCC_STORAGE/happ-store"
+#     [instances.storage]
+#     type = "file"
+#     path = "HCC_STORAGE/happ-store"
 
-[[instances]]
-id = "holo-hosting-app"
-dna = "holo-hosting-app"
-agent = "host-agent-AGENT"
+# [[instances]]
+# id = "holo-hosting-app"
+# dna = "holo-hosting-app"
+# agent = "host-agent-AGENT"
 
-    [instances.logger]
-    type = "simple"
+#     [instances.logger]
+#     type = "simple"
     
-    [instances.storage]
-    type = "file"
-    path = "HCC_STORAGE/holo-hosting-app"
+#     [instances.storage]
+#     type = "file"
+#     path = "HCC_STORAGE/holo-hosting-app"
 
 [[instances]]
 id = "holofuel"
@@ -112,11 +112,11 @@ id = "admin-interface"
     type = "websocket"
     port = 42233
     
-    [[interfaces.instances]]
-    id = "happ-store"
+    # [[interfaces.instances]]
+    # id = "happ-store"
     
-    [[interfaces.instances]]
-    id = "holo-hosting-app"
+    # [[interfaces.instances]]
+    # id = "holo-hosting-app"
     
     [[interfaces.instances]]
     id = "holofuel"
