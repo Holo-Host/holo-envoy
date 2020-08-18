@@ -44,9 +44,8 @@ const holo_struct = superstruct({
     },
 });
 
+const agents				= {};
 const MockMaster = {
-    "agents": {},
-
     "admin": {
 	"agent": {
 	    async list ( args ) {
@@ -61,13 +60,13 @@ const MockMaster = {
 		//         "test_agent":null
 		//     }]
 		//
-		return Object.values( this.agents );
+		return Object.values( agents );
 	    },
 
 	    async add ( args ) {
 		let success		= false;
 		try {
-		    this.agents[ args.id ] = {
+		    agents[ args.id ] = {
 			"id":			args.id,
 			"name":			args.name,
 			"public_address":	args.holo_remote_key,
@@ -157,6 +156,14 @@ const MockServiceLogger = {
 
     "service": {
 	async log_request ( args ) {
+	    log.info("Send Serialization Error: %s", Conductor.send_serialization_error );
+	    if ( Conductor.send_serialization_error === true ) {
+		Conductor.send_serialization_error	= false;
+		return {
+		    "SerializationError": "Cannot decompress Edwards point at line 1 column 208",
+		};
+	    }
+
 	    log.silly("Input: %s", JSON.stringify(args,null,4) );
 	    // Validate input
 	    request_input_superstruct( args );
@@ -308,6 +315,7 @@ function dieOnError ( ws_server ) {
 }
 
 class Conductor {
+    static send_serialization_error	= false;
 
     constructor () {
 	this.wormhole_port		= 9676;

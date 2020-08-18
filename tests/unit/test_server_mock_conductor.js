@@ -5,6 +5,7 @@ const log				= require('@whi/stdlog')(path.basename( __filename ), {
 
 const expect				= require('chai').expect;
 const fetch				= require('node-fetch');
+const why				= require('why-is-node-running');
 
 const setup				= require("../setup_envoy.js");
 const Conductor				= require("../mock_conductor.js");
@@ -37,6 +38,8 @@ describe("Server with mock Conductor", () => {
 
 	log.info("Stopping Conductor...");
 	await conductor.stop();
+
+	// setTimeout( why, 1000 );
     });
     
     it("should process request and respond", async () => {
@@ -87,22 +90,13 @@ describe("Server with mock Conductor", () => {
 	}
     });
 
-    it("should fail to sign-in because this host doesn't know this Agent", async () => {
-	try {
-	    let failed			= false;
-	    try {
-		await client.signIn( "someone@example.com", "Passw0rd!" );
-	    } catch ( err ) {
-		failed			= true;
-
-		expect( err.name	).to.include("HoloError");
-		expect( err.message	).to.include("cannot identify");
-	    }
-
-	    expect( failed		).to.be.true;
-	} finally {
-	}
-    });
+    it("should fail to sign-up because conductor disconnected");
+    it("should fail to sign-up because admin/agent/add returned error");
+    it("should fail to sign-up because HHA returned error");
+    it("should fail to sign-up because Happ Store returned error");
+    it("should fail to sign-up because admin/instance/add returned error");
+    it("should fail to sign-up because admin/interface/add_instance returned error");
+    it("should fail to sign-up because admin/instance/start returned error");
 
     it("should sign-up on this Host", async () => {
 	try {
@@ -123,6 +117,24 @@ describe("Server with mock Conductor", () => {
 	} finally {
 	}
     });
+
+    it("should fail to sign-in because this host doesn't know this Agent", async () => {
+	try {
+	    let failed			= false;
+	    try {
+		await client.signIn( "someone@example.com", "" );
+	    } catch ( err ) {
+		failed			= true;
+
+		expect( err.name	).to.include("HoloError");
+		expect( err.message	).to.include("cannot identify");
+	    }
+
+	    expect( failed		).to.be.true;
+	} finally {
+	}
+    });
+    it("should fail to sign-in because admin/agent/list returned error");
 
     it("should process signed-in request and respond", async () => {
 	try {
@@ -172,9 +184,52 @@ describe("Server with mock Conductor", () => {
 	}
     });
 
+    it("should handle obscure error from Conductor", async () => {
+	try {
+	    Conductor.send_serialization_error	= true;
+	    // conductor.general.once("call", async function ( data ) {
+	    // 	return true;
+	    // });
+
+	    let failed				= false;
+	    try {
+		failed				= true;
+		const response			= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+		log.debug("Response: %s", response );
+	    } catch ( err )  {
+		expect( err.message	).to.have.string("servicelogger.log_request failed");
+	    }
+
+	    expect( failed		).to.be.true;
+	} finally {
+	}
+    });
+
     it("should have no pending confirmations", async () => {
 	try {
 	    expect( envoy.pending_confirms	).to.be.empty;
+	} finally {
+	}
+    });
+
+    it("should disconnect Envoy's websocket clients", async () => {
+	try {
+	    await conductor.stop();
+
+	    log.silly("Issuing zome call while conductor stoped");
+	    const request		= client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+
+	    log.silly("Restart conductor");
+	    conductor			= new Conductor();
+	    conductor.general.once("call", async function ( data ) {
+		return true;
+	    });
+
+	    log.silly("Await zome call response");
+	    const response		= await request;
+	    log.debug("Response: %s", response );
+
+	    expect( response		).to.be.true;
 	} finally {
 	}
     });
