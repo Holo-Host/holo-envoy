@@ -91,18 +91,21 @@ describe("Server", () => {
 	    response			= await page.evaluate(async function ( host_agent_id, instance_prefix )  {
 		const client = new Chaperone({
 		    "mode": Chaperone.DEVELOP,
+
+		    "connection": {
+			"ssl": false,
+			"host": "localhost",
+			"port": 4656,
+		    },
 		    
-		    "host": "localhost",
 		    host_agent_id,
-		    "port": 4656,
-		    "ssl": false,
-		    
 		    "instance_prefix": instance_prefix, // NOT RANDOM: this matches the hash
 							// hard-coded in Chaperone
 
 		    "timeout": 2000,
 		    "debug": true,
 		});
+		client.skip_assign_host	= true;
 
 		function delay(t, val) {
 		    return new Promise(function(resolve) {
