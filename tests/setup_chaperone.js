@@ -39,8 +39,6 @@ const made_up_happ_hash_for_test	= "QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAb
 // Mock Resolver responses
 mock_fetch.mock(/.*resolver-dev\.holo.host\/resolve\/hosts\/?/, () => {
     const response			= {
-	"requestURL": "example.com",
-	"happ_id": made_up_happ_hash_for_test,
 	"hosts":[
 	    "localhost"
 	],
@@ -50,6 +48,7 @@ mock_fetch.mock(/.*resolver-dev\.holo.host\/resolve\/hosts\/?/, () => {
 });
 mock_fetch.mock(/.*resolver-dev\.holo.host\/resolve\/happId\/?/, () => {
     const response			= {
+	"url": "example.com",
 	"happ_id": made_up_happ_hash_for_test,
     };
     log.debug("Mock Resolver response for /resolve/happId: %s", response );
