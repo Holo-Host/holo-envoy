@@ -37,15 +37,27 @@ global.document				= {
 const made_up_happ_hash_for_test	= "QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL";
 
 // Mock Resolver responses
-mock_fetch.mock(/.*resolver\.holohost.net\/?/, {
-    "requestURL": "example.com",
-    "hash": made_up_happ_hash_for_test,
-    "hosts":[
-	"localhost"
-    ],
+mock_fetch.mock(/.*resolver-dev\.holo.host\/resolve\/hosts\/?/, () => {
+    const response			= {
+	"hosts":[
+	    "localhost"
+	],
+    };
+    log.debug("Mock Resolver response for /resolve/hosts: %s", response );
+    return response;
 });
-mock_fetch.mock(/.*resolver\.holohost.net\/resolve\/hostname\/?/, {
-    "hash": made_up_happ_hash_for_test,
+mock_fetch.mock(/.*resolver-dev\.holo.host\/resolve\/happId\/?/, () => {
+    const response			= {
+	"url": "example.com",
+	"happ_id": made_up_happ_hash_for_test,
+    };
+    log.debug("Mock Resolver response for /resolve/happId: %s", response );
+    return response;
+});
+mock_fetch.mock(/.*resolver-dev\.holo.host\/update\/assignHost\/?/, () => {
+    const status			= 200;
+    log.debug("Mock Resolver response for /update/assignHost: %s", status );
+    return status;
 });
 
 
