@@ -43,7 +43,7 @@ async function start_conductor () {
 		if ( line.trim() === "" ) // for some reason there are many empty lines
 		    continue;
 		
-		console.log("HOLOCHAIN STDOUT:", line );
+		console.log("HOLOCHAIN STDOUT:", line, "\033[0m" );
 	    }
 	});
 
@@ -58,7 +58,7 @@ async function start_conductor () {
 		
 		let lc_line		= line.toLowerCase();
 		if ( hc_log_filters.some(key => lc_line.includes(key)) ) {
-		    console.log("HOLOCHAIN ERROR :", line );
+		    console.log("HOLOCHAIN ERROR :", line, "\033[0m" );
 		}
 	    }
 	});

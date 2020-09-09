@@ -41,6 +41,7 @@ describe("Server", () => {
 	log.info("Stopping Conductor...");
 	await conductor.stop( 60_000 );
     });
+
     
     // it("should process request and respond", async () => {
     // 	try {
@@ -126,6 +127,34 @@ describe("Server", () => {
 	    expect( client.agent_id	).to.not.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
 	} finally {
 	}
+    });
+
+    it("should fail capability signing of zome-call because wormhole is closed", async function () {
+	this.timeout( 30_000 );
+
+	let failed			= false;
+	const fail_client		= await setup.client();
+	try {
+	    await fail_client.signUp( "wormhole@example.com", "Passw0rd!" );
+
+	    const agent_id		= fail_client.agent_id;
+	    expect( agent_id		).to.equal("HcSCJtd68XYQrh5mesTTtGyTN3Sa9rupqgMjhnHQFyuwgtab8GzE4MGz64e9pni");
+
+	    fail_client.conn.removeAllListeners("HcSCJtd68XYQrh5mesTTtGyTN3Sa9rupqgMjhnHQFyuwgtab8GzE4MGz64e9pni/wormhole/request");
+	    await fail_client.callZomeFunction( "holofuel", "transactions", "promise", {
+		"to": "HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bxxx",
+		"amount": "1",
+		"deadline": (new Date()).toISOString(),
+	    });
+	} catch ( err ) {
+	    failed			= true;
+
+	    expect( err.message		).to.have.string("Caller does not have Capability to make that call");
+	} finally {
+	    fail_client.close();
+	}
+
+	expect( failed			).to.be.true;
     });
 
     it("should process signed-in request and respond", async function () {
