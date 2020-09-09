@@ -119,21 +119,6 @@ describe("Server", () => {
 	}
     });
 
-    it("should fail because wormhole is closed", async function () {
-	const fail_client		= await setup.client();
-	try {
-	    await fail_client.signIn( "someone@example.com", "Passw0rd!" );
-
-	    const agent_id		= fail_client.agent_id;
-	    expect( agent_id		).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
-
-	    const zome_call		= fail_client.callZomeFunction( "holofuel", "transactions", "ledger_state" );
-	    fail_client.disconnect();
-	} finally {
-	    fail_client.close();
-	}
-    });
-
     it("should sign-out", async () => {
 	try {
 	    await client.signOut();
@@ -142,6 +127,34 @@ describe("Server", () => {
 	    expect( client.agent_id	).to.not.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
 	} finally {
 	}
+    });
+
+    it("should fail because wormhole is closed", async function () {
+	this.timeout( 30_000 );
+
+	let failed			= false;
+	const fail_client		= await setup.client();
+	try {
+	    await fail_client.signUp( "wormhole@example.com", "Passw0rd!" );
+
+	    const agent_id		= fail_client.agent_id;
+	    expect( agent_id		).to.equal("HcSCJtd68XYQrh5mesTTtGyTN3Sa9rupqgMjhnHQFyuwgtab8GzE4MGz64e9pni");
+
+	    fail_client.conn.removeAllListeners("HcSCJtd68XYQrh5mesTTtGyTN3Sa9rupqgMjhnHQFyuwgtab8GzE4MGz64e9pni/wormhole/request");
+	    await fail_client.callZomeFunction( "holofuel", "transactions", "promise", {
+		"to": "HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bxxx",
+		"amount": "1",
+		"deadline": (new Date()).toISOString(),
+	    });
+	} catch ( err ) {
+	    failed			= true;
+
+	    expect( err.message		).to.have.string("Capability");
+	} finally {
+	    fail_client.close();
+	}
+
+	expect( failed			).to.be.true;
     });
 
     it("should process signed-in request and respond", async function () {

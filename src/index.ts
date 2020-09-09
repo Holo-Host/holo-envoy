@@ -593,7 +593,7 @@ class Envoy {
 	await this.http_server.close();
     }
 
-    signingRequest ( agent_id : string, payload : string ) {
+    signingRequest ( agent_id : string, payload : string, timeout = 5_000 ) {
 	return new Promise((f,r) => {
 	    const payload_id		= this.payload_counter++;
 	    const event			= `${agent_id}/wormhole/request`;
@@ -606,6 +606,8 @@ class Envoy {
 	    }
 	    
 	    this.pending_signatures[ payload_id ] = [ payload, f, r ];
+
+	    setTimeout(() => r("Failed to get signature from Chaperone"), timeout );
 
 	    log.debug("Send signing request #%s to Agent %s", payload_id, agent_id );
 	    this.ws_server.emit( event, [ payload_id, payload ] );
