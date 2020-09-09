@@ -149,7 +149,7 @@ describe("Server", () => {
 	} catch ( err ) {
 	    failed			= true;
 
-	    expect( err.message		).to.have.string("Capability");
+	    expect( err.message		).to.have.string("Caller does not have Capability to make that call");
 	} finally {
 	    fail_client.close();
 	}
