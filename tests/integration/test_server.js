@@ -129,7 +129,7 @@ describe("Server", () => {
 	}
     });
 
-    it("should fail because wormhole is closed", async function () {
+    it("should fail capability signing of zome-call because wormhole is closed", async function () {
 	this.timeout( 30_000 );
 
 	let failed			= false;
