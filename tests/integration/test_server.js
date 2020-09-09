@@ -41,6 +41,7 @@ describe("Server", () => {
 	log.info("Stopping Conductor...");
 	await conductor.stop( 60_000 );
     });
+
     
     // it("should process request and respond", async () => {
     // 	try {
@@ -115,6 +116,21 @@ describe("Server", () => {
 	    expect( client.anonymous	).to.be.false;
 	    expect( client.agent_id	).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
 	} finally {
+	}
+    });
+
+    it("should fail because wormhole is closed", async function () {
+	const fail_client		= await setup.client();
+	try {
+	    await fail_client.signIn( "someone@example.com", "Passw0rd!" );
+
+	    const agent_id		= fail_client.agent_id;
+	    expect( agent_id		).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
+
+	    const zome_call		= fail_client.callZomeFunction( "holofuel", "transactions", "ledger_state" );
+	    fail_client.disconnect();
+	} finally {
+	    fail_client.close();
 	}
     });
 
