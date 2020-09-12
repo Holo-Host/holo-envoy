@@ -36,7 +36,7 @@
     "fetch-mock": "^8.0.0",
     "jsdoc": "^3.6.3",
     "mocha": "^6.2.1",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "puppeteer": "^2.1.1",
     "superstruct": "^0.8.3",
     "typescript": "^3.6.4",
