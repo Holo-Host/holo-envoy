@@ -544,33 +544,41 @@ class Envoy {
     }
 
     async startHTTPServer () {
-	this.http_server		= http.createServer((req, res) => {
-	    log.silly("Received wormhole request");
-	    // Warn if method is not POST or Content-type is incorrect
-	    req.pipe( concat_stream(async ( buffer ) => {
-		try {
-		    log.debug("Request buffer length: %s", buffer.length );
-		    log.silly("HTTP Body: %s", buffer.toString() );
-		    const { agent_id,
-			    payload }	= JSON.parse( buffer.toString() );
+	let wormhole_counter		= 0;
+	function prefix (msg) {
+	    return `\x1b[95mWORMHOLE #${wormhole_counter}: \x1b[0m` + msg;
+	}
 
-		    let signature;
-		    try {
-			log.silly("Body payload: %s", payload );
-			signature	= await this.signingRequest( agent_id, payload );
-		    } catch ( err ) {
-			log.error("Signing request error: %s", String(err) );
-			res.writeHead(400);
-			res.end(`${err.name}: ${err.message}`);
-		    }
+	this.http_server		= http.createServer(async (req, res) => {
+	    let whid			= wormhole_counter++;
+	    log.silly(prefix("Received wormhole %s request with content length: %s"), req.method, req.headers["content-length"] );
+
+	    // Warn if method is not POST or Content-type is incorrect
+	    const body : string		= await httpRequestStream( req );
+	    log.debug(prefix("Actually HTTP body length: %s"), body.length );
+	    log.silly(prefix("HTTP Body: %s"), body );
+
+	    let agent_id, payload, signature;
+	    try {
+		let data		= JSON.parse(body);
+		agent_id		= data.agent_id;
+		payload			= data.payload;
+	    } catch ( err ) {
+		log.error(prefix("Failed to handle HTTP request: %s"), err );
+		log.silly(prefix("HTTP Request: %s"), body );
+	    }
+
+	    try {
+		log.debug(prefix("Conductor needs Agent (%s) to sign payload: %s"), agent_id, payload );
+		signature	= await this.signingRequest( agent_id, payload );
+	    } catch ( err ) {
+		log.error(prefix("Signing request error: %s"), String(err) );
+		res.writeHead(400);
+		res.end(`${err.name}: ${err.message}`);
+	    }
 		    
-		    log.silly("Respond to wormhole request");
-		    res.end( signature );
-		} catch ( err ) {
-		    log.error("Failed to handle HTTP request: %s", err );
-		    log.silly("HTTP Request: %s", buffer.toString() );
-		}
-	    }));
+	    log.silly(prefix("Returning signature (%s) for payload: %s"), signature, payload );
+	    res.end( signature );
 	});
 	this.http_server.on('clientError', (err, socket) => {
 	    socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
@@ -802,6 +810,20 @@ class Envoy {
     }
 
 }
+
+
+async function httpRequestStream ( req ) : Promise<string> {
+    return new Promise((f,r) => {
+	req.pipe( concat_stream(async ( buffer ) => {
+	    try {
+		f( buffer.toString() );
+	    } catch ( err ) {
+		r( err );
+	    }
+	}));
+    });
+}
+
 
 export {
     Envoy

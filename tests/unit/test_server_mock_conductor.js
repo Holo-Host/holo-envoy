@@ -166,12 +166,9 @@ describe("Server with mock Conductor", () => {
     it("should complete wormhole request", async () => {
 	try {
 	    conductor.general.once("call", async function ( data ) {
-		const signature		= await conductor.wormholeRequest( client.agent_id, {
-		    "some": "entry",
-		    "foo": "bar",
-		});
+		const signature		= await conductor.wormholeRequest( client.agent_id, "UW1ZVWo1NnJyakFTOHVRQXpkTlFoUHJ3WHhFeUJ4ZkFxdktwZ1g5bnBpOGZOeA==" );
 
-		expect( signature	).to.equal("HXjbgxHEBHyTGyvBqtZQ6irS53nCzasKKoCK+q03o9LKHgSwrCY0zqXFnUU8v6RgP737UGXNBvbgHdlFYMTqBQ==");
+		expect( signature	).to.equal("w/lyO2IipA0sSdGtbg+5pACLoafOkdPRXXuiELis51HVthfhzdP2JZeIDQkwssMccC67mHjOuYsALe5DPQjKDw==");
 
 		return true;
 	    });
