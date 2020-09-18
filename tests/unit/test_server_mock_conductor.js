@@ -194,7 +194,7 @@ describe("Server with mock Conductor", () => {
 		const response			= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
 		log.debug("Response: %s", response );
 	    } catch ( err )  {
-		expect( err.message	).to.have.string("servicelogger.log_request failed");
+		expect( err.message	).to.have.string("servicelogger.log_request threw");
 	    }
 
 	    expect( failed		).to.be.true;
