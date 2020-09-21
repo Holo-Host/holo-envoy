@@ -554,7 +554,7 @@ class Envoy {
 	this.ws_server.register("holo/service/confirm", async ([ resp_id, payload, signature ]) => {
 	    log.normal("Received confirmation request for response (%s)", resp_id );
 	    if ( typeof resp_id !== "string" ) {
-		log.error("Invalid type %s for response ID, should be of type 'string'", typeof resp_id );
+		log.error("Invalid type '%s' for response ID, should be of type 'string'", typeof resp_id );
 		return false;
 	    }
 	    
@@ -755,8 +755,11 @@ class Envoy {
     }
 
     async logServiceRequest ( hha_hash, agent_id, payload, signature ) {
+	log.normal("Processing service logger request (%s)", signature );
 	const call_spec			= payload.call_spec;
 	const args_hash			= digest( call_spec["args"] );
+
+	log.debug("Using argument digest: %s", args_hash );
 	const request			= {
 	    "timestamp":	payload.timestamp,
 	    "host_id":		payload.host_id,
@@ -769,9 +772,7 @@ class Envoy {
 	    },
 	};
 
-	// log.silly("%s", JSON.stringify( request, null, 4 ));
-	// log.silly("%s", SerializeJSON( request ));
-	
+	log.silly("Recording service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
 	const resp			= await this.callConductor( "service", {
 	    "instance_id":	`${hha_hash}::servicelogger`,
 	    "zome":		"service",
@@ -783,22 +784,26 @@ class Envoy {
 	    },
 	});
 	
-	// log.silly("Log Service Request response: %s", JSON.stringify( resp ));
-	if ( resp.Ok )
+	if ( resp.Ok ) {
+	    log.info("Returning success response for request log (%s): typeof %s", signature, typeof resp.Ok );
 	    return resp.Ok;
+	}
 	else if ( resp.Err ) {
-	    // log.silly("resp.Err: %s", resp.Err );
+	    log.error("Service request log (%s) returned non-success response: %s", signature, resp.Err );
 	    let err			= JSON.parse( resp.Err.Internal );
 	    throw new Error( JSON.stringify(err,null,4) );
 	}
-	else
-	    throw new Error(`Unknown service logger response format: ${JSON.stringify(resp)}`);
+	else {
+	    log.fatal("Service request log (%s) returned unknown response format: %s", signature, resp );
+	    throw new Error(`Unknown 'service->log_request' response format: typeof ${typeof resp} (keys? ${Object.keys(resp)})`);
+	}
     }
 
     async logServiceResponse ( hha_hash, request_log_hash, response, metrics, entries ) {
-	const response_digest		= sha256( SerializeJSON( response ) );
-	const response_hash		= Codec.Digest.encode( response_digest );
+	const response_hash		= digest( response );
+	log.normal("Processing service logger response (%s) for request (%s)", response_hash, request_log_hash );
 	
+	log.silly("Recording service response (%s) with metrics: %s", response_hash, metrics );
 	const resp			= await this.callConductor( "service", {
 	    "instance_id":	`${hha_hash}::servicelogger`,
 	    "zome":		"service",
@@ -811,19 +816,25 @@ class Envoy {
 	    },
 	});
 
-	// log.silly("Log Service Response response: %s", JSON.stringify( resp ));
-	if ( resp.Ok )
+	if ( resp.Ok ) {
+	    log.info("Returning success response for response log (%s): typeof %s", response_hash, typeof resp.Ok );
 	    return resp.Ok;
+	}
 	else if ( resp.Err ) {
-	    // log.silly("resp.Err: %s", resp.Err );
+	    log.error("Service response log (%s) returned non-success response: %s", response_hash, resp.Err );
 	    let err			= JSON.parse( resp.Err.Internal );
 	    throw new Error( JSON.stringify(err,null,4) );
 	}
-	else
-	    throw new Error(`Unknown service logger response format: ${JSON.stringify(resp)}`);
+	else {
+	    log.fatal("Service response log (%s) returned unknown response format: %s", response_hash, resp );
+	    throw new Error(`Unknown 'service->log_response' response format: typeof ${typeof resp} (keys? ${Object.keys(resp)})`);
+	}
     }
 
     async logServiceConfirmation ( hha_hash, agent_id, response_commit, confirmation_payload, signature ) {
+	log.normal("Processing service logger confirmation (%s) for response (%s)", signature, response_commit );
+
+	log.silly("Recording service confirmation (%s) with payload: %s", signature, confirmation_payload );
 	const resp			= await this.callConductor( "service", {
 	    "instance_id":	`${hha_hash}::servicelogger`,
 	    "zome":		"service",
@@ -836,16 +847,19 @@ class Envoy {
 	    },
 	});
 
-	// log.silly("Log Service Confirmation response: %s", JSON.stringify( resp ));
-	if ( resp.Ok )
+	if ( resp.Ok ) {
+	    log.info("Returning success response for confirmation log (%s): typeof %s", signature, typeof resp.Ok );
 	    return resp.Ok;
+	}
 	else if ( resp.Err ) {
-	    // log.silly("resp.Err: %s", resp.Err );
+	    log.error("Service confirmation log (%s) returned non-success response: %s", signature, resp.Err );
 	    let err			= JSON.parse( resp.Err.Internal );
 	    throw new Error( JSON.stringify(err,null,4) );
 	}
-	else
-	    throw new Error(`Unknown service logger response format: ${JSON.stringify(resp)}`);
+	else {
+	    log.fatal("Service confirmation log (%s) returned unknown response format: %s", signature, resp );
+	    throw new Error(`Unknown 'service->log_service' response format: typeof ${typeof resp} (keys? ${Object.keys(resp)})`);
+	}
     }
 
 }
