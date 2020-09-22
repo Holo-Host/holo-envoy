@@ -76,7 +76,7 @@ const MockMaster = {
 		    };
 		    success		= true;
 		} catch ( err ) {
-		    log.error("Master admin/agent/add error: %s", err );
+		    log.error("Master admin/agent/add error: %s", String(err) );
 		}
 
 		return { "success": success };
@@ -146,8 +146,8 @@ const utf8				= new TextEncoder();
 const MockServiceLogger = {
     "verifyPayload": ( agent_id, payload, payload_signature ) => {
 	const serialized		= SerializeJSON( payload );
-	log.debug("Signed payload: %s", serialized );
 
+	log.silly("Verifying signature (%s) is Agent (%s) for message: %s", payload_signature, agent_id, serialized );
 	const sig_bytes			= Codec.Signature.decode( payload_signature );
 	const public_key		= Codec.AgentId.decode( agent_id );
 
@@ -156,15 +156,14 @@ const MockServiceLogger = {
 
     "service": {
 	async log_request ( args ) {
-	    log.info("Send Serialization Error: %s", Conductor.send_serialization_error );
 	    if ( Conductor.send_serialization_error === true ) {
+		log.warn("Sending custom serialization error because 'this.send_serialization_error' is set to '%s'", Conductor.send_serialization_error );
 		Conductor.send_serialization_error	= false;
 		return {
 		    "SerializationError": "Cannot decompress Edwards point at line 1 column 208",
 		};
 	    }
 
-	    log.silly("Input: %s", JSON.stringify(args,null,4) );
 	    // Validate input
 	    request_input_superstruct( args );
 
@@ -174,24 +173,30 @@ const MockServiceLogger = {
 		request_signature
 	    }				= args;
 
-	    if ( this.verifyPayload( agent_id, request, request_signature ) !== true )
+	    if ( this.verifyPayload( agent_id, request, request_signature ) !== true ) {
+		log.error("Failed during payload verification for log request (%s)", request_signature );
 		throw new Error("Signature does not match request payload");
+	    }
 
 
-	    if ( typeof request.timestamp !== "string" )
+	    if ( typeof request.timestamp !== "string" ) {
+		log.error("Failed during request timestamp check: should be 'string', not type '%s'", typeof request.timestamp );
 		throw new Error(`invalid type: integer \`${request.timestamp}\`, expected a string at line 1 column 114`);
+	    }
 
-	    if ( Date.parse( request.timestamp ) === NaN )
+	    if ( Date.parse( request.timestamp ) === NaN ) {
+		log.error("Failed during request timestamp check: could not parse date '%s'", request.timestamp );
 		throw new Error(`invalid date: ${request.timestamp}`);
+	    }
 
 	    const entry			= SerializeJSON( args );
-
 	    const address		= Codec.Digest.encode( sha256( entry ) );
+
+	    log.info("Returning commit address (%s) for service log request (%s)", address, request_signature );
 	    return ZomeAPIResult(address);
 	},
 	
 	async log_response ( args ) {
-	    log.silly("Input: %s", JSON.stringify(args,null,4) );
 	    // Validate input
 	    response_input_superstruct( args );
 
@@ -202,13 +207,14 @@ const MockServiceLogger = {
 		entries
 	    }				= args;
 	    const entry			= SerializeJSON( args );
-
 	    const address		= Codec.Digest.encode( sha256( entry ) );
+
+	    log.info("Returning commit address (%s) for service log response (%s)", address, response_hash );
 	    return ZomeAPIResult(address);
 	},
 
 	async log_service ( args ) {
-	    log.silly("Input: %s", JSON.stringify(args,null,4) );
+	    // log.silly("Input: %s", JSON.stringify(args,null,4) );
 	    // Validate input
 	    service_input_superstruct( args );
 
@@ -218,12 +224,15 @@ const MockServiceLogger = {
 		confirmation,
 		confirmation_signature
 	    }				= args;
-	    if ( this.verifyPayload( agent_id, confirmation, confirmation_signature ) !== true )
+	    if ( this.verifyPayload( agent_id, confirmation, confirmation_signature ) !== true ) {
+		log.error("Failed during payload verification for log confirmation (%s)", confirmation_signature );
 		throw new Error("Signature does not match confirmation payload");
+	    }
 
 	    const entry			= SerializeJSON( args );
-
 	    const address		= Codec.Digest.encode( sha256( entry ) );
+
+	    log.info("Returning commit address (%s) for service log confirmation (%s)", address, confirmation_signature );
 	    return ZomeAPIResult(address);
 	},
     }
@@ -305,7 +314,12 @@ const AdminInstances = {
     "happ-store": MockHappStore,
     "holo-hosting-app": MockHHA,
 };
-
+const DEFAULT_IFACES = {
+    "master":	42211,
+    "service":	42222,
+    "internal":	42233,
+    "general":	42244,
+};
 
 function dieOnError ( ws_server ) {
     ws_server.on("error", ( err ) => {
@@ -317,25 +331,19 @@ function dieOnError ( ws_server ) {
 class Conductor {
     static send_serialization_error	= false;
 
-    constructor () {
+    constructor ( interfaces = DEFAULT_IFACES ) {
+	this.interfaces			= interfaces;
 	this.wormhole_port		= 9676;
-	
-	this.master			= new WebSocketServer({
-	    "port": 42211,
-	    "host": "localhost",
+
+	let if_entries			= Object.entries( interfaces );
+	if_entries.map( ([name,port]) => {
+	    this[name]			= new WebSocketServer({
+		"port": port,
+		"host": "localhost",
+	    });
 	});
-	this.service			= new WebSocketServer({
-	    "port": 42222,
-	    "host": "localhost",
-	});
-	this.internal			= new WebSocketServer({
-	    "port": 42233,
-	    "host": "localhost",
-	});
-	this.general			= new WebSocketServer({
-	    "port": 42244,
-	    "host": "localhost",
-	});
+	log.normal("Initialized mock Conductor with interfaces: %s", () => [
+	    if_entries.map( ([k,v]) => `localhost:${v} (${k})`).join(", ") ] );
 
 	dieOnError( this.master );
 	dieOnError( this.service );
@@ -351,25 +359,28 @@ class Conductor {
 	for ( let [k,v] of Object.entries( namespace ) ) {
 	    const segments		= prefixes.concat( k.toLowerCase() );
 
-	    if ( typeof v === "function" )
+	    if ( typeof v === "function" ) {
+		log.debug("Register method on master: %s", segments.join("/") );
 		this.registerMasterMethod( segments.join("/"), v );
+	    }
 	    else if ( typeof v === "object" )
 		this.handleMaster( v, segments );
 	    else
-		log.error("Don't know how to handle key:value === %s: %s", k, v );
+		log.warn("Don't know how to handle value of type (%s), expected 'function' or 'object'", typeof v );
 	}
     }
+
     registerMasterMethod ( method, fn ) {
-	log.info("Registering master method: %s", method );
 	this.master.register( method, async function ( ...args ) {
-	    log.debug("Master called with: %s( %s )", () => [method, args.map( v => typeof v ).join(', ') ]);
+	    log.silly("Call to 'master' interface: %s( %s )", () => [method, args.map( v => typeof v ).join(', ') ]);
 	    return await fn.call( MockMaster, ...args );
 	});
     }
 
     handleServiceLogs () {
 	this.service.register("call", async function ( call_spec ) {
-	    log.debug("Service Logger called with: %s/%s( %s )", call_spec["zome"], call_spec["function"], Object.keys( call_spec["args"] ).join(', ') );
+	    log.silly("Call to 'service' interface: %s/%s( %s )", () => [
+		call_spec["zome"], call_spec["function"], Object.keys( call_spec["args"] ).join(', ') ]);
 	    // TODO: Validate call_spec format
 	    // TODO: Check if instance_id is registered/running
 
@@ -382,8 +393,8 @@ class Conductor {
 
     handleInternal () {
 	this.internal.register("call", async function ( call_spec ) {
-	    log.debug("Internal called with: %s->%s/%s( %s )",
-		      call_spec["instance_id"], call_spec["zome"], call_spec["function"], Object.keys( call_spec["args"] ).join(', ') );
+	    log.silly("Call to 'internal' interface: %s::%s/%s( %s )", () => [
+		call_spec["instance_id"], call_spec["zome"], call_spec["function"], Object.keys( call_spec["args"] ).join(', ') ]);
 	    // TODO: Validate call_spec format
 	    // TODO: Check if instance_id is registered/running
 
@@ -396,6 +407,7 @@ class Conductor {
     }
 
     async stop () {
+	log.normal("Closing interfaces: %s", Object.keys(this.interfaces).join(", ") );
 	await this.master.close();
 	await this.service.close();
 	await this.internal.close();
@@ -405,7 +417,7 @@ class Conductor {
     async wormholeRequest ( agent_id, entry ) {
 	const message			= typeof entry === "string" ? entry : SerializeJSON( entry );
 
-	log.debug("Sending HTTP wormhole request to %s with message length %s", agent_id, message.length );
+	log.debug("Sending wormhole request for Agent (%s) with message (length %s) over HTTP: localhost:%s", agent_id, message.length, this.wormhole_port );
 	const resp			= await fetch(`http://localhost:${this.wormhole_port}`, {
 	    "method": "POST",
 	    "body": JSON.stringify({
@@ -414,15 +426,16 @@ class Conductor {
 	    }),
 	    "timeout": 1000,
 	});
+	const status			= resp.status;
+	const signature			= await resp.text();
 
-	log.debug("HTTP response status: %s", resp.status );
-
-	if ( resp.status !== 200 ) {
-	    log.error("Signing service error: %s", await resp.text() );
-	    throw new Error("Status of response from service is not success: " + resp.status );
+	log.silly("Received wormhole response (status %s): %s", status, signature );
+	if ( status !== 200 ) {
+	    log.error("Wormhole request returned non-success status (%s): %s", status, signature );
+	    throw new Error("Status of response from service is not success: " + status );
 	}
 
-	return await resp.text();
+	return signature;
     }
     
 }
