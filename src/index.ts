@@ -83,17 +83,19 @@ class Envoy {
     hcc_clients		: any		= {};
 
     constructor ( opts ) {
+	log.silly("Initializing Envoy with input: %s", opts );
 	this.opts			= Object.assign({}, {
 	    "port": WS_SERVER_PORT,
 	    "NS": NAMESPACE,
 	}, opts);
+	log.normal("Initializing with port (%s) and namespace (%s)", this.opts.port, this.opts.NS );
 
 	this.conductor_opts		= {
 	    "interfaces": {
 		"master_port":		42211,
 		"service_port":		42222,
 		"internal_port":	42233,
-		"public_port":		42244,
+		"hosted_port":		42244,
 	    },
 	};
 
@@ -109,22 +111,31 @@ class Envoy {
 	    this.hcc_clients.master	= new WebSocket(`ws://localhost:${ifaces.master_port}`,   RPC_CLIENT_OPTS );
 	    this.hcc_clients.service	= new WebSocket(`ws://localhost:${ifaces.service_port}`,  RPC_CLIENT_OPTS );
 	    this.hcc_clients.internal	= new WebSocket(`ws://localhost:${ifaces.internal_port}`, RPC_CLIENT_OPTS );
-	    this.hcc_clients.hosted	= new WebSocket(`ws://localhost:${ifaces.public_port}`,   RPC_CLIENT_OPTS );
+	    this.hcc_clients.hosted	= new WebSocket(`ws://localhost:${ifaces.hosted_port}`,   RPC_CLIENT_OPTS );
 	} catch ( err ) {
 	    console.error( err );
 	}
 
 	Object.keys( this.hcc_clients ).map(k => {
 	    this.hcc_clients[k].name = k;
+	    this.hcc_clients[k].port = this.conductor_opts.interfaces[`${k}_port`];
+	    log.info("Conductor client '%s' configured for port (%s)", k, this.hcc_clients[k].port );
 	});
 
 	const clients			= Object.values( this.hcc_clients );
 	this.connected			= Promise.all(
-	    clients.map( (client:any) => {
-		return client.opened( CONDUCTOR_TIMEOUT )
-		    .catch( err => console.log( client.name, err ) );
+	    clients.map(async (client:any) => {
+		await client.opened( CONDUCTOR_TIMEOUT )
+		    .catch( err => {
+			log.fatal("Conductor client '%s' failed to connect: %s", client.name, String(err) );
+			console.log( client.name, err );
+		    });
+		log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.name, client.socket.readyState );
 	    })
 	);
+
+	await this.connected;
+	log.normal("All Conductor clients are in a 'CONNECTED' state");
     }
 
     async startWebsocketServer () {
@@ -190,10 +201,13 @@ class Envoy {
 	    log.normal("Received signing response #%s with signature: %s", payload_id, signature );
 
 	    // - match payload ID to payload
-	    const [payload,f,r]		= this.pending_signatures[ payload_id ];
+	    const [payload,f,r,toid]		= this.pending_signatures[ payload_id ];
 
 	    // - respond to HTTP request
 	    f( signature );
+
+	    // clear fallback timeout response
+	    clearTimeout( toid );
 
 	    // - return success
 	    return true;
@@ -613,7 +627,7 @@ class Envoy {
 		log.debug(prefix("Conductor needs Agent (%s) to sign payload: %s"), agent_id, payload );
 		signature	= await this.signingRequest( agent_id, payload );
 	    } catch ( err ) {
-		log.error(prefix("Signing request error: %s"), String(err) );
+		log.error("WORMHOLE #%s: Signing request error: %s", wormhole_counter, String(err) );
 		res.writeHead(400);
 		res.end(`${err.name}: ${err.message}`);
 	    }
@@ -628,42 +642,51 @@ class Envoy {
     }
 
     async close () {
-	log.info("Closing Conductor clients...");
+	log.normal("Initiating shutdown; closing Condcutor clients, RPC WebSocket server, then HTTP server");
 
 	const clients			= Object.values( this.hcc_clients );
 	clients.map( (client:any) => client.close() );
 
 	await Promise.all( clients.map( (client:any) => client.closed() ));
+	log.info("All Conductor clients are closed");
 
-	log.info("Closing WebSocket server...");
 	await this.ws_server.close();
+	log.info("RPC WebSocket server is closed");
 
-	log.info("Closing HTTP server...");
 	await this.http_server.close();
+	log.info("HTTP server is closed");
     }
 
     signingRequest ( agent_id : string, payload : string, timeout = 5_000 ) {
+	const payload_id		= this.payload_counter++;
+	log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, typeof payload );
+
 	return new Promise((f,r) => {
-	    const payload_id		= this.payload_counter++;
 	    const event			= `${agent_id}/wormhole/request`;
 
 	    if ( this.ws_server.eventList( this.opts.NS ).includes( event ) === false ) {
+		log.warn("Trying to get signature from unknown Agent (%s)", agent_id );
 		if ( Object.keys( this.anonymous_agents ).includes( agent_id ) )
 		    throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
 		else
 		    throw new Error(`Agent ${agent_id} is not registered.  Something must have broke?`);
 	    }
-	    
-	    this.pending_signatures[ payload_id ] = [ payload, f, r ];
 
-	    setTimeout(() => r("Failed to get signature from Chaperone"), timeout );
+	    let toid			= setTimeout(() => {
+		log.error("Failed during signing request #%s with timeout (%sms)", payload_id, timeout );
+		r("Failed to get signature from Chaperone")
+	    }, timeout );
 
-	    log.debug("Send signing request #%s to Agent %s", payload_id, agent_id );
+	    log.info("Adding signature request #%s to pending signatures", payload_id );
+	    this.pending_signatures[ payload_id ] = [ payload, f, r, toid ];
+
 	    this.ws_server.emit( event, [ payload_id, payload ] );
+	    log.normal("Sent signing request #%s to Agent (%s)", payload_id, agent_id );
 	});
     }
     
     async callConductor ( client, call_spec, args : any = {} ) {
+	log.normal("Received request to call Condcutor using client '%s' with call spec: typeof '%s'", client, typeof call_spec );
 	let method;
 	try {
 	    if ( typeof client === "string" )
@@ -678,11 +701,12 @@ class Envoy {
 	    // Assume the method is "call" unless `call_spec` is a string.
 	    method			= "call";
 	    if ( typeof call_spec === "string" ) {
-		log.info("Calling method %s( %s )", call_spec, args );
+		log.debug("Admin call spec details: %s( %s )", () => [
+		    call_spec, Object.entries(args).map(([k,v]) => `${k} : ${typeof v}`).join(", ") ]);
 		method			= call_spec;
 	    }
 	    else {
-		log.silly("Call spec details: %s::%s->%s( %s )", () => [
+		log.debug("Call spec details: %s::%s->%s( %s )", () => [
 		    call_spec.instance_id, call_spec.zome, call_spec.function, Object.entries(call_spec.args).map(([k,v]) => `${k} : ${typeof v}`).join(", ") ]);
 		args			= call_spec;
 	    }
@@ -692,21 +716,16 @@ class Envoy {
 
 	let resp;
 	try {
-	    if ( ["holo-hosting-app", "happ-store"].includes( args.instance_id ) )
+	    if ( ["holo-hosting-app", "happ-store"].includes( args.instance_id ) ) {
+		log.warn("Calling mock '%s' instead using client '%s'", args.instance_id, client.name );
+		log.silly("Mock input: %s", JSON.stringify(args,null,4) );
 		resp			= await mocks( args );
+	    }
 	    else {
-		// log.silly("Input of conductor call %s: %s", method, JSON.stringify(args,null,4) );
+		log.silly("Calling Condcutor method (%s) over client '%s' with input: %s", method, client.name, JSON.stringify(args,null,4) );
 		resp			= await client.call( method, args );
 	    }
-
-	    try {
-		resp			= JSON.parse(resp);
-	    } catch ( err ) {
-		null;
-	    }
-	
 	} catch ( err ) {
-	    console.log("callConductor threw", err );
 	    // -32700
 	    //     Parse errorInvalid JSON was received by the server. An error occurred on the server while parsing the JSON text.
 	    // -32600
@@ -720,25 +739,31 @@ class Envoy {
 	    // -32000 to -32099
 	    //     Server errorReserved for implementation-defined server-errors.
 	    if ( err.code === -32000 ) {
-		log.error("RPC Error '%s': %s", err.message, err.data );
-		if ( err.data.includes("response from service is not success") )
+		if ( err.data.includes("response from service is not success") ) {
+		    log.error("Failed during Conductor call because of a signing request error: %s", err.data );
 		    throw new HoloError("Failed to get signatures from Client");
-		else
+		}
+		else {
+		    log.fatal("Failed during Conductor call with RPC Internal Error: %s -> %s", err.message, err.data );
 		    throw new HoloError("Unknown -32000 Error: %s", JSON.stringify( err ));
+		}
 	    } else if ( err instanceof Error ) {
+		log.error("Failed during Conductor call with error: %s", String(err) );
 		throw new HoloError(String(err));
 	    } else {
+		log.fatal("Failed during Conductor call with unknown error: %s", err );
 		throw new HoloError("Unknown RPC Error: %s", JSON.stringify( err ));
 	    }
 	}
 
+	log.normal("Call returned successful response: typeof '%s'", typeof resp );
 	return resp;
     }
 
     // Service Logger Methods
 
     addPendingConfirmation ( res_log_hash, agent_id, hha_hash ) {
-	log.debug("Add pending confirmation: %s", res_log_hash );
+	log.info("Add response (%s) to pending confirmations with Agent/HHA: %s/%s", res_log_hash, agent_id, hha_hash );
 	this.pending_confirms[ res_log_hash ] = {
 	    agent_id,
 	    hha_hash,
@@ -746,11 +771,12 @@ class Envoy {
     }
 
     getPendingConfirmation ( res_log_hash ) {
+	log.info("Get response (%s) from pending confirmations", res_log_hash );
 	return this.pending_confirms[ res_log_hash ];
     }
     
     removePendingConfirmation ( res_log_hash ) {
-	log.debug("Remove pending confirmation: %s", res_log_hash );
+	log.info("Remove response (%s) from pending confirmations", res_log_hash );
 	delete this.pending_confirms[ res_log_hash ];
     }
 
@@ -785,7 +811,7 @@ class Envoy {
 	});
 	
 	if ( resp.Ok ) {
-	    log.info("Returning success response for request log (%s): typeof %s", signature, typeof resp.Ok );
+	    log.info("Returning success response for request log (%s): typeof '%s'", signature, typeof resp.Ok );
 	    return resp.Ok;
 	}
 	else if ( resp.Err ) {
@@ -795,7 +821,7 @@ class Envoy {
 	}
 	else {
 	    log.fatal("Service request log (%s) returned unknown response format: %s", signature, resp );
-	    throw new Error(`Unknown 'service->log_request' response format: typeof ${typeof resp} (keys? ${Object.keys(resp)})`);
+	    throw new Error(`Unknown 'service->log_request' response format: typeof '${typeof resp}' (keys? ${Object.keys(resp)})`);
 	}
     }
 
@@ -817,7 +843,7 @@ class Envoy {
 	});
 
 	if ( resp.Ok ) {
-	    log.info("Returning success response for response log (%s): typeof %s", response_hash, typeof resp.Ok );
+	    log.info("Returning success response for response log (%s): typeof '%s'", response_hash, typeof resp.Ok );
 	    return resp.Ok;
 	}
 	else if ( resp.Err ) {
@@ -827,7 +853,7 @@ class Envoy {
 	}
 	else {
 	    log.fatal("Service response log (%s) returned unknown response format: %s", response_hash, resp );
-	    throw new Error(`Unknown 'service->log_response' response format: typeof ${typeof resp} (keys? ${Object.keys(resp)})`);
+	    throw new Error(`Unknown 'service->log_response' response format: typeof '${typeof resp}' (keys? ${Object.keys(resp)})`);
 	}
     }
 
@@ -848,7 +874,7 @@ class Envoy {
 	});
 
 	if ( resp.Ok ) {
-	    log.info("Returning success response for confirmation log (%s): typeof %s", signature, typeof resp.Ok );
+	    log.info("Returning success response for confirmation log (%s): typeof '%s'", signature, typeof resp.Ok );
 	    return resp.Ok;
 	}
 	else if ( resp.Err ) {
@@ -858,7 +884,7 @@ class Envoy {
 	}
 	else {
 	    log.fatal("Service confirmation log (%s) returned unknown response format: %s", signature, resp );
-	    throw new Error(`Unknown 'service->log_service' response format: typeof ${typeof resp} (keys? ${Object.keys(resp)})`);
+	    throw new Error(`Unknown 'service->log_service' response format: typeof '${typeof resp}' (keys? ${Object.keys(resp)})`);
 	}
     }
 
