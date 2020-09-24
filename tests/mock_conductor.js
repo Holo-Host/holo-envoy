@@ -16,14 +16,14 @@ const { struct, superstruct }		= require('superstruct');
 const sha256				= (buf) => crypto.createHash('sha256').update( Buffer.from(buf) ).digest();
 
 function ZomeAPIResult ( result ) {
-    return {
+    return JSON.stringify({
 	"Ok": result,
-    };
+    });
 }
 function ZomeAPIError ( result ) {
-    return {
+    return JSON.stringify({
 	"Err": result,
-    };
+    });
 }
 
 const holo_struct = superstruct({
@@ -439,5 +439,7 @@ class Conductor {
     }
     
 }
+Conductor.ZomeAPIResult			= ZomeAPIResult;
+Conductor.ZomeAPIError			= ZomeAPIError;
 
 module.exports				= Conductor;

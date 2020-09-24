@@ -725,13 +725,14 @@ class Envoy {
 		log.silly("Calling Condcutor method (%s) over client '%s' with input: %s", method, client.name, JSON.stringify(args,null,4) );
 		resp			= await client.call( method, args );
 
-		// Sometimes ZomeApiResult is a JSON string? ...so try to parse it I guess
-		if ( typeof resp === "string" ) {
-		    let resp_length	= resp.length;
-		    try {
+		if ( method === "call" ) {
+		    if ( typeof resp !== "string" )
+			log.warn("Expected 'ZomeApiResult' to be 'string', not '%s'", typeof resp );
+		    else {
+			let resp_length	= resp.length;
 			resp		= JSON.parse(resp);
-			log.warn("Automatically parsed JSON string response (length %s) to typeof '%s'", resp_length, typeof resp );
-		    } catch ( err ) {}
+			log.debug("Parsed 'ZomeApiResult' response (length %s) to typeof '%s'", resp_length, typeof resp );
+		    }
 		}
 	    }
 	} catch ( err ) {
