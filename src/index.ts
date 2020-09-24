@@ -724,6 +724,15 @@ class Envoy {
 	    else {
 		log.silly("Calling Condcutor method (%s) over client '%s' with input: %s", method, client.name, JSON.stringify(args,null,4) );
 		resp			= await client.call( method, args );
+
+		// Sometimes ZomeApiResult is a JSON string? ...so try to parse it I guess
+		if ( typeof resp === "string" ) {
+		    let resp_length	= resp.length;
+		    try {
+			resp		= JSON.parse(resp);
+			log.warn("Automatically parsed JSON string response (length %s) to typeof '%s'", resp_length, typeof resp );
+		    } catch ( err ) {}
+		}
 	    }
 	} catch ( err ) {
 	    // -32700
@@ -821,7 +830,8 @@ class Envoy {
 	}
 	else {
 	    log.fatal("Service request log (%s) returned unknown response format: %s", signature, resp );
-	    throw new Error(`Unknown 'service->log_request' response format: typeof '${typeof resp}' (keys? ${Object.keys(resp)})`);
+	    let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
+	    throw new Error(`Unknown 'service->log_request' response format: typeof '${typeof resp}' (${content})`);
 	}
     }
 
@@ -853,7 +863,8 @@ class Envoy {
 	}
 	else {
 	    log.fatal("Service response log (%s) returned unknown response format: %s", response_hash, resp );
-	    throw new Error(`Unknown 'service->log_response' response format: typeof '${typeof resp}' (keys? ${Object.keys(resp)})`);
+	    let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
+	    throw new Error(`Unknown 'service->log_response' response format: typeof '${typeof resp}' (${content})`);
 	}
     }
 
@@ -884,7 +895,8 @@ class Envoy {
 	}
 	else {
 	    log.fatal("Service confirmation log (%s) returned unknown response format: %s", signature, resp );
-	    throw new Error(`Unknown 'service->log_service' response format: typeof '${typeof resp}' (keys? ${Object.keys(resp)})`);
+	    let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
+	    throw new Error(`Unknown 'service->log_service' response format: typeof '${typeof resp}' (${content})`);
 	}
     }
 
