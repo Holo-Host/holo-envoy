@@ -642,7 +642,7 @@ class Envoy {
     }
 
     async close () {
-	log.normal("Initiating shutdown; closing Condcutor clients, RPC WebSocket server, then HTTP server");
+	log.normal("Initiating shutdown; closing Conductor clients, RPC WebSocket server, then HTTP server");
 
 	const clients			= Object.values( this.hcc_clients );
 	clients.map( (client:any) => client.close() );
@@ -686,7 +686,7 @@ class Envoy {
     }
     
     async callConductor ( client, call_spec, args : any = {} ) {
-	log.normal("Received request to call Condcutor using client '%s' with call spec: typeof '%s'", client, typeof call_spec );
+	log.normal("Received request to call Conductor using client '%s' with call spec: typeof '%s'", client, typeof call_spec );
 	let method;
 	try {
 	    if ( typeof client === "string" )
@@ -722,7 +722,7 @@ class Envoy {
 		resp			= await mocks( args );
 	    }
 	    else {
-		log.silly("Calling Condcutor method (%s) over client '%s' with input: %s", method, client.name, JSON.stringify(args,null,4) );
+		log.silly("Calling Conductor method (%s) over client '%s' with input: %s", method, client.name, JSON.stringify(args,null,4) );
 		resp			= await client.call( method, args );
 
 		if ( method === "call" ) {
