@@ -9,6 +9,7 @@ const why				= require('why-is-node-running');
 
 const setup				= require("../setup_envoy.js");
 const Conductor				= require("../mock_conductor.js");
+const { ZomeAPIResult }			= Conductor;
 
 describe("Server with mock Conductor", () => {
 
@@ -53,13 +54,13 @@ describe("Server with mock Conductor", () => {
 		expect( data["function"]	).to.equal("list_pending");
 		expect( data["args"]		).to.be.an("object");
 
-		return [];
+		return ZomeAPIResult([]);
 	    });
 
 	    const response		= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
 	    log.debug("Response: %s", response );
 
-	    expect( response		).to.deep.equal( [] );
+	    expect( response.Ok		).to.deep.equal( [] );
 	} finally {
 	}
     });
@@ -74,7 +75,7 @@ describe("Server with mock Conductor", () => {
 		    "foo": "bar",
 		});
 
-		return true;
+		return ZomeAPIResult(true);
 	    });
 
 	    try {
@@ -152,13 +153,13 @@ describe("Server with mock Conductor", () => {
 		expect( data["function"]	).to.equal("list_pending");
 		expect( data["args"]		).to.be.an("object");
 
-		return [];
+		return ZomeAPIResult([]);
 	    });
 
 	    const response		= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
 	    log.debug("Response: %s", response );
 
-	    expect( response		).to.deep.equal( [] );
+	    expect( response.Ok		).to.deep.equal( [] );
 	} finally {
 	}
     });
@@ -166,20 +167,17 @@ describe("Server with mock Conductor", () => {
     it("should complete wormhole request", async () => {
 	try {
 	    conductor.general.once("call", async function ( data ) {
-		const signature		= await conductor.wormholeRequest( client.agent_id, {
-		    "some": "entry",
-		    "foo": "bar",
-		});
+		const signature		= await conductor.wormholeRequest( client.agent_id, "UW1ZVWo1NnJyakFTOHVRQXpkTlFoUHJ3WHhFeUJ4ZkFxdktwZ1g5bnBpOGZOeA==" );
 
-		expect( signature	).to.equal("HXjbgxHEBHyTGyvBqtZQ6irS53nCzasKKoCK+q03o9LKHgSwrCY0zqXFnUU8v6RgP737UGXNBvbgHdlFYMTqBQ==");
+		expect( signature	).to.equal("w/lyO2IipA0sSdGtbg+5pACLoafOkdPRXXuiELis51HVthfhzdP2JZeIDQkwssMccC67mHjOuYsALe5DPQjKDw==");
 
-		return true;
+		return ZomeAPIResult(true);
 	    });
 
 	    const response		= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
 	    log.debug("Response: %s", response );
 
-	    expect( response		).to.be.true;
+	    expect( response.Ok		).to.be.true;
 	} finally {
 	}
     });
@@ -197,7 +195,7 @@ describe("Server with mock Conductor", () => {
 		const response			= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
 		log.debug("Response: %s", response );
 	    } catch ( err )  {
-		expect( err.message	).to.have.string("servicelogger.log_request failed");
+		expect( err.message	).to.have.string("servicelogger.log_request threw");
 	    }
 
 	    expect( failed		).to.be.true;
@@ -222,14 +220,14 @@ describe("Server with mock Conductor", () => {
 	    log.silly("Restart conductor");
 	    conductor			= new Conductor();
 	    conductor.general.once("call", async function ( data ) {
-		return true;
+		return ZomeAPIResult(true);
 	    });
 
 	    log.silly("Await zome call response");
 	    const response		= await request;
 	    log.debug("Response: %s", response );
 
-	    expect( response		).to.be.true;
+	    expect( response.Ok		).to.be.true;
 	} finally {
 	}
     });
