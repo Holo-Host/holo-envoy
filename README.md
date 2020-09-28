@@ -1,18 +1,13 @@
 
 # Envoy
+A server that facilitates communication between web user Agents and a Host's Holochain Conductor.
 
-## Overview
 
-## Architecture
+## Usage
 
-### Incoming Connections
+[RPC WebSocket - API Reference](./API.md)
 
-- **WebSocket Server**		- used by public Agents for hosted hApp connections
-- **HTTP Server**		- used by Conductor for wormhole signing requests
 
-### Outgoing Connections
+## Contributors
 
-- **Admin (Admin Server)**	- used for creating new hosted Agents and their instances
-- **Internal (Conductor)**	- used for service logger traffic
-- **Public (Conductor)**	- used for hosted agent traffic
-
+See [./CONTRIBUTING.md](./CONTRIBUTING.md)
