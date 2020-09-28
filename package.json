@@ -1,6 +1,6 @@
 {
   "name": "@holo-host/envoy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Server that facilitates communication between hosted Agents and a Host's Holochain Conductor",
   "main": "build/index.js",
   "scripts": {

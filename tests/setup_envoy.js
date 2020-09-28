@@ -42,7 +42,7 @@ async function create_client ( agent_id		= "HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVj
 	// "agent_id": agent_id,
 	"instance_prefix": instance_prefix,
 	"timeout": timeout,
-	"debug": ["debug", "silly"].includes( process.env.LOG_LEVEL.toLowerCase() ),
+	"debug": ["debug", "silly"].includes( (process.env.LOG_LEVEL || "" ).toLowerCase() ),
 	"host": "localhost",
 	"comb": false,
 	host_agent_id,
