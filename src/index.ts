@@ -248,7 +248,7 @@ class Envoy {
 
 	    return true;
 	}, this.opts.NS );
-	
+
 	this.ws_server.register("holo/agent/signup", async ([ hha_hash, agent_id ]) => {
 	    log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash )
 	    const failure_response	= (new HoloError("Failed to create a new hosted agent")).toJSON();
@@ -392,7 +392,7 @@ class Envoy {
 			    "instance_id":	instance_id,
 			    // "alias":		instance_id,
 			});
-			
+
 			if ( status.success !== true ) {
 			    log.error("Conductor 'admin/interface/add_instance' returned non-success response: %s", status );
 			    failed		= true
@@ -407,7 +407,7 @@ class Envoy {
 			}
 		    }
 
-		    
+
 		    // - start instances
 		    try {
 			log.info("Starting instance (%s)", instance_id );
@@ -428,7 +428,7 @@ class Envoy {
 			    throw err;
 			}
 		    }
-			
+
 		} catch ( err ) {
 		    failed		= true;
 		    log.error("Failed during DNA processing for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, String(err) );
@@ -451,7 +451,7 @@ class Envoy {
 	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
 	    // log.silly("Received request: %s", payload.call_spec );
 	    // Example of request package
-	    // 
+	    //
 	    //     {
 	    //         "anonymous"            : boolean,
 	    //         "agent_id"             : string,
@@ -479,7 +479,7 @@ class Envoy {
 	    // to bad signatures, wrong host_id, or whatever), then the request cannot proceed, and
 	    // we'll immediately return an error w/o a response_id or result.
 	    let req_log_hash;
-	    
+
 	    try {
 		log.debug("Log service request (%s) from Agent (%s)", service_signature, agent_id );
 		req_log_hash		= await this.logServiceRequest( hha_hash, agent_id, payload, service_signature );
@@ -492,7 +492,7 @@ class Envoy {
 		    "error": (new HoloError(error)).toJSON(),
 		};
 	    }
-	    
+
 	    // - call conductor
 	    let response, holo_error;
 	    try {
@@ -536,7 +536,7 @@ class Envoy {
 	    };
 	    // - service logger response
 	    let res_log_hash;
-	    
+
 	    try {
 		log.debug("Log service response (%s) for request (%s)", req_log_hash, service_signature );
 		res_log_hash		= await this.logServiceResponse( hha_hash, req_log_hash, response, metrics, entries );
@@ -554,7 +554,7 @@ class Envoy {
 		log.info("Adding service response ID (%s) to waiting list for client confirmations", res_log_hash );
 		this.addPendingConfirmation( res_log_hash, agent_id, hha_hash );
 	    }
-	    
+
 	    // - return conductor response
 	    log.normal("Returning reponse (%s) for request (%s): result : %s, error : %s",
 		       res_log_hash, service_signature, typeof response, typeof holo_error );
@@ -564,14 +564,14 @@ class Envoy {
 		"error": holo_error,
 	    };
 	}, this.opts.NS );
-	
+
 	this.ws_server.register("holo/service/confirm", async ([ resp_id, payload, signature ]) => {
 	    log.normal("Received confirmation request for response (%s)", resp_id );
 	    if ( typeof resp_id !== "string" ) {
 		log.error("Invalid type '%s' for response ID, should be of type 'string'", typeof resp_id );
 		return false;
 	    }
-	    
+
 	    // - service logger confirmation
 	    const { agent_id,
 		    hha_hash }		= this.getPendingConfirmation( resp_id );
@@ -631,7 +631,7 @@ class Envoy {
 		res.writeHead(400);
 		res.end(`${err.name}: ${err.message}`);
 	    }
-		    
+
 	    log.silly(prefix("Returning signature (%s) for payload: %s"), signature, payload );
 	    res.end( signature );
 	});
@@ -684,7 +684,7 @@ class Envoy {
 	    log.normal("Sent signing request #%s to Agent (%s)", payload_id, agent_id );
 	});
     }
-    
+
     async callConductor ( client, call_spec, args : any = {} ) {
 	log.normal("Received request to call Conductor using client '%s' with call spec: typeof '%s'", client, typeof call_spec );
 	let method;
@@ -712,6 +712,7 @@ class Envoy {
 	    }
 	} catch ( err ) {
 	    console.log("callConductor preamble threw", err );
+      throw new HoloError("callConductor preamble threw error: %s", JSON.stringify(err));
 	}
 
 	let resp;
@@ -784,7 +785,7 @@ class Envoy {
 	log.info("Get response (%s) from pending confirmations", res_log_hash );
 	return this.pending_confirms[ res_log_hash ];
     }
-    
+
     removePendingConfirmation ( res_log_hash ) {
 	log.info("Remove response (%s) from pending confirmations", res_log_hash );
 	delete this.pending_confirms[ res_log_hash ];
@@ -819,7 +820,7 @@ class Envoy {
 		"request_signature":	signature,
 	    },
 	});
-	
+
 	if ( resp.Ok ) {
 	    log.info("Returning success response for request log (%s): typeof '%s'", signature, typeof resp.Ok );
 	    return resp.Ok;
@@ -839,7 +840,7 @@ class Envoy {
     async logServiceResponse ( hha_hash, request_log_hash, response, metrics, entries ) {
 	const response_hash		= digest( response );
 	log.normal("Processing service logger response (%s) for request (%s)", response_hash, request_log_hash );
-	
+
 	log.silly("Recording service response (%s) with metrics: %s", response_hash, metrics );
 	const resp			= await this.callConductor( "service", {
 	    "instance_id":	`${hha_hash}::servicelogger`,
