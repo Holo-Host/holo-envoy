@@ -712,7 +712,7 @@ class Envoy {
 	    }
 	} catch ( err ) {
 	    console.log("callConductor preamble threw", err );
-      throw new HoloError("callConductor preamble threw error: %s", JSON.stringify(err));
+      throw new HoloError("callConductor preamble threw error: %s", String(err));
 	}
 
 	let resp;
