@@ -210,11 +210,25 @@ describe("Server with mock Conductor", () => {
 	}
     });
 
-    it("should disconnect Envoy's websocket clients", async () => {
+    it("should automatically re-connect a broken client in order to call Conductor", async function () {
+	conductor.general.once("call", async function ( data ) {
+	    return ZomeAPIResult(true);
+	});
+
+	log.warn("Closing 'service' RPC WebSocket Client");
+	envoy.hcc_clients["service"].close();
+
+	const response			= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+	log.debug("Response: %s", response );
+
+	expect( response.Ok		).to.be.true;
+    });
+
+    it("should disconnect Envoy's websocket clients", async function () {
 	try {
 	    await conductor.stop();
 
-	    log.silly("Issuing zome call while conductor stoped");
+	    log.silly("Issuing zome call while conductor stopped");
 	    const request		= client.callZomeFunction( "holofuel", "transactions", "list_pending" );
 
 	    log.silly("Restart conductor");

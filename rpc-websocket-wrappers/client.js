@@ -42,6 +42,11 @@ class WebSocket extends RPCWebSocket {
     closed ( timeout = 1000 ) {
 	return async_with_timeout(() => {
 	    return new Promise((f,r) => {
+		if ( this.socket.readyState === 3 ) {
+		    log.silly("RPC WebSocket client (%s) is already in CLOSED state (%s)", this.name, this.socket.readyState );
+		    return f();
+		}
+
 		return this.on("close", () => {
 		    log.silly("'close' event triggered on RPC WebSocket client (%s)", this.name );
 		    f();

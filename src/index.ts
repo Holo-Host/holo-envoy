@@ -22,8 +22,8 @@ const digest				= (data) => Codec.Digest.encode( sha256( typeof data === "string
 const WS_SERVER_PORT			= 4656; // holo
 const WH_SERVER_PORT			= 9676; // worm
 const RPC_CLIENT_OPTS			= {
-    "reconnect_interval": 1000,
-    "max_reconnects": 300,
+    "reconnect_interval": 60_000,
+    "max_reconnects": 1,
 };
 const CONDUCTOR_TIMEOUT			= RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
 const NAMESPACE				= "/hosting/";
@@ -67,6 +67,15 @@ class HoloError extends Error {
 }
 
 
+function createRPCWebSocketClient ( name, port, rpc_options = RPC_CLIENT_OPTS ) {
+    const client			= new WebSocket(`ws://localhost:${port}`, rpc_options );
+    client.name				= name;
+    client.port				= port;
+
+    log.info("Conductor client '%s' configured for port (%s)", client.name, client.port );
+    return client;
+}
+
 class Envoy {
     ws_server		: any;
     http_server		: any;
@@ -107,20 +116,12 @@ class Envoy {
     async connections () {
 	try {
 	    const ifaces		= this.conductor_opts.interfaces;
-
-	    this.hcc_clients.master	= new WebSocket(`ws://localhost:${ifaces.master_port}`,   RPC_CLIENT_OPTS );
-	    this.hcc_clients.service	= new WebSocket(`ws://localhost:${ifaces.service_port}`,  RPC_CLIENT_OPTS );
-	    this.hcc_clients.internal	= new WebSocket(`ws://localhost:${ifaces.internal_port}`, RPC_CLIENT_OPTS );
-	    this.hcc_clients.hosted	= new WebSocket(`ws://localhost:${ifaces.hosted_port}`,   RPC_CLIENT_OPTS );
+	    ["master", "service", "internal", "hosted"].map(name => {
+		this.hcc_clients[name]	= createRPCWebSocketClient( name, this.conductor_opts.interfaces[`${name}_port`] );
+	    });
 	} catch ( err ) {
 	    console.error( err );
 	}
-
-	Object.keys( this.hcc_clients ).map(k => {
-	    this.hcc_clients[k].name = k;
-	    this.hcc_clients[k].port = this.conductor_opts.interfaces[`${k}_port`];
-	    log.info("Conductor client '%s' configured for port (%s)", k, this.hcc_clients[k].port );
-	});
 
 	const clients			= Object.values( this.hcc_clients );
 	this.connected			= Promise.all(
@@ -645,9 +646,10 @@ class Envoy {
 	log.normal("Initiating shutdown; closing Conductor clients, RPC WebSocket server, then HTTP server");
 
 	const clients			= Object.values( this.hcc_clients );
-	clients.map( (client:any) => client.close() );
-
-	await Promise.all( clients.map( (client:any) => client.closed() ));
+	await Promise.all( clients.map( async (client:any) => {
+	    client.close();
+	    await client.closed()
+	}) );
 	log.info("All Conductor clients are closed");
 
 	await this.ws_server.close();
@@ -689,14 +691,23 @@ class Envoy {
 	log.normal("Received request to call Conductor using client '%s' with call spec: typeof '%s'", client, typeof call_spec );
 	let method;
 	try {
-	    if ( typeof client === "string" )
-		client			= this.hcc_clients[ client ];
+	    let ready_state		= this.hcc_clients[ client ].socket.readyState;
 
-	    let ready_state		= client.socket.readyState;
-	    if ( ready_state !== 1 ) {
+	    if ( ready_state === 3 || ready_state === 2 ) {
+		log.warn("Replacing closed RPC WebSocket client (%s) because ready state was %s (%s)", client, ready_state, READY_STATES[ready_state] );
+		this.hcc_clients[client] = createRPCWebSocketClient( client, this.conductor_opts.interfaces[`${client}_port`] );
+	    }
+
+	    client			= this.hcc_clients[client];
+	    ready_state			= client.socket.readyState;
+
+	    if ( ready_state === 0 ) {
 		log.silly("Waiting for 'CONNECTED' state because current ready state is %s (%s)", ready_state, READY_STATES[ready_state] );
 		await client.opened();
 	    }
+
+	    if ( typeof client === "string" )
+		client			= this.hcc_clients[ client ];
 
 	    // Assume the method is "call" unless `call_spec` is a string.
 	    method			= "call";
@@ -712,7 +723,7 @@ class Envoy {
 	    }
 	} catch ( err ) {
 	    console.log("callConductor preamble threw", err );
-      throw new HoloError("callConductor preamble threw error: %s", String(err));
+	    throw new HoloError("callConductor preamble threw error: %s", String(err));
 	}
 
 	let resp;
