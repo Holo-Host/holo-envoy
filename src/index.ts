@@ -68,7 +68,9 @@ class HoloError extends Error {
 
 
 function createRPCWebSocketClient ( name, port, rpc_options = RPC_CLIENT_OPTS ) {
-    const client			= new WebSocket(`ws://localhost:${port}`, rpc_options );
+    const url				= `ws://localhost:${port}`;
+    log.silly("Connecting RPC WebSocket client to (%s) with options: %s", url, rpc_options );
+    const client			= new WebSocket(url, rpc_options );
     client.name				= name;
     client.port				= port;
 

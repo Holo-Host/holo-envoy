@@ -14,11 +14,6 @@ class WebSocket extends RPCWebSocket {
     opened ( timeout = 1000 ) {
 	log.debug("Waiting for RPC WebSocket client (%s) to be in 'CONNECTED' ready state", this.name );
 
-	if ( this.socket.readyState === 1 ) {
-	    log.silly("WebSocket is already in CONNECTED ready state (%s)", this.socket.readyState );
-	    return;
-	}
-
 	return async_with_timeout(() => {
 	    return new Promise((f,r) => {
 		const tid		= setTimeout(() => {
@@ -27,14 +22,20 @@ class WebSocket extends RPCWebSocket {
 			return f();
 
 		    log.silly("Triggering timeout for '%s' because ready state is not 'CONNECTED' withing %sms", this.name, timeout );
-		    r();
+		    r(`Timeout exceeded ${timeout}ms (ready state: ${this.socket.readyState})`);
 		}, timeout - 10 );
 
-		return this.on("open", () => {
+		this.on("open", () => {
 		    log.silly("'open' event triggered on RPC WebSocket client (%s)", this.name );
-		    f();
 		    clearTimeout( tid );
+		    f();
 		});
+
+		if ( this.socket.readyState === 1 ) {
+		    log.silly("WebSocket is already in CONNECTED ready state (%s)", this.socket.readyState );
+		    clearTimeout( tid );
+		    return f();
+		}
 	    });
 	}, timeout );
     }
