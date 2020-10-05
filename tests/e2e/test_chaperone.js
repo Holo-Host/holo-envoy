@@ -49,7 +49,7 @@ describe("Server", () => {
     let http_ctrls, http_url;
 
     before(async function() {
-	this.timeout(10_000);
+	this.timeout(300_000);
 
 	log.info("Starting conductor");
 	await conductor.start();
