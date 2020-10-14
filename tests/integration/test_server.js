@@ -114,7 +114,7 @@ describe("Server", () => {
 	    await client.signUp( "someone@example.com", "Passw0rd!" );
 
 	    expect( client.anonymous	).to.be.false;
-	    expect( client.agent_id	).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
+	    expect( client.agent_id	).to.equal("HcSCjh6yr9fRQwhhkd36OOVugvFv8dejgYhKeDezDt4u9mbxiZoIKr3MSrfe35i");
 	} finally {
 	}
     });
@@ -124,7 +124,7 @@ describe("Server", () => {
 	    await client.signOut();
 
 	    expect( client.anonymous	).to.be.true;
-	    expect( client.agent_id	).to.not.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
+	    expect( client.agent_id	).to.not.equal("HcSCjh6yr9fRQwhhkd36OOVugvFv8dejgYhKeDezDt4u9mbxiZoIKr3MSrfe35i");
 	} finally {
 	}
     });
@@ -138,9 +138,10 @@ describe("Server", () => {
 	    await fail_client.signUp( "wormhole@example.com", "Passw0rd!" );
 
 	    const agent_id		= fail_client.agent_id;
-	    expect( agent_id		).to.equal("HcSCJtd68XYQrh5mesTTtGyTN3Sa9rupqgMjhnHQFyuwgtab8GzE4MGz64e9pni");
+	    expect( agent_id		).to.equal("HcScIE3hNWiWwaonnw95UWYyWnk6T66vqz9KHQGvrquehx9thJght86sf9wojki");
 
-	    fail_client.conn.removeAllListeners("HcSCJtd68XYQrh5mesTTtGyTN3Sa9rupqgMjhnHQFyuwgtab8GzE4MGz64e9pni/wormhole/request");
+	    log.warn("Removing wormhole listener from client connection");
+	    fail_client.conn.removeAllListeners(`${agent_id}/wormhole/request`);
 	    await fail_client.callZomeFunction( "holofuel", "transactions", "promise", {
 		"to": "HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bxxx",
 		"amount": "1",
@@ -163,7 +164,7 @@ describe("Server", () => {
 	    await client.signIn( "someone@example.com", "Passw0rd!" );
 	    const agent_id		= client.agent_id;
 
-	    expect( agent_id		).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
+	    expect( agent_id		).to.equal("HcSCjh6yr9fRQwhhkd36OOVugvFv8dejgYhKeDezDt4u9mbxiZoIKr3MSrfe35i");
 	    
 	    const response		= await client.callZomeFunction( "holofuel", "transactions", "ledger_state" );
 	    log.debug("Response: %s", response );

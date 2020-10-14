@@ -26,12 +26,17 @@ keystore_file = "KEYFILE"
 [[dnas]]
 id = "holofuel"
 file = "dnas/holofuel.dna.json"
-hash = "QmNZnFSLcfvAZoMijKsHVFq89FnSkDU9qpsKNCs3CvwwzY"
+hash = "QmPATBZABhxPpfZavVv27KV8aQAFhi2wgApRah3yTo4i4q"
 
 [[dnas]]
 id = "servicelogger"
 file = "dnas/servicelogger.dna.json"
-hash = "Qma16xrGjbg7iTtmHCv9d7HMZwGvpJ9NAidTj9KGyt5Tnm"
+hash = "QmUz5NYEDhDmpcWH9QKE8Akq37ZWkQBw8CzFrRSuTmYEKE"
+
+[[dnas]]
+id = "QmPATBZABhxPpfZavVv27KV8aQAFhi2wgApRah3yTo4i4q"
+file = "dnas/holofuel.dna.json"
+hash = "QmPATBZABhxPpfZavVv27KV8aQAFhi2wgApRah3yTo4i4q"
 
 
 # [[instances]]
@@ -73,7 +78,7 @@ agent = "host-agent-AGENT"
 
 # Holofuel - ServiceLogger
 [[instances]]
-id = "QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL::servicelogger"
+id = "QmNs8vqa5dMwxXUStFPEjSj8LQ1vn7xkh1GPgEU5MCsubz::servicelogger"
 dna = "servicelogger"
 agent = "host-agent-AGENT"
 
@@ -83,7 +88,7 @@ agent = "host-agent-AGENT"
       
     [instances.storage]
     type = "file"
-    path = "HCC_STORAGE/QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL-servicelogger"
+    path = "HCC_STORAGE/QmNs8vqa5dMwxXUStFPEjSj8LQ1vn7xkh1GPgEU5MCsubz-servicelogger"
 
 
 
@@ -103,7 +108,7 @@ id = "internal-interface"
     port = 42222
 
     [[interfaces.instances]]
-    id = "QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL::servicelogger"
+    id = "QmNs8vqa5dMwxXUStFPEjSj8LQ1vn7xkh1GPgEU5MCsubz::servicelogger"
 
 [[interfaces]]
 id = "admin-interface"

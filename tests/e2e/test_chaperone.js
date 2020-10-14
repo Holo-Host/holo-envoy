@@ -11,6 +11,7 @@ const puppeteer				= require('puppeteer');
 const http_servers			= require('../setup_http_server.js');
 const conductor				= require("../setup_conductor.js");
 const setup				= require("../setup_envoy.js");
+const happ_store_data			= require("../hosted-happs.json");
 
 let browser;
 
@@ -36,7 +37,7 @@ function delay(t, val) {
 }
 
 // NOT RANDOM: this instance_prefix matches the hha_hash hard-coded in Chaperone for DEVELOP mode
-const instance_prefix				= "QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL";
+const instance_prefix				= happ_store_data[0].versions[0]["happ-id"];
 const host_agent_id				= fs.readFileSync('./AGENTID', 'utf8').trim();
 log.info("Host Agent ID: %s", host_agent_id );
 
@@ -54,6 +55,7 @@ describe("Server", () => {
 	log.info("Starting conductor");
 	await conductor.start();
 
+	await delay(2_000);
 	envoy				= await setup.start();
 	server				= envoy.ws_server;
 
@@ -87,7 +89,7 @@ describe("Server", () => {
 	    let response;
 	    const page_url		= `${http_url}/html/chaperone.html`
     	    const page			= await create_page( page_url );
-	    
+
 	    response			= await page.evaluate(async function ( host_agent_id, instance_prefix )  {
 		const client = new Chaperone({
 		    "mode": Chaperone.DEVELOP,
@@ -122,7 +124,7 @@ describe("Server", () => {
 		console.log("Finished sign-up", client.agent_id );
 		if ( client.anonymous === true )
 		    return console.error("Client did not sign-in");
-		if ( client.agent_id !== "HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi" )
+		if ( client.agent_id !== "HcSCjh6yr9fRQwhhkd36OOVugvFv8dejgYhKeDezDt4u9mbxiZoIKr3MSrfe35i" )
 		    return console.error("Unexpected Agent ID:", client.agent_id );
 
 		try {

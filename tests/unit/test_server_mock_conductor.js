@@ -49,7 +49,7 @@ describe("Server with mock Conductor", () => {
 		const keys		= Object.keys( data );
 
 		expect( keys.length		).to.equal( 4 );
-		expect( data["instance_id"]	).to.equal("QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL::holofuel");
+		expect( data["instance_id"]	).to.equal("QmNs8vqa5dMwxXUStFPEjSj8LQ1vn7xkh1GPgEU5MCsubz::holofuel");
 		expect( data["zome"]		).to.equal("transactions");
 		expect( data["function"]	).to.equal("list_pending");
 		expect( data["args"]		).to.be.an("object");
@@ -104,7 +104,7 @@ describe("Server with mock Conductor", () => {
 	    await client.signUp( "someone@example.com", "Passw0rd!" );
 
 	    expect( client.anonymous	).to.be.false;
-	    expect( client.agent_id	).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
+	    expect( client.agent_id	).to.equal("HcSCjh6yr9fRQwhhkd36OOVugvFv8dejgYhKeDezDt4u9mbxiZoIKr3MSrfe35i");
 	} finally {
 	}
     });
@@ -114,7 +114,7 @@ describe("Server with mock Conductor", () => {
 	    await client.signOut();
 
 	    expect( client.anonymous	).to.be.true;
-	    expect( client.agent_id	).to.not.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
+	    expect( client.agent_id	).to.not.equal("HcSCjh6yr9fRQwhhkd36OOVugvFv8dejgYhKeDezDt4u9mbxiZoIKr3MSrfe35i");
 	} finally {
 	}
     });
@@ -142,13 +142,13 @@ describe("Server with mock Conductor", () => {
 	    await client.signIn( "someone@example.com", "Passw0rd!" );
 	    const agent_id		= client.agent_id;
 
-	    expect( agent_id		).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
+	    expect( agent_id		).to.equal("HcSCjh6yr9fRQwhhkd36OOVugvFv8dejgYhKeDezDt4u9mbxiZoIKr3MSrfe35i");
 	    
 	    conductor.general.once("call", async function ( data ) {
 		const keys		= Object.keys( data );
 
 		expect( keys.length		).to.equal( 4 );
-		expect( data["instance_id"]	).to.equal(`QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL::${agent_id}-holofuel`);
+		expect( data["instance_id"]	).to.equal(`QmNs8vqa5dMwxXUStFPEjSj8LQ1vn7xkh1GPgEU5MCsubz::${agent_id}-holofuel`);
 		expect( data["zome"]		).to.equal("transactions");
 		expect( data["function"]	).to.equal("list_pending");
 		expect( data["args"]		).to.be.an("object");
@@ -169,7 +169,7 @@ describe("Server with mock Conductor", () => {
 	    conductor.general.once("call", async function ( data ) {
 		const signature		= await conductor.wormholeRequest( client.agent_id, "UW1ZVWo1NnJyakFTOHVRQXpkTlFoUHJ3WHhFeUJ4ZkFxdktwZ1g5bnBpOGZOeA==" );
 
-		expect( signature	).to.equal("w/lyO2IipA0sSdGtbg+5pACLoafOkdPRXXuiELis51HVthfhzdP2JZeIDQkwssMccC67mHjOuYsALe5DPQjKDw==");
+		expect( signature	).to.equal("wp339BCWftgp/ovERppipxA4CC5grUUKEpuPur1Rmgtx8fb5GzTl9NMV5/Cc3Wjo+PMsjDdauEkF8iiBuEKfAw==");
 
 		return ZomeAPIResult(true);
 	    });

@@ -5,6 +5,7 @@ const log				= require('@whi/stdlog')(path.basename( __filename ), {
 
 const fetchMock				= require('fetch-mock');
 const mock_fetch			= fetchMock.sandbox()
+const happ_store_data			= require("./hosted-happs.json");
 
 // Mock COMB before loading chaperone
 global.COMB				= {
@@ -34,7 +35,7 @@ global.document				= {
     },
 };
 
-const made_up_happ_hash_for_test	= "QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL";
+const made_up_happ_hash_for_test	= happ_store_data[0].versions[0]["happ-id"];
 
 // Mock Resolver responses
 mock_fetch.mock(/.*resolver-dev\.holo.host\/resolve\/hosts\/?/, () => {

@@ -1,0 +1,12 @@
+[{
+    "name": "HoloFuel",
+    "versions": [{
+	"happ-id": "QmNs8vqa5dMwxXUStFPEjSj8LQ1vn7xkh1GPgEU5MCsubz",
+	"dnas": {
+	    "holofuel": {
+		"dna": "/bla/bla/bla/doesnt_matter.dna.json",
+		"hash": "QmPATBZABhxPpfZavVv27KV8aQAFhi2wgApRah3yTo4i4q"
+	    }
+	}
+    }]
+}]

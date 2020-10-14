@@ -22,11 +22,12 @@ const digest				= (data) => Codec.Digest.encode( sha256( typeof data === "string
 const WS_SERVER_PORT			= 4656; // holo
 const WH_SERVER_PORT			= 9676; // worm
 const RPC_CLIENT_OPTS			= {
-    "reconnect_interval": 60_000,
+    "reconnect_interval": 5_000,
     "max_reconnects": 1,
 };
 const CONDUCTOR_TIMEOUT			= RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
 const NAMESPACE				= "/hosting/";
+const HOSTED_HAPPS_CONFIG		= "/var/lib/holochain-conductor/hosted-happs.json";
 const READY_STATES			= ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
 
 interface CallSpec {
@@ -84,6 +85,7 @@ class Envoy {
     opts		: any;
     conductor_opts	: any;
     connected		: any;
+    happ_store_data	: any;
 
     request_counter	: number	= 0;
     payload_counter	: number	= 0;
@@ -98,8 +100,26 @@ class Envoy {
 	this.opts			= Object.assign({}, {
 	    "port": WS_SERVER_PORT,
 	    "NS": NAMESPACE,
+	    "hosted_happs_config_file": HOSTED_HAPPS_CONFIG,
 	}, opts);
 	log.normal("Initializing with port (%s) and namespace (%s)", this.opts.port, this.opts.NS );
+
+	const hosted_happs_config	= require( this.opts.hosted_happs_config_file );
+	log.normal("hApp Store has %s registered apps: %s", hosted_happs_config.length, Object.values(hosted_happs_config).map( (app:any) => app.name).join(", ") );
+
+	this.happ_store_data		= {};
+	hosted_happs_config.map( (app:any) => {
+	    app.versions.map( (version:any) => {
+		this.happ_store_data[version["happ-id"]] = Object.keys(version.dnas).map(dna_name => {
+		    return {
+			"handle": dna_name,
+			"hash": version.dnas[dna_name].hash,
+			"location": "",
+		    }
+		});
+	    });
+	});
+	log.silly("hApp Store data: %s", this.happ_store_data );
 
 	this.conductor_opts		= {
 	    "interfaces": {
@@ -367,7 +387,7 @@ class Envoy {
 			log.info("Creating instance for DNA (%s): %s", dna.hash, instance_id );
 			status			= await this.callConductor( "master", "admin/instance/add", {
 			    "id":	instance_id,
-			    "dna_id":	dna.handle,
+			    "dna_id":	dna.hash,
 			    "agent_id":	agent_id,
 			    "storage":	"file",
 			});
@@ -733,7 +753,7 @@ class Envoy {
 	    if ( ["holo-hosting-app", "happ-store"].includes( args.instance_id ) ) {
 		log.warn("Calling mock '%s' instead using client '%s'", args.instance_id, client.name );
 		log.silly("Mock input: %s", JSON.stringify(args,null,4) );
-		resp			= await mocks( args );
+		resp			= await mocks( args, this.happ_store_data );
 	    }
 	    else {
 		log.silly("Calling Conductor method (%s) over client '%s' with input: %s", method, client.name, JSON.stringify(args,null,4) );

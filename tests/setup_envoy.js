@@ -14,7 +14,9 @@ let envoy;
 const clients				= [];
 
 async function start_envoy () {
-    envoy				= new Envoy();
+    envoy				= new Envoy({
+	"hosted_happs_config_file": path.resolve( __dirname, "hosted-happs.json" ),
+    });
     return envoy;
 }
 

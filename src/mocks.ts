@@ -22,10 +22,10 @@ async function hha ( zome, func, args ) {
 	case "provider/get_app_details":
 	    return ZomeAPIResult({
 		"app_bundle": {
-		    "happ_hash": "QmVN32n6VHTioNEdhBHPuoSCYFt1wNTh5vv41W7QpNC5wB",
+		    "happ_hash": args.app_hash,
 		},
 		"payment_pref": [{
-		    "provider_address":         "", // "QmW3ihfvjdgLDBfhj4wK5TJ2McYLu6ENHC8pdtDn5BTae7",
+		    "provider_address":         "",
 		    "dna_bundle_hash":          "QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS",
 		    "max_fuel_per_invoice":     0,
 		    "max_unpaid_value":         0,
@@ -39,22 +39,18 @@ async function hha ( zome, func, args ) {
     }
 }
 
-async function happ_store ( zome, func, args ) {
+async function happ_store ( zome, func, args, happ_store_data ) {
     switch ( `${zome}/${func}` ) {
 	case "happs/get_app":
 	    return ZomeAPIResult({
-		"address":              "QmVN32n6VHTioNEdhBHPuoSCYFt1wNTh5vv41W7QpNC5wB",
+		"address":              args.app_hash,
 		"app_entry": {
 	            "title":            "",
 	            "author":           "",
 	            "description":      "",
 	            "thumbnail_url":    "",
 	            "homepage_url":     "",
-	            "dnas": [{
-			"location":     "",
-			"hash":         "QmeEqjFbA9kRcoK7Tw3TJKJ8yQ3SrK2ZLuEbGs5aP2QDug",
-			"handle":       "holofuel",
-	            }],
+	            "dnas":		happ_store_data[args.app_hash],
 	            "ui":               null,
 		},
 		"upvotes":              0,
@@ -68,7 +64,7 @@ async function happ_store ( zome, func, args ) {
 }
 
 
-async function handler ( call_spec ) {
+async function handler ( call_spec, happ_store_data ) {
     log.debug("Calling mock repsonse for: %s->%s.%s", call_spec.instance_id, call_spec.zome, call_spec.function );
 
     const inst				= call_spec["instance_id"];
@@ -80,7 +76,7 @@ async function handler ( call_spec ) {
 	return await hha( zome, func, args );
 
     if ( call_spec.instance_id === "happ-store" )
-	return await happ_store( zome, func, args );
+	return await happ_store( zome, func, args, happ_store_data );
 }
 
 
