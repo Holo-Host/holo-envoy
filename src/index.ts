@@ -233,7 +233,7 @@ class Envoy {
 		//     }]
 		//
 
-		log.info("Conducotr returned %s Agents", agents.length );
+		log.info("Conductor returned %s Agents", agents.length );
 		const agent		= agents.find( agent => agent.public_address === agent_id );
 
 		if ( agent === undefined ) {
