@@ -28,7 +28,7 @@
     "sprintf-js": "^1.1.2"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "^0.2.0",
+    "@holo-host/chaperone": "^0.2.1",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
     "chai": "^4.2.0",
