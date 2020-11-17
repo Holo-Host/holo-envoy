@@ -5,11 +5,11 @@ with pkgs;
 let
 
   dnas = with dnaPackages; [
-    happ-store
-    holo-hosting-app
+    # happ-store
+    # holo-hosting-app
     hosted-holofuel
     servicelogger
-    hylo-holo-dnas
+    # hylo-holo-dnas
   ];
 
   dnaConfig = drv: {
