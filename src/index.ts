@@ -708,10 +708,7 @@ class Envoy {
 			log.silly("Waiting for 'CONNECTED' state because current ready state is %s (%s)", ready_state, READY_STATES[ready_state] );
 			await client.opened();
 			}
-			
-			// console.log('=================>>>> CLIENT ?? IS THIS JUST A STRING ?? : ', client);
-			// console.log('=================>>>> HOSTED CLIENT (to compare with previous client log) : ', this.hcc_clients.hosted);
-			
+
 			// Assume the interfaceMethod is using the one of the AppWebsocket Instances as interfaceMethod, unless `call_spec` is a function (already pulled from the Master AdminWebsocket Innstance..).
 			interfaceMethod			= this.hcc_clients[client].callZome;
 			callAgent = 'app'
@@ -752,11 +749,11 @@ class Envoy {
 			if ( callAgent === "app" ) {
 				if ( typeof resp !== "string" )
 				// NB: this should be updated to refect the BUFFER....
-				log.warn("Expected 'ZomeApiResult' to be 'string', not '%s'", typeof resp );
+				log.warn("Expected zome call result to be 'string', not '%s'", typeof resp );
 				else {
 				let resp_length	= resp.length;
 				resp		= JSON.parse(resp);
-				log.debug("Parsed 'ZomeApiResult' response (length %s) to typeof '%s'", resp_length, typeof resp );
+				log.debug("Parsed zome call response (length %s) to typeof '%s'", resp_length, typeof resp );
 				}
 			}
 		}
@@ -850,9 +847,9 @@ class Envoy {
 	    },
 	});
 
-	if ( resp.Ok ) {
-	    log.info("Returning success response for request log (%s): typeof '%s'", signature, typeof resp.Ok );
-	    return resp.Ok;
+	if ( resp ) {
+	    log.info("Returning success response for request log (%s): typeof '%s'", signature, typeof resp );
+	    return resp;
 	}
 	else if ( resp ) {
 	    log.error("Service request log (%s) returned non-success response: %s", signature, resp );
@@ -884,9 +881,9 @@ class Envoy {
 	    },
 	});
 
-	if ( resp.Ok ) {
-	    log.info("Returning success response for response log (%s): typeof '%s'", response_hash, typeof resp.Ok );
-	    return resp.Ok;
+	if ( resp ) {
+	    log.info("Returning success response for response log (%s): typeof '%s'", response_hash, typeof resp );
+	    return resp;
 	}
 	else if ( resp ) {
 	    log.error("Service response log (%s) returned non-success response: %s", response_hash, resp );
