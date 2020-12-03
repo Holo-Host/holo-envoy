@@ -8,7 +8,12 @@
     "build": "tsc --esModuleInterop --lib es7,dom --outDir ./build -p ./src",
     "test": "npm run test-unit && npm run test-integration",
     "test-unit": "mocha ./tests/unit/",
-    "test-integration": "mocha ./tests/integration/"
+    "test-integration": "mocha ./tests/integration/",
+    "fetch-dnas": "sh ./scripts/fetch-dna.sh",
+    "start-conductor:service": "holochain-run-dna -p 42222 ./dnas/holo-hosting-app.dna.gz",
+    "start-conductor:internal": "holochain-run-dna -p 42233 ./dnas/holo-hosting-app.dna.gz",
+    "start-conductor:hosted": "holochain-run-dna -p 42244 ./dnas/holo-hosting-app.dna.gz",
+    "start-conductor": "holochain-run-dna ./dnas/holo-hosting-app.dna.gz"
   },
   "author": "Holo Ltd.",
   "contributors": [
@@ -21,6 +26,8 @@
   },
   "dependencies": {
     "@holo-host/cryptolib": "^0.2.0",
+    "@holochain/conductor-api": "0.0.1-dev.13",
+    "@msgpack/msgpack": "^2.3.0",
     "@whi/stdlog": "^0.3.3",
     "concat-stream": "^2.0.0",
     "json-stable-stringify": "^1.0.1",
@@ -29,6 +36,7 @@
   },
   "devDependencies": {
     "@holo-host/chaperone": "^0.2.0",
+    "@holochain-open-dev/holochain-run-dna": "^0.2.3",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
     "chai": "^4.2.0",
