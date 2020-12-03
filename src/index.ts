@@ -451,7 +451,9 @@ class Envoy {
 	    //                 "instance_id"  : string
 	    //                 "zome_name"         : string
 	    //                 "fn_name"     : string
-	    //                 "payload"         : array
+		//                 "payload"         : array
+		//					"cap"			: Buffer
+		//					"provenenance   : Buffer
 	    //             }
 	    //         }
 	    //         "service_signature"    : string,
@@ -707,8 +709,8 @@ class Envoy {
 			await client.opened();
 			}
 			
-			console.log('=================>>>> CLIENT ?? IS THIS JUST A STRING ?? : ', client);
-			console.log('=================>>>> HOSTED CLIENT (to compare with previous client log) : ', this.hcc_clients.hosted);
+			// console.log('=================>>>> CLIENT ?? IS THIS JUST A STRING ?? : ', client);
+			// console.log('=================>>>> HOSTED CLIENT (to compare with previous client log) : ', this.hcc_clients.hosted);
 			
 			// Assume the interfaceMethod is using the one of the AppWebsocket Instances as interfaceMethod, unless `call_spec` is a function (already pulled from the Master AdminWebsocket Innstance..).
 			interfaceMethod			= this.hcc_clients[client].callZome;
@@ -816,86 +818,89 @@ class Envoy {
 	delete this.pending_confirms[ res_log_hash ];
     }
 
-    // async logServiceRequest ( hha_hash, agent_id, payload, signature ) {
-	// log.normal("Processing service logger request (%s)", signature );
-	// const call_spec			= payload.call_spec;
-	// const args_hash			= digest( call_spec["payload"] );
+	// TODO: REMOVE CALL(to update with rsm)
+    async logServiceRequest ( hha_hash, agent_id, payload, signature ) {
+	log.normal("Processing service logger request (%s)", signature );
+	const call_spec			= payload.call_spec;
+	const args_hash			= digest( call_spec["payload"] );
 
-	// log.debug("Using argument digest: %s", args_hash );
-	// // QUESTION: Will we still be passing a  `dna_alias`, or should we reerence the `installed_app_id` instead?
-	// const request			= {
-	//     "timestamp":	payload.timestamp,
-	//     "host_id":		payload.host_id,
-	//     "call_spec": {
-	// 	"hha_hash":	call_spec["hha_hash"],
-	// 	"dna_alias":	call_spec["dna_alias"],
-	// 	"zome":		call_spec["zome_name"],
-	// 	"function":	call_spec["fn_name"],
-	// 	"args_hash":	args_hash,
-	//     },
-	// };
+	log.debug("Using argument digest: %s", args_hash );
+	// QUESTION: Will we still be passing a  `dna_alias`, or should we reerence the `installed_app_id` instead?
+	const request			= {
+	    "timestamp":	payload.timestamp,
+	    "host_id":		payload.host_id,
+	    "call_spec": {
+		"hha_hash":	call_spec["hha_hash"],
+		"dna_alias":	call_spec["dna_alias"],
+		"zome":		call_spec["zome_name"],
+		"function":	call_spec["fn_name"],
+		"args_hash":	args_hash,
+	    },
+	};
 
-	// log.silly("Recording service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
-	// const resp			= await this.callConductor( "service", {
-	//     "instance_id":	`${hha_hash}::servicelogger`,
-	//     "zome":		"service",
-	//     "function":		"log_request",
-	//     "args":		{
-	// 	"agent_id":		agent_id,
-	// 	"request":		request,
-	// 	"request_signature":	signature,
-	//     },
-	// });
+	log.silly("Recording service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
+	const resp			= await this.callConductor( "service", {
+	    "instance_id":	`${hha_hash}::servicelogger`,
+	    "zome":		"service",
+	    "function":		"log_request",
+	    "args":		{
+		"agent_id":		agent_id,
+		"request":		request,
+		"request_signature":	signature,
+	    },
+	});
 
-	// if ( resp.Ok ) {
-	//     log.info("Returning success response for request log (%s): typeof '%s'", signature, typeof resp.Ok );
-	//     return resp.Ok;
-	// }
-	// else if ( resp ) {
-	//     log.error("Service request log (%s) returned non-success response: %s", signature, resp );
-	//     let err			= JSON.parse( resp.Internal );
-	//     throw new Error( JSON.stringify(err,null,4) );
-	// }
-	// else {
-	//     log.fatal("Service request log (%s) returned unknown response format: %s", signature, resp );
-	//     let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
-	//     throw new Error(`Unknown 'service->log_request' response format: typeof '${typeof resp}' (${content})`);
-	// }
-    // }
+	if ( resp.Ok ) {
+	    log.info("Returning success response for request log (%s): typeof '%s'", signature, typeof resp.Ok );
+	    return resp.Ok;
+	}
+	else if ( resp ) {
+	    log.error("Service request log (%s) returned non-success response: %s", signature, resp );
+	    let err			= JSON.parse( resp.Internal );
+	    throw new Error( JSON.stringify(err,null,4) );
+	}
+	else {
+	    log.fatal("Service request log (%s) returned unknown response format: %s", signature, resp );
+	    let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
+	    throw new Error(`Unknown 'service->log_request' response format: typeof '${typeof resp}' (${content})`);
+	}
+    }
 
-    // async logServiceResponse ( hha_hash, request_log_hash, response, metrics, entries ) {
-	// const response_hash		= digest( response );
-	// log.normal("Processing service logger response (%s) for request (%s)", response_hash, request_log_hash );
+	// TODO: REMOVE CALL (to update with rsm)
+    async logServiceResponse ( hha_hash, request_log_hash, response, metrics, entries ) {
+	const response_hash		= digest( response );
+	log.normal("Processing service logger response (%s) for request (%s)", response_hash, request_log_hash );
 
-	// log.silly("Recording service response (%s) with metrics: %s", response_hash, metrics );
-	// const resp			= await this.callConductor( "service", {
-	//     "instance_id":	`${hha_hash}::servicelogger`,
-	//     "zome":		"service",
-	//     "function":		"log_response",
-	//     "args":		{
-	// 	"request_commit":	request_log_hash,
-	// 	"response_hash":	response_hash,
-	// 	"host_metrics":		metrics,
-	// 	"entries":		entries,
-	//     },
-	// });
+	log.silly("Recording service response (%s) with metrics: %s", response_hash, metrics );
+	const resp			= await this.callConductor( "service", {
+	    "instance_id":	`${hha_hash}::servicelogger`,
+	    "zome":		"service",
+	    "function":		"log_response",
+	    "args":		{
+		"request_commit":	request_log_hash,
+		"response_hash":	response_hash,
+		"host_metrics":		metrics,
+		"entries":		entries,
+	    },
+	});
 
-	// if ( resp.Ok ) {
-	//     log.info("Returning success response for response log (%s): typeof '%s'", response_hash, typeof resp.Ok );
-	//     return resp.Ok;
-	// }
-	// else if ( resp ) {
-	//     log.error("Service response log (%s) returned non-success response: %s", response_hash, resp );
-	//     let err			= JSON.parse( resp.Internal );
-	//     throw new Error( JSON.stringify(err,null,4) );
-	// }
-	// else {
-	//     log.fatal("Service response log (%s) returned unknown response format: %s", response_hash, resp );
-	//     let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
-	//     throw new Error(`Unknown 'service->log_response' response format: typeof '${typeof resp}' (${content})`);
-	// }
-    // }
+	if ( resp.Ok ) {
+	    log.info("Returning success response for response log (%s): typeof '%s'", response_hash, typeof resp.Ok );
+	    return resp.Ok;
+	}
+	else if ( resp ) {
+	    log.error("Service response log (%s) returned non-success response: %s", response_hash, resp );
+	    let err			= JSON.parse( resp.Internal );
+	    throw new Error( JSON.stringify(err,null,4) );
+	}
+	else {
+	    log.fatal("Service response log (%s) returned unknown response format: %s", response_hash, resp );
+	    let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
+	    throw new Error(`Unknown 'service->log_response' response format: typeof '${typeof resp}' (${content})`);
+	}
+    }
 
+	// TODO: Update this call (this will become the single call to servicelogger)
     async logServiceConfirmation ( hha_hash, agent_id, response_commit, confirmation_payload, signature ) {
 	log.normal("Processing service logger confirmation (%s) for response (%s)", signature, response_commit );
 
@@ -918,9 +923,9 @@ class Envoy {
 	    "fn_name":		"log_activity",
 	    "payload":		{
 			"activity":	{
-				"request":	ClientRequest,
-				"response": HostResponse,
-				"confirmation":		Confirmation,
+				"request":	'', // ClientRequest,
+				"response": '', // HostResponse,
+				"confirmation":	''	// Confirmation,
 			}
 		},
 		cap: null,
