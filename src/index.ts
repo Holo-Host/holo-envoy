@@ -7,8 +7,7 @@ import concat_stream			from 'concat-stream';
 import SerializeJSON			from 'json-stable-stringify';
 import { Codec }			from '@holo-host/cryptolib';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
-import { Server as WebSocketServer,
-	 Client as WebSocket }		from './wss';
+import { Server as WebSocketServer }		from './wss';
 import mocks				from './mocks';
 
 const log				= logger(path.basename( __filename ), {
@@ -28,13 +27,18 @@ const CONDUCTOR_TIMEOUT			= RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS
 const NAMESPACE				= "/hosting/";
 const READY_STATES			= ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
 
+// TODO: What is our standard for retreving the internal (self-hosted apps) HHA ID...
+const SERVICELOGGER_APP_HHA_ID = ''
+const HHA_APP_HHA_ID = ''
 // TODO: Update mock to actual mock
 const MOCK_HHA_CELL_ID = Buffer.from('holo-hosting-app-dna' + 'agent-pub-key');
 interface CallSpec {
-    instance_id?	: string;
-    zome?		: string;
-    function?		: string;
-    args?		: any;
+    cell_id?	: string;
+    zome_name?		: string;
+    fn_name?		: string;
+	payload?		: any;
+	provenance?		: Buffer;
+	cap?			: Buffer
 }
 
 class HoloError extends Error {
@@ -288,24 +292,35 @@ class Envoy {
 		// }
 	    // }
 
+		log.info("Retreive HHA cell id using the Installed App Id: '%s'", `holo-hosting-app-${HHA_APP_HHA_ID}::${agent_id}`);
+		// TODO: Add cli param to holochain-run-dna that allows for agent specification - to use when creating cell_id.
+	    const appInfo			= await this.callConductor( "internal", { installed_app_id: `holo-hosting-app-${HHA_APP_HHA_ID}::${agent_id}`  });
 
-	    log.info("Look-up HHA record using ID '%s'", hha_hash );
-	    resp			= await this.callConductor( "internal", {
-		"instance_id":	"holo-hosting-app",
-		"zome":		"provider",
-		"function":	"get_app_details",
-		"args":		{
-		    "app_hash": hha_hash,
-		},
-	    });
-
-	    if ( resp.Err ) {
-		log.error("Failed during HHA lookup: %s", resp.Err );
+	    if ( appInfo ) {
+		log.error("Failed during HHA AppInfo lookup: %s", appInfo );
 		return failure_response;
 	    }
 
-		const app			= resp.Ok;
-		const installed_app_id	= `${hha_hash}::${agent_id}`;
+		const hha_cell_id			= appInfo.cell_data[0][0];
+		;
+
+	    log.info("Look-up HHA record using ID '%s'", hha_hash );
+	    resp			= await this.callConductor( "internal", {
+		    "cell_id":	hha_cell_id,
+		    "zome_name":		"hha",
+		    "fn_name":		"get_happ",
+			"payload":		{ "happ_id": hha_hash },
+			"cap":		null,
+			"provenance":	agent_id,
+		});
+
+	    if ( resp ) {
+		log.error("Failed during App Details lookup in HHA: %s", resp );
+		return failure_response;
+	    }
+
+		const app			= resp;
+		const installed_app_id	= `${app.happ_alias}-${hha_hash}::${agent_id}`;
 
 	    log.silly("HHA bundle: %s", app );
 	    // Example response
@@ -445,7 +460,7 @@ class Envoy {
 		
 	    const call_spec		= payload.call_spec;
 		const hha_hash		= call_spec.hha_hash;
-		// QUESTION: Will we still be passing a  `dna_alias`, or should we reerence the `installed_app_id` instead?
+		// QUESTION: Will we still be passing a  `dna_alias`, or should we reference the `installed_app_id` instead?
 	    log.normal("Received zome call request from Agent (%s) with spec: %s::%s->%s( %s )",
 		       agent_id, call_spec.dna_alias, call_spec.zome_name, call_spec.fn_name, Object.keys(call_spec.payload).join(", ") );
 
@@ -471,12 +486,12 @@ class Envoy {
 	    let response, holo_error;
 	    try {		
 		// NOTE: ZomeCall Structure (UPDATED) = { 
-			// cap: null,
-			// cell_id: rootState.appInterface.cellId,
+			// cell_id,
 			// zome_name,
 			// fn_name,
-			// provenance: rootState.agentKey,
 			// payload
+			// provenance: agentKey,
+			// cap: null,
 		// }
 		log.debug("Calling zome function %s::%s->%s( %s ) on cell_id (%s) with %s arguments, cap token (%s), and provenance (%s):", () => [
 			call_spec.zome_name, call_spec.fn_name, call_spec.cell_id, Object.entries(call_spec.payload).map(([k,v]) => `${k} : ${typeof v}`).join(", "), call_spec.cap, call_spec.provenance ]);
@@ -691,19 +706,24 @@ class Envoy {
 			log.silly("Waiting for 'CONNECTED' state because current ready state is %s (%s)", ready_state, READY_STATES[ready_state] );
 			await client.opened();
 			}
-
-			// Assume the interfaceMethod is using the Hosted AppWebsocket Instance as interfaceMethod, unless `call_spec` is a function (already pulled from the Master AdminWebsocket Innstance..).
 			
-			console.log('CLIENT ???? : ', client);
-			console.log('HOSTED CLIENT (to compare with previous client log) : ', this.hcc_clients.hosted);
+			console.log('=================>>>> CLIENT ?? IS THIS JUST A STRING ?? : ', client);
+			console.log('=================>>>> HOSTED CLIENT (to compare with previous client log) : ', this.hcc_clients.hosted);
 			
+			// Assume the interfaceMethod is using the one of the AppWebsocket Instances as interfaceMethod, unless `call_spec` is a function (already pulled from the Master AdminWebsocket Innstance..).
+			interfaceMethod			= this.hcc_clients[client].callZome;
 			callAgent = 'app'
-			interfaceMethod			= this.hcc_clients.hosted.callZome;
 			if ( call_spec instanceof Function) {
 			log.debug("Admin Call spec details: %s( %s )", () => [
 				call_spec, Object.entries(args).map(([k,v]) => `${k} : ${typeof v}`).join(", ") ]);
 			interfaceMethod			= call_spec;
 			callAgent 				= 'admin'
+			}
+			else if (Object.keys(call_spec).length >= 2 ) {
+				log.debug("App Info Call spec details for installed app id ( %s )", () => [
+					call_spec.installed_app_id ]);
+				args					= call_spec;
+				interfaceMethod			= this.hcc_clients[client].appInfo;
 			}
 			else {
 			// NOTE: ZomeCall Structure (UPDATED) = { cap: null, cell_id: rootState.appInterface.cellId, zome_name, fn_name, provenance: rootState.agentKey, payload }
@@ -796,109 +816,124 @@ class Envoy {
 	delete this.pending_confirms[ res_log_hash ];
     }
 
-    async logServiceRequest ( hha_hash, agent_id, payload, signature ) {
-	log.normal("Processing service logger request (%s)", signature );
-	const call_spec			= payload.call_spec;
-	const args_hash			= digest( call_spec["args"] );
+    // async logServiceRequest ( hha_hash, agent_id, payload, signature ) {
+	// log.normal("Processing service logger request (%s)", signature );
+	// const call_spec			= payload.call_spec;
+	// const args_hash			= digest( call_spec["payload"] );
 
-	log.debug("Using argument digest: %s", args_hash );
-	// QUESTION: Will we still be passing a  `dna_alias`, or should we reerence the `installed_app_id` instead?
-	const request			= {
-	    "timestamp":	payload.timestamp,
-	    "host_id":		payload.host_id,
-	    "call_spec": {
-		"hha_hash":	call_spec["hha_hash"],
-		"dna_alias":	call_spec["dna_alias"],
-		"zome":		call_spec["zome_name"],
-		"function":	call_spec["fn_name"],
-		"args_hash":	args_hash,
-	    },
-	};
+	// log.debug("Using argument digest: %s", args_hash );
+	// // QUESTION: Will we still be passing a  `dna_alias`, or should we reerence the `installed_app_id` instead?
+	// const request			= {
+	//     "timestamp":	payload.timestamp,
+	//     "host_id":		payload.host_id,
+	//     "call_spec": {
+	// 	"hha_hash":	call_spec["hha_hash"],
+	// 	"dna_alias":	call_spec["dna_alias"],
+	// 	"zome":		call_spec["zome_name"],
+	// 	"function":	call_spec["fn_name"],
+	// 	"args_hash":	args_hash,
+	//     },
+	// };
 
-	log.silly("Recording service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
-	const resp			= await this.callConductor( "service", {
-	    "instance_id":	`${hha_hash}::servicelogger`,
-	    "zome":		"service",
-	    "function":		"log_request",
-	    "args":		{
-		"agent_id":		agent_id,
-		"request":		request,
-		"request_signature":	signature,
-	    },
-	});
+	// log.silly("Recording service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
+	// const resp			= await this.callConductor( "service", {
+	//     "instance_id":	`${hha_hash}::servicelogger`,
+	//     "zome":		"service",
+	//     "function":		"log_request",
+	//     "args":		{
+	// 	"agent_id":		agent_id,
+	// 	"request":		request,
+	// 	"request_signature":	signature,
+	//     },
+	// });
 
-	if ( resp.Ok ) {
-	    log.info("Returning success response for request log (%s): typeof '%s'", signature, typeof resp.Ok );
-	    return resp.Ok;
-	}
-	else if ( resp.Err ) {
-	    log.error("Service request log (%s) returned non-success response: %s", signature, resp.Err );
-	    let err			= JSON.parse( resp.Err.Internal );
-	    throw new Error( JSON.stringify(err,null,4) );
-	}
-	else {
-	    log.fatal("Service request log (%s) returned unknown response format: %s", signature, resp );
-	    let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
-	    throw new Error(`Unknown 'service->log_request' response format: typeof '${typeof resp}' (${content})`);
-	}
-    }
+	// if ( resp.Ok ) {
+	//     log.info("Returning success response for request log (%s): typeof '%s'", signature, typeof resp.Ok );
+	//     return resp.Ok;
+	// }
+	// else if ( resp ) {
+	//     log.error("Service request log (%s) returned non-success response: %s", signature, resp );
+	//     let err			= JSON.parse( resp.Internal );
+	//     throw new Error( JSON.stringify(err,null,4) );
+	// }
+	// else {
+	//     log.fatal("Service request log (%s) returned unknown response format: %s", signature, resp );
+	//     let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
+	//     throw new Error(`Unknown 'service->log_request' response format: typeof '${typeof resp}' (${content})`);
+	// }
+    // }
 
-    async logServiceResponse ( hha_hash, request_log_hash, response, metrics, entries ) {
-	const response_hash		= digest( response );
-	log.normal("Processing service logger response (%s) for request (%s)", response_hash, request_log_hash );
+    // async logServiceResponse ( hha_hash, request_log_hash, response, metrics, entries ) {
+	// const response_hash		= digest( response );
+	// log.normal("Processing service logger response (%s) for request (%s)", response_hash, request_log_hash );
 
-	log.silly("Recording service response (%s) with metrics: %s", response_hash, metrics );
-	const resp			= await this.callConductor( "service", {
-	    "instance_id":	`${hha_hash}::servicelogger`,
-	    "zome":		"service",
-	    "function":		"log_response",
-	    "args":		{
-		"request_commit":	request_log_hash,
-		"response_hash":	response_hash,
-		"host_metrics":		metrics,
-		"entries":		entries,
-	    },
-	});
+	// log.silly("Recording service response (%s) with metrics: %s", response_hash, metrics );
+	// const resp			= await this.callConductor( "service", {
+	//     "instance_id":	`${hha_hash}::servicelogger`,
+	//     "zome":		"service",
+	//     "function":		"log_response",
+	//     "args":		{
+	// 	"request_commit":	request_log_hash,
+	// 	"response_hash":	response_hash,
+	// 	"host_metrics":		metrics,
+	// 	"entries":		entries,
+	//     },
+	// });
 
-	if ( resp.Ok ) {
-	    log.info("Returning success response for response log (%s): typeof '%s'", response_hash, typeof resp.Ok );
-	    return resp.Ok;
-	}
-	else if ( resp.Err ) {
-	    log.error("Service response log (%s) returned non-success response: %s", response_hash, resp.Err );
-	    let err			= JSON.parse( resp.Err.Internal );
-	    throw new Error( JSON.stringify(err,null,4) );
-	}
-	else {
-	    log.fatal("Service response log (%s) returned unknown response format: %s", response_hash, resp );
-	    let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
-	    throw new Error(`Unknown 'service->log_response' response format: typeof '${typeof resp}' (${content})`);
-	}
-    }
+	// if ( resp.Ok ) {
+	//     log.info("Returning success response for response log (%s): typeof '%s'", response_hash, typeof resp.Ok );
+	//     return resp.Ok;
+	// }
+	// else if ( resp ) {
+	//     log.error("Service response log (%s) returned non-success response: %s", response_hash, resp );
+	//     let err			= JSON.parse( resp.Internal );
+	//     throw new Error( JSON.stringify(err,null,4) );
+	// }
+	// else {
+	//     log.fatal("Service response log (%s) returned unknown response format: %s", response_hash, resp );
+	//     let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
+	//     throw new Error(`Unknown 'service->log_response' response format: typeof '${typeof resp}' (${content})`);
+	// }
+    // }
 
     async logServiceConfirmation ( hha_hash, agent_id, response_commit, confirmation_payload, signature ) {
 	log.normal("Processing service logger confirmation (%s) for response (%s)", signature, response_commit );
 
+
+	log.info("Retreive Servicelogger cell id using the Installed App Id: '%s'", `servicelogger-${hha_hash}::${agent_id}`);
+	// TODO: Add cli param to holochain-run-dna that allows for agent specification - to use when creating cell_id.
+	const appInfo			= await this.callConductor( "internal", { installed_app_id: `holo-hosting-app-${SERVICELOGGER_APP_HHA_ID}::${agent_id}`});
+
+	if ( appInfo ) {
+	log.error("Failed during Servicelogger AppInfo lookup: %s", appInfo );
+	return (new HoloError("Failed to fetch AppInfo for Servicelogger")).toJSON();
+	}
+
+	const servicelogger_cell_id			= appInfo.cell_data[0][0];
+
 	log.silly("Recording service confirmation (%s) with payload: %s", signature, confirmation_payload );
 	const resp			= await this.callConductor( "service", {
-	    "instance_id":	`${hha_hash}::servicelogger`,
-	    "zome":		"service",
-	    "function":		"log_service",
-	    "args":		{
-		"agent_id":		agent_id,
-		"response_commit":	response_commit,
-		"confirmation":		confirmation_payload,
-		"confirmation_signature": signature,
-	    },
+	    "cell_id":	servicelogger_cell_id,
+	    "zome_name":		"service",
+	    "fn_name":		"log_activity",
+	    "payload":		{
+			"activity":	{
+				"request":	ClientRequest,
+				"response": HostResponse,
+				"confirmation":		Confirmation,
+			}
+		},
+		cap: null,
+		provenance: agent_id
 	});
 
-	if ( resp.Ok ) {
-	    log.info("Returning success response for confirmation log (%s): typeof '%s'", signature, typeof resp.Ok );
-	    return resp.Ok;
+	if ( resp ) {
+	    log.info("Returning success response for confirmation log (%s): typeof '%s'", signature, typeof resp );
+	    return resp;
 	}
-	else if ( resp.Err ) {
-	    log.error("Service confirmation log (%s) returned non-success response: %s", signature, resp.Err );
-	    let err			= JSON.parse( resp.Err.Internal );
+	else if ( resp ) {
+	    log.error("Service confirmation log (%s) returned non-success response: %s", signature, resp );
+	    let err			= JSON.parse( resp.Internal );
 	    throw new Error( JSON.stringify(err,null,4) );
 	}
 	else {
