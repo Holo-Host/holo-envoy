@@ -7,14 +7,10 @@ const log				= logger(path.basename( __filename ), {
 
 
 function ZomeAPIResult ( result ) {
-    return {
-	"Ok": result,
-    };
+    return { result };
 }
 function ZomeAPIError ( result ) {
-    return {
-	"Err": result,
-    };
+    return { result };
 }
 
 async function hha ( zome, func, args ) {
@@ -39,48 +35,17 @@ async function hha ( zome, func, args ) {
     }
 }
 
-async function happ_store ( zome, func, args ) {
-    switch ( `${zome}/${func}` ) {
-	case "happs/get_app":
-	    return ZomeAPIResult({
-		"address":              "QmVN32n6VHTioNEdhBHPuoSCYFt1wNTh5vv41W7QpNC5wB",
-		"app_entry": {
-	            "title":            "",
-	            "author":           "",
-	            "description":      "",
-	            "thumbnail_url":    "",
-	            "homepage_url":     "",
-	            "dnas": [{
-			"location":     "",
-			"hash":         "QmeEqjFbA9kRcoK7Tw3TJKJ8yQ3SrK2ZLuEbGs5aP2QDug",
-			"handle":       "holofuel",
-	            }],
-	            "ui":               null,
-		},
-		"upvotes":              0,
-		"upvoted_by_me":        false,
-	    });
-	    break;
-	default:
-	    return ZomeAPIError(`Unknown zome function: ${zome}/${func}`);
-	    break;
-    }
-}
-
 
 async function handler ( call_spec ) {
-    log.debug("Calling mock repsonse for: %s->%s.%s", call_spec.instance_id, call_spec.zome, call_spec.function );
+    log.debug("Calling mock repsonse for: %s->%s.%s", call_spec.cell_id, call_spec.zome, call_spec.function );
 
-    const inst				= call_spec["instance_id"];
+    const cell_id			= call_spec["cell_id"];
     const zome				= call_spec["zome"];
     const func				= call_spec["function"];
     const args				= call_spec["args"];
     
-    if ( inst === "holo-hosting-app" )
+    if ( zome === "hha" )
 	return await hha( zome, func, args );
-
-    if ( call_spec.instance_id === "happ-store" )
-	return await happ_store( zome, func, args );
 }
 
 

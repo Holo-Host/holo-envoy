@@ -12,3 +12,6 @@ AGENTID
 conductor.log
 sim2h.log
 holochain-conductor/storage
+service-conductor.log
+hosted-conductor.log
+internal-conductor.log

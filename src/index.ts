@@ -8,6 +8,7 @@ import SerializeJSON			from 'json-stable-stringify';
 import { Codec }			from '@holo-host/cryptolib';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer }		from './wss';
+import { HHA_INSTALLED_APP_ID, SERVICELOGGER_INSTALLED_APP_ID } from './const';
 import mocks				from './mocks';
 
 const log				= logger(path.basename( __filename ), {
@@ -27,11 +28,6 @@ const CONDUCTOR_TIMEOUT			= RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS
 const NAMESPACE				= "/hosting/";
 const READY_STATES			= ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
 
-// TODO: What is our standard for retreving the internal (self-hosted apps) HHA ID...
-const SERVICELOGGER_APP_HHA_ID = ''
-const HHA_APP_HHA_ID = ''
-// TODO: Update mock to actual mock
-const MOCK_HHA_CELL_ID = Buffer.from('holo-hosting-app-dna' + 'agent-pub-key');
 interface CallSpec {
     cell_id?	: string;
     zome_name?		: string;
@@ -224,77 +220,15 @@ class Envoy {
 	    return true;
 	}, this.opts.NS );
 
-	this.ws_server.register("holo/agent/identify", async ([ agent_id ]) => {
-	    log.normal("Starting 'identify' process for Agent (%s)", agent_id );
-
-	    // Check if this agent is known to this host
-	    try {
-		log.silly("Fetching agent list from Conductor admin interface");
-		
-		// TODO*: **LAIR CLIENT CALL**: Update to call lair_client.js to fetch list of hosted agents.
-		let agents		= await this.callConductor( "master", "admin/agent/list" );
-
-		// Example response
-		//
-		//     [{
-		//         "id":"host-agent",
-		//         "name":"Host Agent",
-		//         "public_address":"HcSCIk4TB9g386Ooeo49yH57VFPer6Guhcd5BY8j8wyRjjwmZFKW3mkxZs3oghr",
-		//         "keystore_file":"/var/lib/holochain-conductor/holo",
-		//         "holo_remote_key":null,
-		//         "test_agent":null
-		//     }]
-		//
-
-		log.info("Conductor returned %s Agents", agents.length );
-		const agent		= agents.find( agent => agent.public_address === agent_id );
-
-		if ( agent === undefined ) {
-		    log.error("Agent (%s) is unknown to this Host", agent_id );
-		    return (new HoloError(`Agent '${agent_id}' is unknown to this Host`)).toJSON();
-		}
-	    } catch ( err ) {
-		log.error("Failed during 'identify' process for Agent (%s): %s", agent_id, String(err) );
-		console.error( err );
-		return (new HoloError( String(err) )).toJSON();
-	    }
-
-	    return true;
-	}, this.opts.NS );
-
 	// Envoy - New Hosted Agent Sign-up Sequence
 	this.ws_server.register("holo/agent/signup", async ([ hha_hash, agent_id ]) => {
 	    log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash )
 	    const failure_response	= (new HoloError("Failed to create a new hosted agent")).toJSON();
 	    let resp;
 
-	    // TODO **LAIR CLIENT CALL** - add new hosted agent
-	    // try {
-		// log.info("Add new Agent (%s) with Holo remote key enabled", agent_id );
-
-		// TODO: Update to call lair_client.js to create agent
-		// const status	= await this.callConductor( "master", "admin/agent/add", {
-		//     "id":		agent_id,
-		//     "name":		agent_id,
-		//     "holo_remote_key":	agent_id,
-		// });
-
-		// if ( status.success !== true ) {
-		//     log.error("Conductor returned non-success response: %s", status );
-		//     return (new HoloError("Failed to add hosted agent")).toJSON();
-		// }
-	    // // } catch ( err ) {
-		// if ( err.message.includes( "already exists" ) )
-		//     log.warn("Agent (%s) already exists in Conductor", agent_id );
-		// else {
-		//     log.error("Failed during 'admin/agent/add': %s", String(err) );
-		//     throw err;
-		// }
-	    // }
-
-		log.info("Retreive HHA cell id using the Installed App Id: '%s'", `holo-hosting-app-${HHA_APP_HHA_ID}::${agent_id}`);
+		log.info("Retreive HHA cell id using the Installed App Id: '%s'", HHA_INSTALLED_APP_ID);
 		// TODO: Add cli param to holochain-run-dna that allows for agent specification - to use when creating cell_id.
-	    const appInfo			= await this.callConductor( "internal", { installed_app_id: `holo-hosting-app-${HHA_APP_HHA_ID}::${agent_id}`  });
+	    const appInfo			= await this.callConductor( "internal", { installed_app_id: HHA_INSTALLED_APP_ID  });
 
 	    if ( appInfo ) {
 		log.error("Failed during HHA AppInfo lookup: %s", appInfo );
@@ -302,7 +236,6 @@ class Envoy {
 	    }
 
 		const hha_cell_id			= appInfo.cell_data[0][0];
-		;
 
 	    log.info("Look-up HHA record using ID '%s'", hha_hash );
 	    resp			= await this.callConductor( "internal", {
@@ -320,7 +253,7 @@ class Envoy {
 	    }
 
 		const app			= resp;
-		const installed_app_id	= `${app.happ_alias}-${hha_hash}::${agent_id}`;
+		const installed_app_id	= `${app.happ_alias}-${hha_hash}:${agent_id}`;
 
 	    log.silly("HHA bundle: %s", app );
 	    // Example response
@@ -334,7 +267,7 @@ class Envoy {
 		//			dnas: [{
 		//				hash: String, // hash of the dna, not a stored dht address
 		//				path: String,
-		//				nick: Option<String>,
+		//				nick: Option<String>, << make this required in hha!
 		//			}],
 		//		},
 		// 		provider_pubkey: AgentPubKey,
@@ -448,12 +381,10 @@ class Envoy {
 	    //             "call_spec": {
 	    //                 "hha_hash"     : string,
 	    //                 "dna_alias"    : string,
-	    //                 "instance_id"  : string
-	    //                 "zome_name"         : string
-	    //                 "fn_name"     : string
-		//                 "payload"         : array
-		//					"cap"			: Buffer
-		//					"provenenance   : Buffer
+	    //                 "cell_id"  	  : string
+	    //                 "zome"         : string
+	    //                 "function"     : string
+		//                 "args"         : array
 	    //             }
 	    //         }
 	    //         "service_signature"    : string,
@@ -492,19 +423,19 @@ class Envoy {
 			// zome_name,
 			// fn_name,
 			// payload
-			// provenance: agentKey,
-			// cap: null,
+			// cap,
+			// provenance
 		// }
 		log.debug("Calling zome function %s::%s->%s( %s ) on cell_id (%s) with %s arguments, cap token (%s), and provenance (%s):", () => [
 			call_spec.zome_name, call_spec.fn_name, call_spec.cell_id, Object.entries(call_spec.payload).map(([k,v]) => `${k} : ${typeof v}`).join(", "), call_spec.cap, call_spec.provenance ]);
 
 		response		= await this.callConductor( "hosted", {
 		    "cell_id":	call_spec["cell_id"],
-		    "zome_name":		call_spec["zome_name"],
-		    "fn_name":		call_spec["fn_name"],
-			"payload":		call_spec["payload"],
-			"cap":		call_spec["cap"],
-			"provenance":	call_spec["provenance"],
+		    "zome_name":		call_spec["zome"],
+		    "fn_name":		call_spec["function"],
+			"payload":		call_spec["args"],
+			"cap":		null, // this will pass for calls in which the agent has Unrestricted status (includes all calls to own chain)
+			"provenance":	agent_id,
 		});
 	    } catch ( err ) {
 		log.error("Failed during Conductor call: %s", String(err) );
@@ -737,7 +668,7 @@ class Envoy {
 
 		let resp;
 		try {
-			if ( [MOCK_HHA_CELL_ID].includes( args.cell_id ) ) {
+			if ( ['hha'].includes( args.zome_name ) ) {
 			log.warn("Calling mock '%s' instead using client '%s'", args.cell_id, client.checkConnection.name );
 			log.silly("Mock input: %s", JSON.stringify(args,null,4) );
 			resp			= await mocks( args );
@@ -822,13 +753,13 @@ class Envoy {
 	const args_hash			= digest( call_spec["payload"] );
 
 	log.debug("Using argument digest: %s", args_hash );
-	// QUESTION: Will we still be passing a  `dna_alias`, or should we reerence the `installed_app_id` instead?
+	// NB: Update servicelogger to expect `happ_alias` instead of  `dna_alias` in the request payload
 	const request			= {
 	    "timestamp":	payload.timestamp,
 	    "host_id":		payload.host_id,
 	    "call_spec": {
 		"hha_hash":	call_spec["hha_hash"],
-		"dna_alias":	call_spec["dna_alias"],
+		"happ_alias":	call_spec["happ_alias"], // << should we use the installed_app_id instead?
 		"zome":		call_spec["zome_name"],
 		"function":	call_spec["fn_name"],
 		"args_hash":	args_hash,
@@ -899,50 +830,50 @@ class Envoy {
 
 	// TODO: Update this call (this will become the single call to servicelogger)
     async logServiceConfirmation ( hha_hash, agent_id, response_commit, confirmation_payload, signature ) {
-	log.normal("Processing service logger confirmation (%s) for response (%s)", signature, response_commit );
+		log.normal("Processing service logger confirmation (%s) for response (%s)", signature, response_commit );
 
 
-	log.info("Retreive Servicelogger cell id using the Installed App Id: '%s'", `servicelogger-${hha_hash}::${agent_id}`);
-	// TODO: Add cli param to holochain-run-dna that allows for agent specification - to use when creating cell_id.
-	const appInfo			= await this.callConductor( "internal", { installed_app_id: `holo-hosting-app-${SERVICELOGGER_APP_HHA_ID}::${agent_id}`});
+		log.info("Retreive Servicelogger cell id using the Installed App Id: '%s'", SERVICELOGGER_INSTALLED_APP_ID);
+		// TODO: Add cli param to holochain-run-dna that allows for agent specification - to use when creating cell_id.
+		const appInfo			= await this.callConductor( "internal", { installed_app_id: SERVICELOGGER_INSTALLED_APP_ID });
 
-	if ( appInfo ) {
-	log.error("Failed during Servicelogger AppInfo lookup: %s", appInfo );
-	return (new HoloError("Failed to fetch AppInfo for Servicelogger")).toJSON();
-	}
+		if ( appInfo ) {
+		log.error("Failed during Servicelogger AppInfo lookup: %s", appInfo );
+		return (new HoloError("Failed to fetch AppInfo for Servicelogger")).toJSON();
+		}
 
-	const servicelogger_cell_id			= appInfo.cell_data[0][0];
+		const servicelogger_cell_id			= appInfo.cell_data[0][0];
 
-	log.silly("Recording service confirmation (%s) with payload: %s", signature, confirmation_payload );
-	const resp			= await this.callConductor( "service", {
-	    "cell_id":	servicelogger_cell_id,
-	    "zome_name":		"service",
-	    "fn_name":		"log_activity",
-	    "payload":		{
-			"activity":	{
-				"request":	'', // ClientRequest,
-				"response": '', // HostResponse,
-				"confirmation":	''	// Confirmation,
-			}
-		},
-		cap: null,
-		provenance: agent_id
-	});
+		log.silly("Recording service confirmation (%s) with payload: %s", signature, confirmation_payload );
+		const resp			= await this.callConductor( "service", {
+			"cell_id":	servicelogger_cell_id,
+			"zome_name":		"service",
+			"fn_name":		"log_activity",
+			"payload":		{
+				"activity":	{
+					"request":	'', // ClientRequest,
+					"response": '', // HostResponse,
+					"confirmation":	''	// Confirmation,
+				}
+			},
+			cap: null,
+			provenance: agent_id
+		});
 
-	if ( resp ) {
-	    log.info("Returning success response for confirmation log (%s): typeof '%s'", signature, typeof resp );
-	    return resp;
-	}
-	else if ( resp ) {
-	    log.error("Service confirmation log (%s) returned non-success response: %s", signature, resp );
-	    let err			= JSON.parse( resp.Internal );
-	    throw new Error( JSON.stringify(err,null,4) );
-	}
-	else {
-	    log.fatal("Service confirmation log (%s) returned unknown response format: %s", signature, resp );
-	    let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
-	    throw new Error(`Unknown 'service->log_service' response format: typeof '${typeof resp}' (${content})`);
-	}
+		if ( resp ) {
+			log.info("Returning success response for confirmation log (%s): typeof '%s'", signature, typeof resp );
+			return resp;
+		}
+		else if ( resp ) {
+			log.error("Service confirmation log (%s) returned non-success response: %s", signature, resp );
+			let err			= JSON.parse( resp.Internal );
+			throw new Error( JSON.stringify(err,null,4) );
+		}
+		else {
+			log.fatal("Service confirmation log (%s) returned unknown response format: %s", signature, resp );
+			let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
+			throw new Error(`Unknown 'service->log_service' response format: typeof '${typeof resp}' (${content})`);
+		}
     }
 
 }
