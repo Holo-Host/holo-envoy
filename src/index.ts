@@ -9,7 +9,6 @@ import { Codec }			from '@holo-host/cryptolib';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer }		from './wss';
 import { HHA_INSTALLED_APP_ID, SERVICELOGGER_INSTALLED_APP_ID } from './const';
-import mocks				from './mocks';
 
 const log				= logger(path.basename( __filename ), {
     level: process.env.LOG_LEVEL || 'fatal',
@@ -668,59 +667,52 @@ class Envoy {
 
 		let resp;
 		try {
-			if ( ['hha'].includes( args.zome_name ) ) {
-			log.warn("Calling mock '%s' instead using client '%s'", args.cell_id, client.checkConnection.name );
-			log.silly("Mock input: %s", JSON.stringify(args,null,4) );
-			resp			= await mocks( args );
-			}
-			else {
 			log.silly("Calling Conductor method (%s) over client '%s' with input: %s", interfaceMethod, client.checkConnection.name, JSON.stringify(args,null,4) );
 			resp			= await interfaceMethod( args );
 
 			if ( callAgent === "app" ) {
-				if ( typeof resp !== "string" )
-				// NB: this should be updated to refect the BUFFER....
-				log.warn("Expected zome call result to be 'string', not '%s'", typeof resp );
+				// NB: this should be updated to reflect the BUFFER....
+				if ( Buffer.isBuffer(resp))
+					log.warn("Expected zome call result to be a buffer, not '%s'", typeof resp );
 				else {
-				let resp_length	= resp.length;
-				resp		= JSON.parse(resp);
-				log.debug("Parsed zome call response (length %s) to typeof '%s'", resp_length, typeof resp );
+					let resp_length	= resp.length;
+					resp		= JSON.parse(resp);
+					log.debug("Parsed zome call response (length %s) to typeof '%s'", resp_length, typeof resp );
 				}
 			}
+		} catch ( err ) {
+			// -32700
+			//     Parse errorInvalid JSON was received by the server. An error occurred on the server while parsing the JSON text.
+			// -32600
+			//     Invalid RequestThe JSON sent is not a valid Request object.
+			// -32601
+			//     Method not foundThe method does not exist / is not available.
+			// -32602
+			//     Invalid paramsInvalid method parameter(s).
+			// -32603
+			//     Internal errorInternal JSON-RPC error.
+			// -32000 to -32099
+			//     Server errorReserved for implementation-defined server-errors.
+			if ( err.code === -32000 ) {
+			if ( err.data.includes("response from service is not success") ) {
+				log.error("Failed during Conductor call because of a signing request error: %s", err.data );
+				throw new HoloError("Failed to get signatures from Client");
+			}
+			else {
+				log.fatal("Failed during Conductor call with RPC Internal Error: %s -> %s", err.message, err.data );
+				throw new HoloError("Unknown -32000 Error: %s", JSON.stringify( err ));
+			}
+			} else if ( err instanceof Error ) {
+			log.error("Failed during Conductor call with error: %s", String(err) );
+			throw new HoloError(String(err));
+			} else {
+			log.fatal("Failed during Conductor call with unknown error: %s", err );
+			throw new HoloError("Unknown RPC Error: %s", JSON.stringify( err ));
+			}
 		}
-	} catch ( err ) {
-	    // -32700
-	    //     Parse errorInvalid JSON was received by the server. An error occurred on the server while parsing the JSON text.
-	    // -32600
-	    //     Invalid RequestThe JSON sent is not a valid Request object.
-	    // -32601
-	    //     Method not foundThe method does not exist / is not available.
-	    // -32602
-	    //     Invalid paramsInvalid method parameter(s).
-	    // -32603
-	    //     Internal errorInternal JSON-RPC error.
-	    // -32000 to -32099
-	    //     Server errorReserved for implementation-defined server-errors.
-	    if ( err.code === -32000 ) {
-		if ( err.data.includes("response from service is not success") ) {
-		    log.error("Failed during Conductor call because of a signing request error: %s", err.data );
-		    throw new HoloError("Failed to get signatures from Client");
-		}
-		else {
-		    log.fatal("Failed during Conductor call with RPC Internal Error: %s -> %s", err.message, err.data );
-		    throw new HoloError("Unknown -32000 Error: %s", JSON.stringify( err ));
-		}
-	    } else if ( err instanceof Error ) {
-		log.error("Failed during Conductor call with error: %s", String(err) );
-		throw new HoloError(String(err));
-	    } else {
-		log.fatal("Failed during Conductor call with unknown error: %s", err );
-		throw new HoloError("Unknown RPC Error: %s", JSON.stringify( err ));
-	    }
-	}
 
-	log.normal("Call returned successful response: typeof '%s'", typeof resp );
-	return resp;
+		log.normal("Call returned successful response: typeof '%s'", typeof resp );
+		return resp;
     }
 
 

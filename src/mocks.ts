@@ -6,31 +6,42 @@ const log				= logger(path.basename( __filename ), {
 });
 
 
-function ZomeAPIResult ( result ) {
+function HhaResult ( result ) {
     return { result };
 }
-function ZomeAPIError ( result ) {
+function HhaError ( result ) {
     return { result };
 }
 
 async function hha ( zome, func, args ) {
     switch ( `${zome}/${func}` ) {
-	case "provider/get_app_details":
-	    return ZomeAPIResult({
-		"app_bundle": {
-		    "happ_hash": "QmVN32n6VHTioNEdhBHPuoSCYFt1wNTh5vv41W7QpNC5wB",
-		},
-		"payment_pref": [{
-		    "provider_address":         "", // "QmW3ihfvjdgLDBfhj4wK5TJ2McYLu6ENHC8pdtDn5BTae7",
-		    "dna_bundle_hash":          "QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS",
-		    "max_fuel_per_invoice":     0,
-		    "max_unpaid_value":         0,
-		    "price_per_unit":           0,
-		}],
-	    });
+	case "hha/get_happ":
+	    return HhaResult({
+				happ_id: 'HeaderHash', // buffer
+				happ_bundle: {
+					hosted_url: 'http://holofuel.holohost.net',
+					happ_alias: 'holofuel-console',
+					ui_path: 'path/to/compressed/ui/file',
+					name: 'HoloFuel Console',
+					dnas: [{
+						hash: 'Qm...', // hash of the dna, not a stored dht address
+						path: '/path/to/compressed/dna/file',
+						nick: 'holofuel'
+					}],
+				},
+				provider_pubkey: 'AgentPubKey', // buffer
+		});
+		break;
+	case "hha/get_happ_preferences":
+	    return HhaResult({
+			provider_pubkey: 'AgentPubKey', // buffer
+			max_fuel_before_invoice: 2.0, // f64
+			price_per_unit: 0.5, // f64
+			max_time_before_invoice: { secs: 15000, nanos: 0 },
+		});
 	    break;
 	default:
-	    return ZomeAPIError(`Unknown zome function: ${zome}/${func}`);
+	    return HhaError(`Unknown zome function: ${zome}/${func}`);
 	    break;
     }
 }
@@ -39,7 +50,6 @@ async function hha ( zome, func, args ) {
 async function handler ( call_spec ) {
     log.debug("Calling mock repsonse for: %s->%s.%s", call_spec.cell_id, call_spec.zome, call_spec.function );
 
-    const cell_id			= call_spec["cell_id"];
     const zome				= call_spec["zome"];
     const func				= call_spec["function"];
     const args				= call_spec["args"];
