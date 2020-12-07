@@ -29,7 +29,7 @@ const READY_STATES			= ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
 
 interface CallSpec {
 	hha_hash	: string;
-	happ_alias	: string;
+	dna_alias	: string;
 	cell_id?	: string;
     zome?		: string;
     function?		: string;
@@ -395,7 +395,7 @@ class Envoy {
 	    //             "host_id"          : string,
 	    //             "call_spec": {
 		//                 "hha_hash"     : string,
-		//				   "happ_alias"	  : string,
+		//				   "dna_alias"	  : string,
 	    //                 "cell_id"  	  : string,
 	    //                 "zome"         : string,
 	    //                 "function"     : string,
@@ -421,16 +421,17 @@ class Envoy {
 	    // ZomeCall to Conductor App Interface
 	    let zomeCall_response, holo_error;
 	    try {		
-		// NOTE: ZomeCall Structure (UPDATED) = { 
-			// cell_id,
-			// zome_name,
-			// fn_name,
-			// payload
-			// cap,
-			// provenance
-		// }
 		log.debug("Calling zome function %s::%s->%s( %s ) on cell_id (%s) with %s arguments, cap token (%s), and provenance (%s):", () => [
 			call_spec.zome_name, call_spec.fn_name, call_spec.cell_id, Object.entries(call_spec.payload).map(([k,v]) => `${k} : ${typeof v}`).join(", "), null, agent_id ]);
+
+			// NOTE: ZomeCall Structure (UPDATED) = { 
+				// cell_id,
+				// zome_name,
+				// fn_name,
+				// payload
+				// cap,
+				// provenance
+			// }
 
 			zomeCall_response		= await this.callConductor( "hosted", {
 		    "cell_id":	call_spec["cell_id"],
@@ -467,16 +468,15 @@ class Envoy {
 	    }
 
 		const metrics		= {
-		"duration": "1s",
+		"response_received": [165303,0],
 		"cpu": '7'
 	    };
 	    // - service logger response
 	    let host_response;
 
-		log.debug("Form service response for request (%s): %s", service_signature, JSON.stringify( request, null, 4 ));
+		log.debug("Form service response for signed request (%s): %s", service_signature, JSON.stringify( request, null, 4 ));
 		host_response		= await this.logServiceResponse( zomeCall_response, metrics );
 		log.info("Service response by Host: %s",  JSON.stringify( host_response, null, 4 ) );
-	
 
 		// Use zomeCall response to act as waiting ID
 		log.info("Adding service response ID (%s) to waiting list for client confirmations", zomeCall_response );
@@ -485,26 +485,8 @@ class Envoy {
 	    // - return host response
 	    log.normal("Returning reponse (%s) for request (%s) with signature (%s), error : %s",
 			host_response, request, service_signature, holo_error);
-	
-		const response_received = metrics.duration;
-		
-		// NB: Need to receive two sigs from chaperone:
-		// 1. Signature of zomeCall_response: eg. { signed_response_hash = uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv }
-		// 2. Signaure of confirmation payload zomeCall_response and response_received metrics as following call_spec: 
-		//	eg.
-		// 		{
-		//			response_digest: "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv",
-		//			metrics: {
-		//			response_received: [165303,0]
-		//			}
-		// 		}
-		// Should return #1 (response_signature) and confirmation obj including #2 (confirmation_signature)
 
-		return {
-		// TODO: Make sure that no longer expects host_response/res_log_hash, as the zomeCall will be used as waiting id.
-		response_received, // return response_received, so it can be signed alongside zomeCall response
-		"result": zomeCall_response
-		};
+		return { "zome_call_id": zomeCall_response };
 	}, this.opts.NS );
 
 	// Chaperone Call to Envoy Server to confirm service
@@ -757,13 +739,12 @@ class Envoy {
 	const args_hash			= digest( call_spec["payload"] );
 
 	log.debug("Using argument digest: %s", args_hash );
-	// NB: Update servicelogger to expect `happ_alias` instead of  `dna_alias` in the request payload
 	const request_payload			= {
 		"timestamp":	payload.timestamp,
 	    "host_id":		payload.host_id,
 	    "call_spec": {
 			"hha_hash":	call_spec["hha_hash"],
-			"dna_alias":	call_spec["happ_alias"], // TODO: f/u on call signature update in servicelogger (dna_alias >> happ_alias)
+			"dna_alias":	call_spec["dna_alias"],
 			"zome":		call_spec["zome"],
 			"function":	call_spec["function"],
 			"args_hash":	args_hash,
