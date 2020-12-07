@@ -127,7 +127,7 @@ describe("Server", () => {
 
 		try {
 		    console.log( "Calling zome function" );
-		    return await client.callZomeFunction( "holofuel", "transactions", "ledger_state" );
+		    return await client.callZomeFunction( "hosted-happ", "elemental-chat", "transactions", "ledger_state" );
 		} catch ( err ) {
 		    console.log( err.stack );
 		    console.log( typeof err.stack, err.stack.toString() );

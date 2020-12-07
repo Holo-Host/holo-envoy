@@ -12,7 +12,7 @@
     "fetch-dnas": "sh ./scripts/fetch-dna.sh",
     "start-conductor:service": "holochain-run-dna -p 42222 -i servicelogger ./dnas/servicelogger.dna.gz &> service-conductor.log &",
     "start-conductor:internal": "holochain-run-dna -p 42233 -i holo-hosting-app ./dnas/holo-hosting-app.dna.gz &> internal-conductor.log &",
-    "start-conductor:hosted": "holochain-run-dna -p 42244 -i elemental-chat ./dnas/elemental-chat.dna.gz &> hosted-conductor.log &",
+    "start-conductor:hosted": "holochain-run-dna -p 42244 -i hosted-happ ./dnas/elemental-chat.dna.gz &> hosted-conductor.log &",
     "start-conductor:all": "npm run start-conductor:service && npm run start-conductor:internal && npm run start-conductor:hosted",
     "start-conductor": "holochain-run-dna ./dnas/holo-hosting-app.dna.gz"
   },

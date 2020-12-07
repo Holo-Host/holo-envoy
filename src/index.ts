@@ -28,12 +28,12 @@ const NAMESPACE				= "/hosting/";
 const READY_STATES			= ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
 
 interface CallSpec {
-    cell_id?	: string;
-    zome_name?		: string;
-    fn_name?		: string;
-	payload?		: any;
-	provenance?		: Buffer;
-	cap?			: Buffer
+	hha_hash	: string;
+	happ_alias	: string;
+	cell_id?	: string;
+    zome?		: string;
+    function?		: string;
+	args?		: any;
 }
 
 class HoloError extends Error {
@@ -378,11 +378,11 @@ class Envoy {
 	    //             "timestamp"        : string,
 	    //             "host_id"          : string,
 	    //             "call_spec": {
-	    //                 "hha_hash"     : string,
-	    //                 "dna_alias"    : string,
-	    //                 "cell_id"  	  : string
-	    //                 "zome"         : string
-	    //                 "function"     : string
+		//                 "hha_hash"     : string,
+		//				   "happ_alias"	  : string,
+	    //                 "cell_id"  	  : string,
+	    //                 "zome"         : string,
+	    //                 "function"     : string,
 		//                 "args"         : array
 	    //             }
 	    //         }
@@ -392,30 +392,19 @@ class Envoy {
 		
 	    const call_spec		= payload.call_spec;
 		const hha_hash		= call_spec.hha_hash;
-		// QUESTION: Will we still be passing a  `dna_alias`, or should we reference the `installed_app_id` instead?
 	    log.normal("Received zome call request from Agent (%s) with spec: %s::%s->%s( %s )",
-		       agent_id, call_spec.dna_alias, call_spec.zome_name, call_spec.fn_name, Object.keys(call_spec.payload).join(", ") );
+		       agent_id, call_spec.cell_id, call_spec.zome_name, call_spec.fn_name, Object.keys(call_spec.payload).join(", ") );
 
 	    // - service logger request. If the servicelogger.log_{request/response} fail (eg. due
 	    // to bad signatures, wrong host_id, or whatever), then the request cannot proceed, and
 	    // we'll immediately return an error w/o a response_id or result.
-	    let req_log_hash;
+	    let request;
 
-	    try {
 		log.debug("Log service request (%s) from Agent (%s)", service_signature, agent_id );
-		req_log_hash		= await this.logServiceRequest( hha_hash, agent_id, payload, service_signature );
-		log.info("Service request log hash: %s", req_log_hash );
-	    } catch ( err ) {
-		const error		= `servicelogger.log_request threw: ${String(err)}`;
-		log.error("Failed during service request log: %s", error );
-		console.error( err );
-		return {
-		    "error": (new HoloError(error)).toJSON(),
-		};
-	    }
+		request		= await this.logServiceRequest( agent_id, payload, service_signature );
 
 	    // ZomeCall to Conductor App Interface
-	    let response, holo_error;
+	    let zomeCall_response, holo_error;
 	    try {		
 		// NOTE: ZomeCall Structure (UPDATED) = { 
 			// cell_id,
@@ -426,9 +415,9 @@ class Envoy {
 			// provenance
 		// }
 		log.debug("Calling zome function %s::%s->%s( %s ) on cell_id (%s) with %s arguments, cap token (%s), and provenance (%s):", () => [
-			call_spec.zome_name, call_spec.fn_name, call_spec.cell_id, Object.entries(call_spec.payload).map(([k,v]) => `${k} : ${typeof v}`).join(", "), call_spec.cap, call_spec.provenance ]);
+			call_spec.zome_name, call_spec.fn_name, call_spec.cell_id, Object.entries(call_spec.payload).map(([k,v]) => `${k} : ${typeof v}`).join(", "), null, agent_id ]);
 
-		response		= await this.callConductor( "hosted", {
+			zomeCall_response		= await this.callConductor( "hosted", {
 		    "cell_id":	call_spec["cell_id"],
 		    "zome_name":		call_spec["zome"],
 		    "fn_name":		call_spec["function"],
@@ -438,7 +427,7 @@ class Envoy {
 		});
 	    } catch ( err ) {
 		log.error("Failed during Conductor call: %s", String(err) );
-		response		= {};
+		zomeCall_response		= {};
 
 		if ( err.message.includes("Failed to get signatures from Client") ) {
 		    let new_message		= anonymous === true
@@ -462,43 +451,44 @@ class Envoy {
 		}
 	    }
 
-	    const entries		= [];
-	    const metrics		= {
+		const metrics		= {
 		"duration": "1s",
+		"cpu": '7'
 	    };
 	    // - service logger response
-	    let res_log_hash;
+	    let host_response;
 
-	    try {
-		log.debug("Log service response (%s) for request (%s)", req_log_hash, service_signature );
-		res_log_hash		= await this.logServiceResponse( hha_hash, req_log_hash, response, metrics, entries );
-		log.info("Service response log hash: %s", res_log_hash );
-	    } catch ( err ) {
-		const error		= `servicelogger.log_response threw: ${String(err)}`;
-		log.error("Failed during service response log: %s", error );
-		console.error( err );
+		log.debug("Form service response for request (%s): %s", service_signature, JSON.stringify( request, null, 4 ));
+		host_response		= await this.logServiceResponse( zomeCall_response, metrics );
+		log.info("Service response by Host: %s",  JSON.stringify( host_response, null, 4 ) );
+	
+
+		// Use zomeCall response to act as waiting ID
+		log.info("Adding service response ID (%s) to waiting list for client confirmations", zomeCall_response );
+		this.addPendingConfirmation( zomeCall_response, request, host_response, agent_id );
+
+	    // - return host response
+	    log.normal("Returning reponse (%s) for request (%s) with signature (%s), error : %s",
+			host_response, request, service_signature, holo_error);
+	
+		const response_received = metrics.duration;
+		
+		// NB: Need to receive two sigs from chaperone:
+		// 1. Signature of zomeCall_response: signed_response_hash = sign(zomeCall_response)
+		// 2. Signaure of confirmation payload zomeCall_response and response_received metrics as following call_spec: 
+		// 	{
+		// 		uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv
+		// 	}
+
 		return {
-		    "error": (new HoloError(error)).toJSON(),
+		// TODO: Make sure that no longer expects host_response/res_log_hash, as the zomeCall will be used as waiting id.
+		response_received, // return response_received, so it can be signed alongside zomeCall response
+		"result": zomeCall_response
 		};
-	    }
-
-	    if ( typeof res_log_hash === "string" ) {
-		log.info("Adding service response ID (%s) to waiting list for client confirmations", res_log_hash );
-		this.addPendingConfirmation( res_log_hash, agent_id, hha_hash );
-	    }
-
-	    // - return conductor response
-	    log.normal("Returning reponse (%s) for request (%s): result : %s, error : %s",
-		       res_log_hash, service_signature, typeof response, typeof holo_error );
-	    return {
-		"response_id": res_log_hash,
-		"result": response,
-		"error": holo_error,
-	    };
 	}, this.opts.NS );
 
-	// Servicelogger Call to Envoy Server (with request confirmation)
-	this.ws_server.register("holo/service/confirm", async ([ resp_id, payload, signature ]) => {
+	// Chaperone Call to Envoy Server to confirm service
+	this.ws_server.register("holo/service/confirm", async ([ resp_id, zomeCall_response, signature ]) => {
 	    log.normal("Received confirmation request for response (%s)", resp_id );
 	    if ( typeof resp_id !== "string" ) {
 		log.error("Invalid type '%s' for response ID, should be of type 'string'", typeof resp_id );
@@ -507,12 +497,12 @@ class Envoy {
 
 	    // - service logger confirmation
 	    const { agent_id,
-		    hha_hash }		= this.getPendingConfirmation( resp_id );
+		    request, host_response }		= this.getPendingConfirmation( zomeCall_response );
 
 	    let service_log;
 	    try {
 		log.debug("Log service confirmation (%s) for response (%s)", signature, resp_id );
-		service_log		= await this.logServiceConfirmation( hha_hash, agent_id, resp_id, payload, signature );
+		service_log		= await this.logServiceConfirmation( zomeCall_response, request, host_response, agent_id, signature );
 		log.info("Service confirmation log hash: %s", service_log );
 	    } catch ( err ) {
 		const error		= `servicelogger.log_service threw: ${String(err)}`
@@ -720,109 +710,76 @@ class Envoy {
 
     // Service Logger Methods
 
-    addPendingConfirmation ( res_log_hash, agent_id, hha_hash ) {
-	log.info("Add response (%s) to pending confirmations with Agent/HHA: %s/%s", res_log_hash, agent_id, hha_hash );
-	this.pending_confirms[ res_log_hash ] = {
+    addPendingConfirmation ( zome_call_res, client_req, host_res, agent_id ) {
+	log.info("Add zome_call result (%s) to pending confirmations with Agent (%s), Client Request (%s), and Host Restponse (%s)", zome_call_res, agent_id, JSON.stringify( client_req, null, 4 ), JSON.stringify( host_res, null, 4 ) );
+	this.pending_confirms[ zome_call_res ] = {
 	    agent_id,
-	    hha_hash,
+		client_req,
+		host_res
 	};
     }
 
-    getPendingConfirmation ( res_log_hash ) {
-	log.info("Get response (%s) from pending confirmations", res_log_hash );
-	return this.pending_confirms[ res_log_hash ];
+    getPendingConfirmation ( zome_call_res ) {
+	log.info("Get response (%s) from pending confirmations", zome_call_res );
+	return this.pending_confirms[ zome_call_res ];
     }
 
-    removePendingConfirmation ( res_log_hash ) {
-	log.info("Remove response (%s) from pending confirmations", res_log_hash );
-	delete this.pending_confirms[ res_log_hash ];
+    removePendingConfirmation ( zome_call_res ) {
+	log.info("Remove response (%s) from pending confirmations", zome_call_res );
+	delete this.pending_confirms[ zome_call_res ];
     }
 
-	// TODO: REMOVE CALL(to update with rsm)
-    async logServiceRequest ( hha_hash, agent_id, payload, signature ) {
+    async logServiceRequest ( agent_id, payload, signature ) {
 	log.normal("Processing service logger request (%s)", signature );
 	const call_spec			= payload.call_spec;
 	const args_hash			= digest( call_spec["payload"] );
 
 	log.debug("Using argument digest: %s", args_hash );
 	// NB: Update servicelogger to expect `happ_alias` instead of  `dna_alias` in the request payload
-	const request			= {
-	    "timestamp":	payload.timestamp,
+	const request_payload			= {
+		"timestamp":	payload.timestamp,
 	    "host_id":		payload.host_id,
 	    "call_spec": {
-		"hha_hash":	call_spec["hha_hash"],
-		"happ_alias":	call_spec["happ_alias"], // << should we use the installed_app_id instead?
-		"zome":		call_spec["zome_name"],
-		"function":	call_spec["fn_name"],
-		"args_hash":	args_hash,
+			"hha_hash":	call_spec["hha_hash"],
+			"dna_alias":	call_spec["happ_alias"], // TODO: f/u on call signature update in servicelogger (dna_alias >> happ_alias)
+			"zome":		call_spec["zome"],
+			"function":	call_spec["function"],
+			"args_hash":	args_hash,
 	    },
 	};
 
-	log.silly("Recording service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
-	const resp			= await this.callConductor( "service", {
-	    "instance_id":	`${hha_hash}::servicelogger`,
-	    "zome":		"service",
-	    "function":		"log_request",
-	    "args":		{
-		"agent_id":		agent_id,
-		"request":		request,
-		"request_signature":	signature,
-	    },
-	});
+	let request = {
+		agent_id,
+        request: request_payload,
+        request_signature: signature
+	}
 
-	if ( resp ) {
-	    log.info("Returning success response for request log (%s): typeof '%s'", signature, typeof resp );
-	    return resp;
-	}
-	else if ( resp ) {
-	    log.error("Service request log (%s) returned non-success response: %s", signature, resp );
-	    let err			= JSON.parse( resp.Internal );
-	    throw new Error( JSON.stringify(err,null,4) );
-	}
-	else {
-	    log.fatal("Service request log (%s) returned unknown response format: %s", signature, resp );
-	    let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
-	    throw new Error(`Unknown 'service->log_request' response format: typeof '${typeof resp}' (${content})`);
-	}
+	  log.silly("Set service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
+	return request;
     }
 
-	// TODO: REMOVE CALL (to update with rsm)
-    async logServiceResponse ( hha_hash, request_log_hash, response, metrics, entries ) {
+    async logServiceResponse ( response, metrics ) {
 	const response_hash		= digest( response );
-	log.normal("Processing service logger response (%s) for request (%s)", response_hash, request_log_hash );
+	log.normal("Processing service logger response (%s)", response_hash );
 
-	log.silly("Recording service response (%s) with metrics: %s", response_hash, metrics );
-	const resp			= await this.callConductor( "service", {
-	    "instance_id":	`${hha_hash}::servicelogger`,
-	    "zome":		"service",
-	    "function":		"log_response",
-	    "args":		{
-		"request_commit":	request_log_hash,
-		"response_hash":	response_hash,
-		"host_metrics":		metrics,
-		"entries":		entries,
-	    },
-	});
+	// TODO: Update call spec below >> remove instance_id 
+	const resp			=  {
+		response_hash,
+        host_metrics: metrics.cpu,
+        // signed_response_hash: signed_response,
+        weblog_compat: {
+          source_ip: "100:0:0:0",
+          status_code: 200
+        }
+	};
 
-	if ( resp ) {
-	    log.info("Returning success response for response log (%s): typeof '%s'", response_hash, typeof resp );
-	    return resp;
-	}
-	else if ( resp ) {
-	    log.error("Service response log (%s) returned non-success response: %s", response_hash, resp );
-	    let err			= JSON.parse( resp.Internal );
-	    throw new Error( JSON.stringify(err,null,4) );
-	}
-	else {
-	    log.fatal("Service response log (%s) returned unknown response format: %s", response_hash, resp );
-	    let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
-	    throw new Error(`Unknown 'service->log_response' response format: typeof '${typeof resp}' (${content})`);
-	}
+	log.silly("Set service response (%s) with metrics: %s", response_hash, metrics );
+	return resp;
     }
 
 	// TODO: Update this call (this will become the single call to servicelogger)
-    async logServiceConfirmation ( hha_hash, agent_id, response_commit, confirmation_payload, signature ) {
-		log.normal("Processing service logger confirmation (%s) for response (%s)", signature, response_commit );
+    async logServiceConfirmation ( agent_id, client_request, host_response, confirmation_payload, signature ) {
+		log.normal("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation_payload, client_request, host_response );
 
 
 		log.info("Retreive Servicelogger cell id using the Installed App Id: '%s'", SERVICELOGGER_INSTALLED_APP_ID);
@@ -843,9 +800,9 @@ class Envoy {
 			"fn_name":		"log_activity",
 			"payload":		{
 				"activity":	{
-					"request":	'', // ClientRequest,
-					"response": '', // HostResponse,
-					"confirmation":	''	// Confirmation,
+					"request":	client_request, // ClientRequest,
+					"response": host_response, // HostResponse,
+					"confirmation":	''	// Confirmation, << is this the signature or confimation payload?
 				}
 			},
 			cap: null,

@@ -58,7 +58,7 @@ describe("Server with mock Conductor", () => {
 	// 	return ZomeAPIResult([]);
 	//     });
 
-	//     const response		= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+	//     const response		= await client.callZomeFunction( "hosted-happ" , "elemental-chat", "transactions", "list_pending" );
 	//     log.debug("Response: %s", response );
 
 	//     expect( response.Ok		).to.deep.equal( [] );
