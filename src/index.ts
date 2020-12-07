@@ -229,7 +229,7 @@ class Envoy {
 		// TODO: Add cli param to holochain-run-dna that allows for agent specification - to use when creating cell_id.
 	    const appInfo			= await this.callConductor( "internal", { installed_app_id: HHA_INSTALLED_APP_ID  });
 
-	    if ( appInfo ) {
+	    if ( !appInfo ) {
 		log.error("Failed during HHA AppInfo lookup: %s", appInfo );
 		return failure_response;
 	    }
@@ -246,7 +246,7 @@ class Envoy {
 			"provenance":	agent_id,
 		});
 
-	    if ( resp ) {
+	    if ( !resp ) {
 		log.error("Failed during App Details lookup in HHA: %s", resp );
 		return failure_response;
 	    }
@@ -363,8 +363,24 @@ class Envoy {
 	    return true;
 	}, this.opts.NS );
 
+	
+	// Chaperone AppInfo Call to Envoy Server
+	this.ws_server.register("holo/app-info", async ({ installed_app_id }) => {
+		let appInfo
+		try {
+			log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
+				appInfo			= await this.callConductor( "hosted", { installed_app_id });
+		} catch ( err ) {
+		log.error("Failed during Conductor AppInfo call: %s", String(err) );
+		throw (new HoloError("Failed to create a new hosted agent")).toJSON();
+		}
 
-	// Chaperone Call to Envoy Server
+		log.normal("Completed AppInfo call for installed_app_id (%s)", installed_app_id, appInfo );
+		return appInfo;
+	});
+
+	
+	// Chaperone ZomeCall to Envoy Server
 	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
 		// log.silly("Received request: %s", payload.call_spec );
 
@@ -391,7 +407,6 @@ class Envoy {
 		//
 		
 	    const call_spec		= payload.call_spec;
-		const hha_hash		= call_spec.hha_hash;
 	    log.normal("Received zome call request from Agent (%s) with spec: %s::%s->%s( %s )",
 		       agent_id, call_spec.cell_id, call_spec.zome_name, call_spec.fn_name, Object.keys(call_spec.payload).join(", ") );
 
@@ -474,11 +489,16 @@ class Envoy {
 		const response_received = metrics.duration;
 		
 		// NB: Need to receive two sigs from chaperone:
-		// 1. Signature of zomeCall_response: signed_response_hash = sign(zomeCall_response)
+		// 1. Signature of zomeCall_response: eg. { signed_response_hash = uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv }
 		// 2. Signaure of confirmation payload zomeCall_response and response_received metrics as following call_spec: 
-		// 	{
-		// 		uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv
-		// 	}
+		//	eg.
+		// 		{
+		//			response_digest: "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv",
+		//			metrics: {
+		//			response_received: [165303,0]
+		//			}
+		// 		}
+		// Should return #1 (response_signature) and confirmation obj including #2 (confirmation_signature)
 
 		return {
 		// TODO: Make sure that no longer expects host_response/res_log_hash, as the zomeCall will be used as waiting id.
@@ -488,21 +508,23 @@ class Envoy {
 	}, this.opts.NS );
 
 	// Chaperone Call to Envoy Server to confirm service
-	this.ws_server.register("holo/service/confirm", async ([ resp_id, zomeCall_response, signature ]) => {
-	    log.normal("Received confirmation request for response (%s)", resp_id );
-	    if ( typeof resp_id !== "string" ) {
-		log.error("Invalid type '%s' for response ID, should be of type 'string'", typeof resp_id );
+	this.ws_server.register("holo/service/confirm", async ([ zomeCall_response_id, response_signature, confirmation ]) => {
+	    log.normal("Received confirmation request for zome call response (%s)", zomeCall_response_id );
+	    if ( typeof zomeCall_response_id !== "string" ) {
+		log.error("Invalid type '%s' for response ID, should be of type 'string'", typeof zomeCall_response_id );
 		return false;
 	    }
 
 	    // - service logger confirmation
 	    const { agent_id,
-		    request, host_response }		= this.getPendingConfirmation( zomeCall_response );
+			client_req, host_res }		= this.getPendingConfirmation( zomeCall_response_id );
+			
+			host_res["signed_response_hash"] = response_signature
 
 	    let service_log;
 	    try {
-		log.debug("Log service confirmation (%s) for response (%s)", signature, resp_id );
-		service_log		= await this.logServiceConfirmation( zomeCall_response, request, host_response, agent_id, signature );
+		log.debug("Log service confirmation for Zome Call ID (%s) for request (%s) and host_response (%s) ", zomeCall_response_id );
+		service_log		= await this.logServiceConfirmation( client_req, host_res, agent_id, confirmation );
 		log.info("Service confirmation log hash: %s", service_log );
 	    } catch ( err ) {
 		const error		= `servicelogger.log_service threw: ${String(err)}`
@@ -513,10 +535,10 @@ class Envoy {
 		};
 	    }
 
-	    this.removePendingConfirmation( resp_id );
+	    this.removePendingConfirmation( zomeCall_response_id );
 
 	    // - return success
-	    log.normal("Response (%s) confirmation is complete", resp_id );
+	    log.normal("Response (%s) confirmation is complete", zomeCall_response_id );
 	    return true;
 	}, this.opts.NS );
     }
@@ -629,7 +651,7 @@ class Envoy {
 			await client.opened();
 			}
 
-			// Assume the interfaceMethod is using the one of the AppWebsocket Instances as interfaceMethod, unless `call_spec` is a function (already pulled from the Master AdminWebsocket Innstance..).
+			// Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a function (admin client).
 			interfaceMethod			= this.hcc_clients[client].callZome;
 			callAgent = 'app'
 			if ( call_spec instanceof Function) {
@@ -638,14 +660,14 @@ class Envoy {
 			interfaceMethod			= call_spec;
 			callAgent 				= 'admin'
 			}
-			else if (Object.keys(call_spec).length >= 2 ) {
+			else if ( call_spec.installed_app_id && Object.keys(call_spec).length === 1 ) {
 				log.debug("App Info Call spec details for installed app id ( %s )", () => [
 					call_spec.installed_app_id ]);
 				args					= call_spec;
 				interfaceMethod			= this.hcc_clients[client].appInfo;
 			}
 			else {
-			// NOTE: ZomeCall Structure (UPDATED) = { cap: null, cell_id: rootState.appInterface.cellId, zome_name, fn_name, provenance: rootState.agentKey, payload }
+			// NOTE: Updated ZomeCall Structure = { cap: null, cell_id: rootState.appInterface.cellId, zome_name, fn_name, provenance: rootState.agentKey, payload }
 			log.debug("Zome Call spec details - called with cap token (%s) and provenance (%s): \n%s::%s->%s( %s )", () => [
 				call_spec.cap, call_spec.provenance, call_spec.cell_id, call_spec.zome_name, call_spec.fn_name, Object.entries(call_spec.payload).map(([k,v]) => `${k} : ${typeof v}`).join(", ") ]);
 			args			= call_spec;
@@ -777,32 +799,30 @@ class Envoy {
 	return resp;
     }
 
-	// TODO: Update this call (this will become the single call to servicelogger)
-    async logServiceConfirmation ( agent_id, client_request, host_response, confirmation_payload, signature ) {
-		log.normal("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation_payload, client_request, host_response );
+    async logServiceConfirmation ( client_request, host_response, agent_id, confirmation ) {
+		log.normal("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response );
 
 
 		log.info("Retreive Servicelogger cell id using the Installed App Id: '%s'", SERVICELOGGER_INSTALLED_APP_ID);
-		// TODO: Add cli param to holochain-run-dna that allows for agent specification - to use when creating cell_id.
 		const appInfo			= await this.callConductor( "internal", { installed_app_id: SERVICELOGGER_INSTALLED_APP_ID });
 
-		if ( appInfo ) {
+		if ( !appInfo ) {
 		log.error("Failed during Servicelogger AppInfo lookup: %s", appInfo );
 		return (new HoloError("Failed to fetch AppInfo for Servicelogger")).toJSON();
 		}
 
 		const servicelogger_cell_id			= appInfo.cell_data[0][0];
 
-		log.silly("Recording service confirmation (%s) with payload: %s", signature, confirmation_payload );
+		log.silly("Recording service confirmation (%s) with payload: %s", confirmation );
 		const resp			= await this.callConductor( "service", {
 			"cell_id":	servicelogger_cell_id,
 			"zome_name":		"service",
 			"fn_name":		"log_activity",
 			"payload":		{
 				"activity":	{
-					"request":	client_request, // ClientRequest,
-					"response": host_response, // HostResponse,
-					"confirmation":	''	// Confirmation, << is this the signature or confimation payload?
+					"request":	client_request,
+					"response": host_response,
+					"confirmation":	''
 				}
 			},
 			cap: null,
@@ -810,16 +830,11 @@ class Envoy {
 		});
 
 		if ( resp ) {
-			log.info("Returning success response for confirmation log (%s): typeof '%s'", signature, typeof resp );
+			log.info("Returning success response for confirmation log (%s): typeof '%s, %s'", confirmation, typeof resp, resp );
 			return resp;
 		}
-		else if ( resp ) {
-			log.error("Service confirmation log (%s) returned non-success response: %s", signature, resp );
-			let err			= JSON.parse( resp.Internal );
-			throw new Error( JSON.stringify(err,null,4) );
-		}
 		else {
-			log.fatal("Service confirmation log (%s) returned unknown response format: %s", signature, resp );
+			log.fatal("Service confirmation log (%s) returned unknown response format: %s", confirmation, resp );
 			let content			= typeof resp === "string" ? resp : `keys? ${Object.keys(resp)}`;
 			throw new Error(`Unknown 'service->log_service' response format: typeof '${typeof resp}' (${content})`);
 		}
