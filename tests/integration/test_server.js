@@ -2,6 +2,8 @@ const path				= require('path');
 const log				= require('@whi/stdlog')(path.basename( __filename ), {
     level: process.env.LOG_LEVEL || 'silly',
 });
+const uuid  = require('uuid');
+const { v4: uuidv4} = uuid;
 
 const expect				= require('chai').expect;
 const fetch				= require('node-fetch');
@@ -18,8 +20,8 @@ describe("Server", () => {
     before(async function() {
 	this.timeout(30_000);
 
-	log.info("Starting conductor");
-	await conductor.start();
+	// log.info("Starting conductor");
+	// await conductor.start();
 
 	envoy				= await setup.start();
 	server				= envoy.ws_server;
@@ -38,26 +40,28 @@ describe("Server", () => {
 	log.info("Stopping Envoy...");
 	await setup.stop();
 
-	log.info("Stopping Conductor...");
-	await conductor.stop( 60_000 );
+	// log.info("Stopping Conductor...");
+	// await conductor.stop( 60_000 );
     });
 
+	const channel_args = { category: "General" }
     
     it("should process request and respond", async () => {
-    	try {
+		try {
     	    conductor.general.once("call", async function ( data ) {
-    		const keys		= Object.keys( data );
+			const keys		= Object.keys( data );
 
     		expect( keys.length		).to.equal( 4 );
-    		expect( data["instance_id"]	).to.equal("QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS::holofuel");
-    		expect( data["zome"]		).to.equal("transactions");
-    		expect( data["function"]	).to.equal("list_pending");
-    		expect( data["args"]		).to.be.an("object");
+    		expect( data["cell_id"]	).to.equal("QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS::holofuel");
+    		expect( data["zome"]		).to.equal("chat");
+    		expect( data["function"]	).to.equal("list_channels");
+			expect( data["args"]		).to.be.an("object");
+			expect( data["args"]	).to.equal(channel_args);
 
     		return [];
     	    });
 
-    	    const response		= await client.callZomeFunction( "hosted-hap", "elemental-chat", "transactions", "list_pending" );
+    	    const response		= await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args);
     	    log.debug("Response: %s", response );
 
     	    expect( response		).to.deep.equal( [] );
@@ -79,7 +83,7 @@ describe("Server", () => {
     	    });
 
     	    try {
-    		await client.callZomeFunction( "hosted-happ", "elemental-chat", "transactions", "list_pending" );
+    		await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args);
     	    } catch ( err ) {
     		failed			= true;
     		expect( err.name	).to.include("HoloError");
@@ -141,10 +145,12 @@ describe("Server", () => {
 	    expect( agent_id		).to.equal("HcSCJtd68XYQrh5mesTTtGyTN3Sa9rupqgMjhnHQFyuwgtab8GzE4MGz64e9pni");
 
 	    fail_client.conn.removeAllListeners("HcSCJtd68XYQrh5mesTTtGyTN3Sa9rupqgMjhnHQFyuwgtab8GzE4MGz64e9pni/wormhole/request");
-	    await fail_client.callZomeFunction( "hosted-happ", "elemental-chat", "transactions", "promise", {
-		"to": "HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bxxx",
-		"amount": "1",
-		"deadline": (new Date()).toISOString(),
+	    await fail_client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "create_channel", {
+		"name": "The Social Room",
+		"channel": {
+			category: "General",
+			uuid: uuidv4()
+		}
 	    });
 	} catch ( err ) {
 	    failed			= true;
@@ -165,12 +171,11 @@ describe("Server", () => {
 
 	    expect( agent_id		).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
 	    
-	    const response		= await client.callZomeFunction( "hosted-happ", "elemental-chat", "transactions", "ledger_state" );
+	    const response		= await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args );
 	    log.debug("Response: %s", response );
 
-	    // {"Ok":{"balance":"0","credit":"0","payable":"0","receivable":"0","fees":"0","available":"0"}}
-	    expect( response.Ok			).to.be.an("object");
-	    expect( Object.keys(response.Ok)	).to.have.members([ "balance", "credit", "payable", "receivable", "fees", "available" ]);
+	    expect( response			).to.be.an("object");
+	    expect( Object.keys(response[0])	).to.have.members([ "channel", "info", "latest_chunk"  ]);
 	} finally {
 	}
     });

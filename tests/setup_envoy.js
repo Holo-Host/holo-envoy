@@ -31,7 +31,7 @@ async function stop_envoy () {
 }
 
 async function create_client ( agent_id		= "HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i",
-			       instance_prefix	= "QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS",
+			       hha	= "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv",
 			       timeout		= 2000 ) {
 
     const host_agent_id				= fs.readFileSync('./AGENTID', 'utf8').trim();
@@ -40,7 +40,7 @@ async function create_client ( agent_id		= "HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVj
     const client			= new Chaperone({
 	"port": envoy.ws_server.port,
 	// "agent_id": agent_id,
-	"instance_prefix": instance_prefix,
+	"hha": hha,
 	"timeout": timeout,
 	"debug": ["debug", "silly"].includes( (process.env.LOG_LEVEL || "" ).toLowerCase() ),
 	"host": "localhost",

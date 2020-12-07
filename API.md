@@ -2,7 +2,7 @@
 # RPC WebSocket API
 
 ### `holo/agent/signup`
-Request Envoy to set up new hApp instances for this Agent.  We should have a way to verify that this
+Request Envoy to set up new installed app for this Agent.  We should have a way to verify that this
 Agent is actually unregisterd for the given hApp.
 
 Arguments
@@ -17,7 +17,7 @@ Arguments
 - `<agent_id>`
 
 Failure modes
-- Host does not have expected instances
+- Host does not have expected installed_app_ids or cells_ids
 - Host does not have the correct chains
 - Host does not have up-to-date chains
 
@@ -37,7 +37,7 @@ Arguments
           "call_spec": {
               "hha_hash"     : string,
               "dna_alias"    : string,
-              "instance_id"  : string,
+              "cell_id"      : string,
               "zome"         : string,
               "function"     : string,
               "args"         : array

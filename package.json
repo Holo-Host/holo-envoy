@@ -12,7 +12,7 @@
     "fetch-dnas": "sh ./scripts/fetch-dna.sh",
     "start-conductor:service": "holochain-run-dna -p 42222 -i servicelogger ./dnas/servicelogger.dna.gz &> service-conductor.log &",
     "start-conductor:internal": "holochain-run-dna -p 42233 -i holo-hosting-app ./dnas/holo-hosting-app.dna.gz &> internal-conductor.log &",
-    "start-conductor:hosted": "holochain-run-dna -p 42244 -i hosted-happ ./dnas/elemental-chat.dna.gz &> hosted-conductor.log &",
+    "start-conductor:hosted": "holochain-run-dna -p 42244 -i hosted-app ./dnas/elemental-chat.dna.gz &> hosted-conductor.log &",
     "start-conductor:all": "npm run start-conductor:service && npm run start-conductor:internal && npm run start-conductor:hosted",
     "start-conductor": "holochain-run-dna ./dnas/holo-hosting-app.dna.gz"
   },
@@ -36,7 +36,7 @@
     "sprintf-js": "^1.1.2"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "^0.2.0",
+    "@holo-host/chaperone": "file:/home/lisa/Documents/gitrepos/holo/rust-compatible/holo-web-arch/chaperone",
     "@holochain-open-dev/holochain-run-dna": "^0.2.3",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",

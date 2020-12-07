@@ -35,8 +35,8 @@ function delay(t, val) {
     });
 }
 
-// NOT RANDOM: this instance_prefix matches the hha_hash hard-coded in Chaperone for DEVELOP mode
-const instance_prefix				= "QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL";
+// NOT RANDOM: this hha_hash MUST match the one hard-coded in Chaperone for DEVELOP mode
+const hha_hash				= "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv";
 const host_agent_id				= fs.readFileSync('./AGENTID', 'utf8').trim();
 log.info("Host Agent ID: %s", host_agent_id );
 
@@ -88,7 +88,7 @@ describe("Server", () => {
 	    const page_url		= `${http_url}/html/chaperone.html`
     	    const page			= await create_page( page_url );
 	    
-	    response			= await page.evaluate(async function ( host_agent_id, instance_prefix )  {
+	    response			= await page.evaluate(async function ( host_agent_id, hha_hash )  {
 		const client = new Chaperone({
 		    "mode": Chaperone.DEVELOP,
 
@@ -99,7 +99,7 @@ describe("Server", () => {
 		    },
 		    
 		    host_agent_id,
-		    "instance_prefix": instance_prefix, // NOT RANDOM: this matches the hash
+		    hha_hash, // NOT RANDOM: this matches the hash
 							// hard-coded in Chaperone
 
 		    "timeout": 2000,
@@ -127,15 +127,15 @@ describe("Server", () => {
 
 		try {
 		    console.log( "Calling zome function" );
-		    return await client.callZomeFunction( "hosted-happ", "elemental-chat", "transactions", "ledger_state" );
+		    return await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", { category: "General" } );
 		} catch ( err ) {
 		    console.log( err.stack );
 		    console.log( typeof err.stack, err.stack.toString() );
 		}
-	    }, host_agent_id, instance_prefix );
+	    }, host_agent_id, hha_hash );
 
 	    log.info("Completed evaluation: %s", response );
-	    expect( Object.keys(response.Ok)	).to.have.members([ "balance", "credit", "payable", "receivable", "fees", "available" ]);
+	    expect( Object.keys(response[0])	).to.have.members([ "channel", "info", "latest_chunk" ]);
 	} finally {
 	}
     });
@@ -168,12 +168,11 @@ describe("Server", () => {
 
     // 	    expect( agent_id		).to.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
 	    
-    // 	    const response		= await client.callZomeFunction( "holofuel", "transactions", "ledger_state" );
+    // 	    const response		= await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args );
     // 	    log.debug("Response: %s", response );
 
-    // 	    // {"Ok":{"balance":"0","credit":"0","payable":"0","receivable":"0","fees":"0","available":"0"}}
-    // 	    expect( response.Ok			).to.be.an("object");
-    // 	    expect( Object.keys(response.Ok)	).to.have.members([ "balance", "credit", "payable", "receivable", "fees", "available" ]);
+    // 	    expect( response			).to.be.an("object");
+    // 	    expect( Object.keys(response[0])	).to.have.members([ "channel", "info", "latest_chunk"  ]);
     // 	} finally {
     // 	}
     // });

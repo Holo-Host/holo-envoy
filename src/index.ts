@@ -276,7 +276,7 @@ class Envoy {
 		let failed			= false;
 			try {
 				let status;
-				// - Install App - This admin function creates cells for each dna (DNA/Agent instances) with associated nick, under the hood.
+				// - Install App - This admin function creates cells for each dna with associated nick, under the hood.
 				try {				
 
 				log.info("Installing HHA ID (%s) as Installed App ID (%s) ", hha_hash, installed_app_id );
@@ -298,8 +298,8 @@ class Envoy {
 					throw (new HoloError(`Failed to complete 'installApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
 				}
 				} catch ( err ) {
-				if ( err.message.toLowerCase().includes( "duplicate instance" ) )
-					log.warn("Instance (%s) already exists in Conductor", installed_app_id );
+				if ( err.message.toLowerCase().includes( "duplicate cell" ) )
+					log.warn("Cell (%s) already exists in Conductor", installed_app_id );
 					else {
 						log.error("Failed during 'installApp': %s", String(err) );
 						throw err;
@@ -309,7 +309,7 @@ class Envoy {
 
 				// Activate App -  Add the Installed App to a hosted interface.
 				try {
-				log.info("Adding instance (%s) to hosted interface", installed_app_id );
+				log.info("Adding app (%s) to hosted interface", installed_app_id );
 				status		= await this.callConductor( "master", this.hcc_clients.master.activateApp, { installed_app_id });
 
 				if ( status.success !== true ) {
@@ -329,7 +329,7 @@ class Envoy {
 
 				// Attach App to Interface - Connect app to hosted interface and start app (ie: spin up all cells within app bundle)
 				try {
-				log.info("Starting instance (%s)", installed_app_id );
+				log.info("Starting installed-app (%s)", installed_app_id );
 				status		= await this.callConductor( "master", this.hcc_clients.master.attachAppInterface, { port: this.conductor_opts.hosted_port });
 
 				if ( status.success !== true ) {
@@ -339,7 +339,7 @@ class Envoy {
 				}
 				} catch ( err ) {
 				if ( err.message.toLowerCase().includes( "already active" ) )
-					log.warn("Instance (%s) already started", installed_app_id );
+					log.warn("Intalled-app (%s) already started", installed_app_id );
 				else {
 					log.error("Failed during 'attachAppInterface': %s", String(err) );
 					throw err;
@@ -353,7 +353,7 @@ class Envoy {
 			}
 
 	    if ( failed === true ) {
-		// TODO: Rollback instances that were already created
+		// TODO: Rollback cells that were already created << check to see if is already being done in core.
 		log.error("Failed during sign-up process for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, failure_response );
 		return failure_response;
 	    }
@@ -501,12 +501,12 @@ class Envoy {
 	    const { agent_id,
 			client_req, host_res }		= this.getPendingConfirmation( zomeCall_response_id );
 			
-			host_res["signed_response_hash"] = response_signature
+		host_res["signed_response_hash"] = response_signature
 
 	    let service_log;
 	    try {
 		log.debug("Log service confirmation for Zome Call ID (%s) for request (%s) and host_response (%s) ", zomeCall_response_id );
-		service_log		= await this.logServiceConfirmation( client_req, host_res, agent_id, confirmation );
+		service_log		= await this.logServiceConfirmation( client_req, host_res, confirmation, agent_id );
 		log.info("Service confirmation log hash: %s", service_log );
 	    } catch ( err ) {
 		const error		= `servicelogger.log_service threw: ${String(err)}`
@@ -765,22 +765,21 @@ class Envoy {
 	const response_hash		= digest( response );
 	log.normal("Processing service logger response (%s)", response_hash );
 
-	// TODO: Update call spec below >> remove instance_id 
 	const resp			=  {
 		response_hash,
         host_metrics: metrics.cpu,
-        // signed_response_hash: signed_response,
         weblog_compat: {
           source_ip: "100:0:0:0",
           status_code: 200
-        }
+		}
+		// NB: `signed_response_hash` is added once logServiceConfirmation is called
 	};
 
 	log.silly("Set service response (%s) with metrics: %s", response_hash, metrics );
 	return resp;
     }
 
-    async logServiceConfirmation ( client_request, host_response, agent_id, confirmation ) {
+    async logServiceConfirmation ( client_request, host_response, confirmation, agent_id ) {
 		log.normal("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response );
 
 

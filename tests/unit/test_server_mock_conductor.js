@@ -50,18 +50,18 @@ describe("Server with mock Conductor", () => {
 	// 	const keys		= Object.keys( data );
 
 	// 	expect( keys.length		).to.equal( 4 );
-	// 	expect( data["instance_id"]	).to.equal("QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL::holofuel");
-	// 	expect( data["zome"]		).to.equal("transactions");
-	// 	expect( data["function"]	).to.equal("list_pending");
+	// 	expect( data["cell_id"]	).to.equal(); // "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv::holofuel"
+	// 	expect( data["zome"]		).to.equal("chat");
+	// 	expect( data["function"]	).to.equal("list_channels");
 	// 	expect( data["args"]		).to.be.an("object");
 
 	// 	return ZomeAPIResult([]);
 	//     });
 
-	//     const response		= await client.callZomeFunction( "hosted-happ" , "elemental-chat", "transactions", "list_pending" );
+	//     const response		= await client.callZomeFunction( "hosted-app" , "elemental-chat", "chat", "list_channels", { category: "General"} );
 	//     log.debug("Response: %s", response );
 
-	//     expect( response.Ok		).to.deep.equal( [] );
+	//     expect( response		).to.deep.equal( [] );
 	// } finally {
 	// }
     // });
@@ -80,7 +80,7 @@ describe("Server with mock Conductor", () => {
 	//     });
 
 	//     try {
-	// 	await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+	// 	await client.callZomeFunction( "holofuel", "chat", "list_channels", { category: "General"} );
 	//     } catch ( err ) {
 	// 	failed			= true;
 	// 	expect( err.name	).to.include("HoloError");
@@ -93,12 +93,12 @@ describe("Server with mock Conductor", () => {
     // });
 
     // it("should fail to sign-up because conductor disconnected");
-    // it("should fail to sign-up because admin/agent/add returned error");
-    // it("should fail to sign-up because HHA returned error");
-    // it("should fail to sign-up because Happ Store returned error");
-    // it("should fail to sign-up because admin/instance/add returned error");
-    // it("should fail to sign-up because admin/interface/add_instance returned error");
-    // it("should fail to sign-up because admin/instance/start returned error");
+    // it("should fail to sign-up because admin/agent/add returned an error");
+    // it("should fail to sign-up because HHA returned an error");
+    // it("should fail to sign-up because Happ Store returned an error");
+    // it("should fail to sign-up because adminInterface call, `installApp`, returned an error");
+    // it("should fail to sign-up because adminInterface call, `activateApp`, returned an error");
+    // it("should fail to sign-up because adminInterface call, `attachAppInterface`, returned an error");
 
     // it("should sign-up on this Host", async () => {
 	// try {
@@ -136,7 +136,6 @@ describe("Server with mock Conductor", () => {
 	// } finally {
 	// }
     // });
-    // it("should fail to sign-in because admin/agent/list returned error");
 
     // it("should process signed-in request and respond", async () => {
 	// try {
@@ -149,18 +148,18 @@ describe("Server with mock Conductor", () => {
 	// 	const keys		= Object.keys( data );
 
 	// 	expect( keys.length		).to.equal( 4 );
-	// 	expect( data["instance_id"]	).to.equal(`QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL::${agent_id}-holofuel`);
-	// 	expect( data["zome"]		).to.equal("transactions");
-	// 	expect( data["function"]	).to.equal("list_pending");
+	// 	expect( data["cell_id"]	).to.equal(`uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv::${agent_id}-holofuel`);
+	// 	expect( data["zome"]		).to.equal("chat");
+	// 	expect( data["function"]	).to.equal("list_channels");
 	// 	expect( data["args"]		).to.be.an("object");
 
 	// 	return ZomeAPIResult([]);
 	//     });
 
-	//     const response		= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+	//     const response		= await client.callZomeFunction( "holofuel", "chat", "list_channels", { category: "General"} );
 	//     log.debug("Response: %s", response );
 
-	//     expect( response.Ok		).to.deep.equal( [] );
+	//     expect( response		).to.deep.equal( [] );
 	// } finally {
 	// }
     // });
@@ -175,10 +174,10 @@ describe("Server with mock Conductor", () => {
 	// 	return ZomeAPIResult(true);
 	//     });
 
-	//     const response		= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+	//     const response		= await client.callZomeFunction( "holofuel", "chat", "list_channels", { category: "General"} );
 	//     log.debug("Response: %s", response );
 
-	//     expect( response.Ok		).to.be.true;
+	//     expect( response		).to.be.true;
 	// } finally {
 	// }
     // });
@@ -193,7 +192,7 @@ describe("Server with mock Conductor", () => {
 	//     let failed				= false;
 	//     try {
 	// 	failed				= true;
-	// 	const response			= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+	// 	const response			= await client.callZomeFunction( "holofuel", "chat", "list_channels", { category: "General"} );
 	// 	log.debug("Response: %s", response );
 	//     } catch ( err )  {
 	// 	expect( err.message	).to.have.string("servicelogger.log_request threw");
@@ -216,7 +215,7 @@ describe("Server with mock Conductor", () => {
 	//     await conductor.stop();
 
 	//     log.silly("Issuing zome call while conductor stoped");
-	//     const request		= client.callZomeFunction( "holofuel", "transactions", "list_pending" );
+	//     const request		= client.callZomeFunction( "holofuel", "chat", "list_channels", { category: "General"} );
 
 	//     log.silly("Restart conductor");
 	//     conductor			= new Conductor();
@@ -228,7 +227,7 @@ describe("Server with mock Conductor", () => {
 	//     const response		= await request;
 	//     log.debug("Response: %s", response );
 
-	//     expect( response.Ok		).to.be.true;
+	//     expect( response		).to.be.true;
 	// } finally {
 	// }
     // });

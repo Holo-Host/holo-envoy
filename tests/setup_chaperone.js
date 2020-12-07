@@ -34,7 +34,7 @@ global.document				= {
     },
 };
 
-const made_up_happ_hash_for_test	= "QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL";
+const made_up_happ_hash_for_test	= "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv";
 
 // Mock Resolver responses
 mock_fetch.mock(/.*resolver-dev\.holo.host\/resolve\/hosts\/?/, () => {
