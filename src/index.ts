@@ -106,8 +106,8 @@ class Envoy {
 	try {
 	    const ifaces		= this.conductor_opts.interfaces;		
 	    this.hcc_clients.master	= await HcAdminWebSocket.init(`ws://localhost:${ifaces.master_port}`);
-	    // this.hcc_clients.service	= await HcAppWebSocket.init(`ws://localhost:${ifaces.service_port}`);
-	    // this.hcc_clients.internal	= await HcAppWebSocket.init(`ws://localhost:${ifaces.internal_port}`);
+	    this.hcc_clients.service	= await HcAppWebSocket.init(`ws://localhost:${ifaces.service_port}`);
+	    this.hcc_clients.internal	= await HcAppWebSocket.init(`ws://localhost:${ifaces.internal_port}`);
 	    this.hcc_clients.hosted	= await HcAppWebSocket.init(`ws://localhost:${ifaces.hosted_port}`);
 	} catch ( err ) {
 	    console.error( err );
@@ -130,7 +130,7 @@ class Envoy {
 			console.log( client.checkConnection.name, err );
 			});
 			
-		// console.log('CLIENT SOCKET >>>>> ', client);	
+		console.log('CLIENT SOCKET >>>>> ', client);	
 		
 		log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.checkConnection.name, client.checkConnection.socket.readyState );
 	    })
@@ -576,9 +576,9 @@ class Envoy {
 	log.normal("Initiating shutdown; closing Conductor clients, RPC WebSocket server, then HTTP server");
 
 	const clients			= Object.values( this.hcc_clients );
-	clients.map( (client:any) => client.close() );
-
-	await Promise.all( clients.map( (client:any) => client.closed() ));
+	clients.map( (client:any) => client.client.close() );
+	console.log()
+	await Promise.all( clients.map( (client:any) => client.client.close() ));
 	log.info("All Conductor clients are closed");
 
 	await this.ws_server.close();
@@ -621,20 +621,20 @@ class Envoy {
 	 // Conductor Call Handling
 
     async callConductor ( client, call_spec, args : any = {} ) {
-		log.normal("Received request to call Conductor using client '%s' with call spec: typeof '%s'", client, typeof call_spec );
+		log.normal("Received request to call Conductor using client '%s' with call spec (typeof '%s'):\n %s", client, typeof call_spec, call_spec );
 		let interfaceMethod, callAgent;
 		try {
 			if ( typeof client === "string" )
 			client			= this.hcc_clients[ client ];
 
-			let ready_state		= client.socket.readyState;
+			let ready_state		= client.checkConnection.socket.readyState;
 			if ( ready_state !== 1 ) {
 			log.silly("Waiting for 'CONNECTED' state because current ready state is %s (%s)", ready_state, READY_STATES[ready_state] );
 			await client.opened();
 			}
 
 			// Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a function (admin client).
-			interfaceMethod			= this.hcc_clients[client].callZome;
+			interfaceMethod			= client.callZome;
 			callAgent = 'app'
 			if ( call_spec instanceof Function) {
 			log.debug("Admin Call spec details: %s( %s )", () => [
@@ -643,14 +643,14 @@ class Envoy {
 			callAgent 				= 'admin'
 			}
 			else if ( call_spec.installed_app_id && Object.keys(call_spec).length === 1 ) {
-				log.debug("App Info Call spec details for installed app id ( %s )", () => [
+				log.debug("App Info Call spec details for installed_app_id ( %s )", () => [
 					call_spec.installed_app_id ]);
 				args					= call_spec;
-				interfaceMethod			= this.hcc_clients[client].appInfo;
+				interfaceMethod			= client.appInfo;
 			}
 			else {
 			// NOTE: Updated ZomeCall Structure = { cap: null, cell_id: rootState.appInterface.cellId, zome_name, fn_name, provenance: rootState.agentKey, payload }
-			log.debug("Zome Call spec details - called with cap token (%s) and provenance (%s): \n%s::%s->%s( %s )", () => [
+			log.debug("\nZome Call spec details - called with cap token (%s), provenance (%s), cell_id(%s), and zome fn call: %s->%s( %s )", () => [
 				call_spec.cap, call_spec.provenance, call_spec.cell_id, call_spec.zome_name, call_spec.fn_name, Object.entries(call_spec.payload).map(([k,v]) => `${k} : ${typeof v}`).join(", ") ]);
 			args			= call_spec;
 			}
@@ -659,19 +659,25 @@ class Envoy {
 		throw new HoloError("callConductor preamble threw error: %s", String(err));
 		}
 
+		console.log('\nARGS : ', JSON.stringify(args) );
+		console.log('\nINTERFACE METHOD : ', interfaceMethod.toString() );
+		console.log('\nHERE ..........')
+		console.log('\nINTERFACE METHOD RESULT: ', JSON.stringify(await interfaceMethod(args)) );
+		console.log('\n');
+		
 		let resp;
 		try {
-			log.silly("Calling Conductor method (%s) over client '%s' with input: %s", interfaceMethod, client.checkConnection.name, JSON.stringify(args,null,4) );
+			// log.silly("Calling Conductor method (%s) over client '%s' with input: %s", interfaceMethod, client.checkConnection.name, JSON.stringify(args) );
 			resp			= await interfaceMethod( args );
+			console.log('RESULT >>>>>>>>>>>> ', resp)
+			console.log('callAgent ', callAgent)
 
 			if ( callAgent === "app" ) {
-				// NB: this should be updated to reflect the BUFFER....
-				if ( Buffer.isBuffer(resp))
-					log.warn("Expected zome call result to be a buffer, not '%s'", typeof resp );
+				console.log('typeof resp !== "object" && resp === null ', typeof resp !== 'object' && resp === null)
+				if ( typeof resp !== 'object' && resp === null)
+					log.warn("Expected zome call result to be an object, not '%s'", typeof resp );
 				else {
-					let resp_length	= resp.length;
-					resp		= JSON.parse(resp);
-					log.debug("Parsed zome call response (length %s) to typeof '%s'", resp_length, typeof resp );
+					log.debug("Successful zome call response : ", resp );
 				}
 			}
 		} catch ( err ) {

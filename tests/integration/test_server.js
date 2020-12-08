@@ -20,8 +20,8 @@ describe("Server", () => {
     before(async function() {
 	this.timeout(30_000);
 
-	// log.info("Starting conductor");
-	// await conductor.start();
+	log.info("Starting conductor");
+	await conductor.start();
 
 	envoy				= await setup.start();
 	server				= envoy.ws_server;
@@ -40,77 +40,77 @@ describe("Server", () => {
 	log.info("Stopping Envoy...");
 	await setup.stop();
 
-	// log.info("Stopping Conductor...");
-	// await conductor.stop( 60_000 );
+	log.info("Stopping Conductor...");
+	await conductor.stop( 60_000 );
     });
 
 	const channel_args = { category: "General" }
     
-    it("should process request and respond", async () => {
-		try {
-    	    conductor.general.once("call", async function ( data ) {
-			const keys		= Object.keys( data );
+    // it("should process request and respond", async () => {
+	// 	try {
+    // 	    conductor.general.once("call", async function ( data ) {
+	// 		const keys		= Object.keys( data );
 
-    		expect( keys.length		).to.equal( 4 );
-    		expect( data["cell_id"]	).to.equal("QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS::holofuel");
-    		expect( data["zome"]		).to.equal("chat");
-    		expect( data["function"]	).to.equal("list_channels");
-			expect( data["args"]		).to.be.an("object");
-			expect( data["args"]	).to.equal(channel_args);
+    // 		expect( keys.length		).to.equal( 4 );
+    // 		expect( data["cell_id"]	).to.equal("QmUgZ8e6xE1h9fH89CNqAXFQkkKyRh2Ag6jgTNC8wcoNYS::holofuel");
+    // 		expect( data["zome"]		).to.equal("chat");
+    // 		expect( data["function"]	).to.equal("list_channels");
+	// 		expect( data["args"]		).to.be.an("object");
+	// 		expect( data["args"]	).to.equal(channel_args);
 
-    		return [];
-    	    });
+    // 		return [];
+    // 	    });
 
-    	    const response		= await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args);
-    	    log.debug("Response: %s", response );
+    // 	    const response		= await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args);
+    // 	    log.debug("Response: %s", response );
 
-    	    expect( response		).to.deep.equal( [] );
-    	} finally {
-    	}
-    });
+    // 	    expect( response		).to.deep.equal( [] );
+    // 	} finally {
+    // 	}
+    // });
 
-    it("should fail wormhole request because Agent is anonymous", async () => {
-    	try {
+    // it("should fail wormhole request because Agent is anonymous", async () => {
+    // 	try {
 
-    	    let failed			= false;
-    	    conductor.general.once("call", async function ( data ) {
-    		await conductor.wormholeRequest( client.agent_id, {
-    		    "some": "entry",
-    		    "foo": "bar",
-    		});
+    // 	    let failed			= false;
+    // 	    conductor.general.once("call", async function ( data ) {
+    // 		await conductor.wormholeRequest( client.agent_id, {
+    // 		    "some": "entry",
+    // 		    "foo": "bar",
+    // 		});
 
-    		return true;
-    	    });
+    // 		return true;
+    // 	    });
 
-    	    try {
-    		await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args);
-    	    } catch ( err ) {
-    		failed			= true;
-    		expect( err.name	).to.include("HoloError");
-    		expect( err.message	).to.include("not signed-in");
-    	    }
+    // 	    try {
+    // 		await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args);
+    // 	    } catch ( err ) {
+    // 		failed			= true;
+    // 		expect( err.name	).to.include("HoloError");
+    // 		expect( err.message	).to.include("not signed-in");
+    // 	    }
 
-    	    expect( failed		).to.be.true;
-    	} finally {
-    	}
-    });
+    // 	    expect( failed		).to.be.true;
+    // 	} finally {
+    // 	}
+    // });
 
-    it("should fail to sign-in because this host doesn't know this Agent", async () => {
-    	try {
-    	    let failed			= false;
-    	    try {
-    		await client.signIn( "someone@example.com", "Passw0rd!" );
-    	    } catch ( err ) {
-    		failed			= true;
+    // it("should fail to sign-in because this host doesn't know this Agent", async () => {
+    // 	try {
+    // 	    let failed			= false;
+    // 	    try {
+    // 		await client.signIn( "someone@example.com", "Passw0rd!" );
+    // 	    } catch ( err ) {
+    // 		failed			= true;
 
-    		expect( err.name	).to.include("HoloError");
-    		expect( err.message	).to.include("unknown to this Host");
-    	    }
+    // 		expect( err.name	).to.include("HoloError");
+    // 		expect( err.message	).to.include("unknown to this Host");
+    // 	    }
 
-    	    expect( failed		).to.be.true;
-    	} finally {
-    	}
-    });
+    // 	    expect( failed		).to.be.true;
+    // 	} finally {
+    // 	}
+    // });
 
     it("should sign-up on this Host", async function () {
 	this.timeout( 5_000 );

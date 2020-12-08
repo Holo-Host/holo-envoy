@@ -9,7 +9,7 @@ const fetch				= require('node-fetch');
 const puppeteer				= require('puppeteer');
 
 const http_servers			= require('../setup_http_server.js');
-const conductor				= require("../setup_conductor.js");
+// const conductor				= require("../setup_conductor.js");
 const setup				= require("../setup_envoy.js");
 
 let browser;
@@ -37,7 +37,7 @@ function delay(t, val) {
 
 // NOT RANDOM: this hha_hash MUST match the one hard-coded in Chaperone for DEVELOP mode
 const hha_hash				= "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv";
-const host_agent_id				= fs.readFileSync('./AGENTID', 'utf8').trim();
+const host_agent_id				= 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // fs.readFileSync('./AGENTID', 'utf8').trim();
 log.info("Host Agent ID: %s", host_agent_id );
 
 
@@ -52,7 +52,7 @@ describe("Server", () => {
 	this.timeout(10_000);
 
 	log.info("Starting conductor");
-	await conductor.start();
+	// await conductor.start();
 
 	envoy				= await setup.start();
 	server				= envoy.ws_server;
@@ -77,10 +77,10 @@ describe("Server", () => {
 	log.info("Stopping Envoy...");
 	await setup.stop();
 
-	log.info("Stopping Conductor...");
-	await conductor.stop();
+	// log.info("Stopping Conductor...");
+	// await conductor.stop();
     });
-    
+    // it("", ()=>{})
     it("should sign-in and make a zome function call", async function () {
 	this.timeout( 30_000 );
 	try {
@@ -91,7 +91,8 @@ describe("Server", () => {
 	    response			= await page.evaluate(async function ( host_agent_id, hha_hash )  {
 		const client = new Chaperone({
 		    "mode": Chaperone.DEVELOP,
-
+			"agent_id": "uhCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7",
+			// "hha_hash": "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv",
 		    "connection": {
 			"ssl": false,
 			"host": "localhost",
@@ -116,13 +117,13 @@ describe("Server", () => {
 		}
 		
 		await client.ready( 2_000 );
-
+		console.log("READY..............");
 		await client.signUp( "someone@example.com", "Passw0rd!" );
-
+		console.log("SIGNEDUP...........");
 		console.log("Finished sign-up", client.agent_id );
 		if ( client.anonymous === true )
 		    return console.error("Client did not sign-in");
-		if ( client.agent_id !== "HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi" )
+		if ( client.agent_id !== "uhCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3" )
 		    return console.error("Unexpected Agent ID:", client.agent_id );
 
 		try {
@@ -145,7 +146,7 @@ describe("Server", () => {
     // 	    await client.signUp( "someone@example.com", "Passw0rd!" );
 
     // 	    expect( client.anonymous	).to.be.false;
-    // 	    expect( client.agent_id	).to.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
+    // 	    expect( client.agent_id	).to.equal("uhCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3");
     // 	} finally {
     // 	}
     // });
@@ -155,7 +156,7 @@ describe("Server", () => {
     // 	    await client.signOut();
 
     // 	    expect( client.anonymous	).to.be.true;
-    // 	    expect( client.agent_id	).to.not.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
+    // 	    expect( client.agent_id	).to.not.equal("uhCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3");
     // 	} finally {
     // 	}
     // });
@@ -166,7 +167,7 @@ describe("Server", () => {
     // 	    await client.signIn( "someone@example.com", "Passw0rd!" );
     // 	    const agent_id		= client.agent_id;
 
-    // 	    expect( agent_id		).to.equal("HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i");
+    // 	    expect( agent_id		).to.equal("uhCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3");
 	    
     // 	    const response		= await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args );
     // 	    log.debug("Response: %s", response );

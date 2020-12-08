@@ -20,14 +20,14 @@ docs:			node_modules docs/index.html
 
 MOCHA_OPTS		= 
 
-test:			build DNAs conductor-1.toml start-sim2h
+test:			build
 	make test-unit;
 	make reset-hcc; make test-integration
 	make reset-hcc; make test-e2e
-test-nix:		build DNAs conductor-1.toml start-sim2h
+test-nix:		build
 	make test-unit;
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make reset-hcc; make test-integration
-test-debug:		build DNAs conductor-1.toml start-sim2h
+test-debug:		build
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make reset-hcc; make test-integration-debug
 	make reset-hcc; make test-e2e-debug2
@@ -37,16 +37,16 @@ test-unit:		build
 test-unit-debug:	build
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
 
-test-integration:	build DNAs conductor-1.toml start-sim2h
+test-integration:	build
 	npx mocha $(MOCHA_OPTS) ./tests/integration/
-test-integration-debug:	build DNAs conductor-1.toml start-sim2h
+test-integration-debug:	build
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
 
-test-e2e:		build DNAs conductor-1.toml start-sim2h dist/holo_hosting_chaperone.js
+test-e2e:		build dist/holo_hosting_chaperone.js
 	npx mocha $(MOCHA_OPTS) ./tests/e2e
-test-e2e-debug:		build DNAs conductor-1.toml start-sim2h dist/holo_hosting_chaperone.js
+test-e2e-debug:		build dist/holo_hosting_chaperone.js
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
-test-e2e-debug2:	build DNAs conductor-1.toml start-sim2h dist/holo_hosting_chaperone.js
+test-e2e-debug2:	build dist/holo_hosting_chaperone.js
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
 
 docs-watch:
@@ -75,55 +75,53 @@ publish-docs:
 	git checkout $(CURRENT_BRANCH)
 
 
-# Generate Conductor TOML config
-HCC_DIR		= ./holochain-conductor
-HCC_STORAGE	= $(shell pwd)/holochain-conductor/storage
+# Manage Holochain Conductor config
+HC_LOCAL_STORAGE	= $(shell pwd)/holochain-conductor/storage
 
 .PHONY:		start-hcc-%
 conductor.log:
 	touch $@
 
 reset-hcc:
-	rm $(HCC_STORAGE)/* -rf
+	rm $(HC_LOCAL_STORAGE)/* -rf
 	rm -f dnas/*
 	rm -f conductor-*.toml
-start-hcc-%:		DNAs conductor-%.toml conductor.log
-	holochain -c conductor-$*.toml > conductor.log 2>&1 & tail -f conductor.log
+# start-hcc-%:		DNAs holochain -c conductor-$*.toml > conductor.log 2>&1 & tail -f conductor.log
 
 dist/holo_hosting_chaperone.js:
 	ln -s node_modules/@holo-host/chaperone/dist dist
 
-DNAs:			dnas/happ-store.dna.json dnas/holo-hosting-app.dna.json dnas/holofuel.dna.json dnas/servicelogger.dna.json
-rm-DNAs:
-	rm dnas/*.json
-update-DNAs:		rm-DNAs DNAs
+# DNAs:			dnas/happ-store.dna.json dnas/holo-hosting-app.dna.json dnas/holofuel.dna.json dnas/servicelogger.dna.json
+# rm-DNAs:
+# 	rm dnas/*.json
+# update-DNAs:		rm-DNAs DNAs
 
-dnas/%.dna.json:
-	@mkdir -p ./dnas
-	@for p in $$buildInputs; do \
-	    if [[ "$${p#*-}" == "$*" ]]; then \
-		echo "Linking $${p} to $@"; \
-		ln -fs $${p}/$*.dna.json $@; \
-	    fi \
-	done
+# dnas/%.dna.json:
+# 	@mkdir -p ./dnas
+# 	@for p in $$buildInputs; do \
+# 	    if [[ "$${p#*-}" == "$*" ]]; then \
+# 		echo "Linking $${p} to $@"; \
+# 		ln -fs $${p}/$*.dna.json $@; \
+# 	    fi \
+# 	done
 
-check-sim2h:
-	ps -efH | grep sim2h_server | grep 9000 | grep -v grep
-restart-sim2h:		stop-sim2h start-sim2h
-start-sim2h:
-	@if [[ $$(ps -efH | grep sim2h_server | grep 9000 | grep -v grep) ]]; then	\
-		echo "sim2h is already running on port 9000";				\
-	else										\
-		echo "Starting sim2h_server on port 9000";				\
-		sim2h_server -p 9000 > sim2h.log 2>&1 &					\
-	fi
-stop-sim2h:
-	@if [[ $$(ps -efH | grep sim2h_server | grep 9000 | grep -v grep) ]]; then	\
-		echo "Stopping sim2h_server...";					\
-		killall sim2h_server || true;						\
-	else										\
-		echo "sim2h is not running on port 9000";				\
-	fi
+# check-sim2h:
+	# ps -efH | grep sim2h_server | grep 9000 | grep -v grep
+# restart-sim2h:		stop-sim2h start-sim2h
+# start-sim2h:
+# 	@if [[ $$(ps -efH | grep sim2h_server | grep 9000 | grep -v grep) ]]; then	\
+# 		echo "sim2h is already running on port 9000";				\
+# 	else										\
+# 		echo "Starting sim2h_server on port 9000";				\
+# 		sim2h_server -p 9000 > sim2h.log 2>&1 &					\
+# 	fi
+# stop-sim2h:
+# 	@if [[ $$(ps -efH | grep sim2h_server | grep 9000 | grep -v grep) ]]; then	\
+# 		echo "Stopping sim2h_server...";					\
+# 		killall sim2h_server || true;						\
+# 	else										\
+# 		echo "sim2h is not running on port 9000";				\
+# 	fi
 
 check-conductor:	check-holochain
 check-holochain:
@@ -136,24 +134,6 @@ stop-holochain:
 	else										\
 		echo "holochain conductor is not running";				\
 	fi
-
-conductor-%.toml:	keystore-%.key $(HCC_DIR)/conductor.master.toml Makefile
-	@echo "Creating Holochain conductor config for Agent $*...";			\
-	AGENT=$*;									\
-	PUBKEY=$$(cat AGENTID);								\
-	KEYFILE=$<;									\
-	S2HURI=ws://localhost:9000;							\
-	WORMHOLE=http://localhost:9676;							\
-	HCC_STORAGE=$(HCC_STORAGE);							\
-	sed -e "s|AGENT|$$AGENT|g"							\
-	    -e "s/PUBKEY/$$PUBKEY/g"							\
-	    -e "s/KEYFILE/$$KEYFILE/g"							\
-	    -e "s|S2HURI|$$S2HURI|g"							\
-	    -e "s|WORMHOLE|$$WORMHOLE|g"						\
-	    -e "s|HCC_STORAGE|$$HCC_STORAGE|g"						\
-	    < $(HCC_DIR)/conductor.master.toml						\
-	    > $@;									\
-	echo " ... Wrote new $@ (from $(HCC_DIR)/conductor.master.toml and $<)"
 
 keystore-%.key:
 	@echo "Creating Holochain key for Agent $*: keystore-$*.key";

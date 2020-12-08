@@ -16,7 +16,7 @@ describe("Server with mock Conductor", () => {
     let envoy;
     let server;
     // let wormhole;
-    let conductor;
+    // let conductor;
     let client;
 
     before(async () => {
@@ -37,8 +37,8 @@ describe("Server with mock Conductor", () => {
 	log.info("Stopping Envoy...");
 	await setup.stop();
 
-	log.info("Stopping Conductor...");
-	await conductor.stop();
+	// log.info("Stopping Conductor...");
+	// await conductor.stop();
 
 	// setTimeout( why, 1000 );
     });

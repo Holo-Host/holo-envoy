@@ -30,16 +30,16 @@ async function stop_envoy () {
     await envoy.close();
 }
 
-async function create_client ( agent_id		= "HcSCjUNP6TtxqfdmgeIm3gqhVn7UhvidaAVjyDvNn6km5o3qkJqk9P8nkC9j78i",
+async function create_client ( agent_id		= "uhCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3",
 			       hha	= "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv",
 			       timeout		= 2000 ) {
 
-    const host_agent_id				= fs.readFileSync('./AGENTID', 'utf8').trim();
+    const host_agent_id				= 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // fs.readFileSync('./AGENTID', 'utf8').trim();
     log.info("Host Agent ID: %s", host_agent_id );
 
     const client			= new Chaperone({
 	"port": envoy.ws_server.port,
-	// "agent_id": agent_id,
+	"agent_id": agent_id,
 	"hha": hha,
 	"timeout": timeout,
 	"debug": ["debug", "silly"].includes( (process.env.LOG_LEVEL || "" ).toLowerCase() ),
