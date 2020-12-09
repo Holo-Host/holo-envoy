@@ -5,6 +5,7 @@ import http				from 'http';
 import crypto				from 'crypto';
 import concat_stream			from 'concat-stream';
 import SerializeJSON			from 'json-stable-stringify';
+import * as msgpack 				from '@msgpack/msgpack'
 import { Codec }			from '@holo-host/cryptolib';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer }		from './wss';
@@ -13,6 +14,35 @@ import { HHA_INSTALLED_APP_ID, SERVICELOGGER_INSTALLED_APP_ID } from './const';
 const log				= logger(path.basename( __filename ), {
     level: process.env.LOG_LEVEL || 'fatal',
 });
+
+const binary				= async (data) => {
+	console.log('\n DATA TO ENCODE AS BINARY : ', data);
+	console.log('\n');
+	return await msgpack.encode(data)
+};
+
+export const base64FromBuffer = (buffer) => {
+	var binary = "";
+	var bytes = new Uint8Array(buffer);
+	var len = bytes.byteLength;
+	for (var i = 0; i < len; i++) {
+	  binary += String.fromCharCode(bytes[i]);
+	}
+	const base64 = Buffer.from(binary, 'binary').toString('base64')
+	return base64;
+};
+
+const bufferFromBase64 = (base64) => {
+	console.log('\n Base64 Data to Encode as Array : ', base64);
+	console.log('\n');
+	var byteString = Buffer.from(base64, 'base64').toString('binary');
+	const buffer = Buffer.alloc(byteString.length); //  new Uint8Array
+
+	for(let i = 0; i < byteString.length; i++) {
+		buffer[i] = byteString.charCodeAt(i);
+	}
+	return buffer;
+};
 
 const sha256				= (buf) => crypto.createHash('sha256').update( Buffer.from(buf) ).digest();
 const digest				= (data) => Codec.Digest.encode( sha256( typeof data === "string" ? data : SerializeJSON( data ) ));
@@ -221,8 +251,16 @@ class Envoy {
 
 	// Envoy - New Hosted Agent Sign-up Sequence
 	this.ws_server.register("holo/agent/signup", async ([ hha_hash, agent_id ]) => {
-	    log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash )
-	    const failure_response	= (new HoloError("Failed to create a new hosted agent")).toJSON();
+		log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash )
+		
+		// const buffer_agent_id = await bufferFromBase64(agent_id);
+		// const buffer_hha_hash = await bufferFromBase64(hha_hash);
+		
+		// log.info("Encoded Agent ID (%s) into buffer form: %s", agent_id, buffer_agent_id );
+		// log.info("Encoded HHA Hash (%s) into binary form: %s", hha_hash, buffer_hha_hash );
+		// console.log('\n')
+
+		const failure_response	= (new HoloError("Failed to create a new hosted agent")).toJSON();
 	    let resp;
 
 		log.info("Retreive HHA cell id using the Installed App Id: '%s'", HHA_INSTALLED_APP_ID);
@@ -235,15 +273,16 @@ class Envoy {
 	    }
 
 		const hha_cell_id			= appInfo.cell_data[0][0];
+		const host_agent_id = hha_cell_id[1];
 
-	    log.info("Look-up HHA record using ID '%s'", hha_hash );
+	    log.info("Look-up Hosted App's HHA record using ID '%s'", hha_hash );
 	    resp			= await this.callConductor( "internal", {
 		    "cell_id":	hha_cell_id,
 		    "zome_name":		"hha",
-		    "fn_name":		"get_happ",
-			"payload":		{ "happ_id": hha_hash },
+		    "fn_name":		"get_happs",
+			"payload":		null,
 			"cap":		null,
-			"provenance":	agent_id,
+			"provenance": host_agent_id,
 		});
 
 	    if ( !resp ) {
@@ -251,8 +290,8 @@ class Envoy {
 		return failure_response;
 	    }
 
-		const app			= resp;
-		const installed_app_id	= `${app.happ_alias}-${hha_hash}:${agent_id}`;
+		const app			= resp[0];
+		const installed_app_id	= `${app.happ_bundle.happ_alias}-${hha_hash}:${agent_id}`;
 
 	    log.silly("HHA bundle: %s", app );
 	    // Example response
@@ -272,21 +311,26 @@ class Envoy {
 		// 		provider_pubkey: AgentPubKey,
 		// }
 
-	    log.info("Found %s DNA(s) for HHA ID (%s)", app.happ_bundle.dnas.length, hha_hash );
+	    log.info("Found %s DNA(s) for App with HHA ID (%s)", app.happ_bundle.dnas.length, hha_hash );
 		let failed			= false;
 			try {
 				let status;
 				// - Install App - This admin function creates cells for each dna with associated nick, under the hood.
 				try {				
 
-				log.info("Installing HHA ID (%s) as Installed App ID (%s) ", hha_hash, installed_app_id );
+				log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, installed_app_id );
 
 				status			= await this.callConductor( "master", this.hcc_clients.master.installApp, {
 					installed_app_id,
-					agent_key: agent_id, // **This must be the agent pub key (from lair-client.js)**
+					agent_key: agent_id,
 					dnas: app.happ_bundle.dnas.map(dna => {
-						const dnaFileName = dna.split("/");
-						const nick = dna.nick || dnaFileName[dnaFileName.length - 1]
+						let nick;
+						if (!dna.nick) {
+							const dnaFileName = dna.path.split("/");
+							nick = dnaFileName[dnaFileName.length - 1]
+						} else {
+							nick = dna.nick
+						}
 						return { nick, path: dna.path };
 					  }),
 				});
@@ -439,7 +483,7 @@ class Envoy {
 		    "fn_name":		call_spec["function"],
 			"payload":		call_spec["args"],
 			"cap":		null, // this will pass for calls in which the agent has Unrestricted status (includes all calls to own chain)
-			"provenance":	agent_id,
+			"provenance":	(agent_id),
 		});
 	    } catch ( err ) {
 		log.error("Failed during Conductor call: %s", String(err) );
@@ -621,7 +665,7 @@ class Envoy {
 	 // Conductor Call Handling
 
     async callConductor ( client, call_spec, args : any = {} ) {
-		log.normal("Received request to call Conductor using client '%s' with call spec (typeof '%s'):\n %s", client, typeof call_spec, call_spec );
+		log.normal("Received request to call Conductor using client '%s' with call spec of type '%s'", client, typeof call_spec);
 		let interfaceMethod, callAgent;
 		try {
 			if ( typeof client === "string" )
@@ -649,9 +693,11 @@ class Envoy {
 				interfaceMethod			= client.appInfo;
 			}
 			else {
+			// NOTE: call_spec.payload will be null when the zome function accepts no payload
+			const payload_log = call_spec.payload ? Object.entries(call_spec.payload).map(([k,v]) => `${k} : ${typeof v}`).join(", ") : call_spec.payload;
 			// NOTE: Updated ZomeCall Structure = { cap: null, cell_id: rootState.appInterface.cellId, zome_name, fn_name, provenance: rootState.agentKey, payload }
 			log.debug("\nZome Call spec details - called with cap token (%s), provenance (%s), cell_id(%s), and zome fn call: %s->%s( %s )", () => [
-				call_spec.cap, call_spec.provenance, call_spec.cell_id, call_spec.zome_name, call_spec.fn_name, Object.entries(call_spec.payload).map(([k,v]) => `${k} : ${typeof v}`).join(", ") ]);
+				call_spec.cap, call_spec.provenance, call_spec.cell_id, call_spec.zome_name, call_spec.fn_name, payload_log ]);
 			args			= call_spec;
 			}
 		} catch ( err ) {
@@ -659,10 +705,15 @@ class Envoy {
 		throw new HoloError("callConductor preamble threw error: %s", String(err));
 		}
 
-		console.log('\nARGS : ', JSON.stringify(args) );
 		console.log('\nINTERFACE METHOD : ', interfaceMethod.toString() );
+		console.log('\nARGS : ', JSON.stringify(args) );
 		console.log('\nHERE ..........')
-		console.log('\nINTERFACE METHOD RESULT: ', JSON.stringify(await interfaceMethod(args)) );
+
+		// try {
+		// 	console.log('\nINTERFACE METHOD RESULT: ', JSON.stringify(await interfaceMethod(args)) );
+		// } catch (error) {
+		// 	throw new Error(`ZOME CALL ERROR >>>>> ${JSON.stringify(error)}`);
+		// }
 		console.log('\n');
 		
 		let resp;
@@ -670,7 +721,9 @@ class Envoy {
 			// log.silly("Calling Conductor method (%s) over client '%s' with input: %s", interfaceMethod, client.checkConnection.name, JSON.stringify(args) );
 			resp			= await interfaceMethod( args );
 			console.log('RESULT >>>>>>>>>>>> ', resp)
+			
 			console.log('callAgent ', callAgent)
+			console.log('\n');
 
 			if ( callAgent === "app" ) {
 				console.log('typeof resp !== "object" && resp === null ', typeof resp !== 'object' && resp === null)
@@ -712,6 +765,8 @@ class Envoy {
 		}
 
 		log.normal("Call returned successful response: typeof '%s'", typeof resp );
+		console.log('\nCONDUCTOR CALL COMPLETE <<<<<<<<<<< ')
+		console.log('--------------------------------------------\n');
 		return resp;
     }
 

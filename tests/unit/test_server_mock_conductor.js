@@ -50,7 +50,7 @@ describe("Server with mock Conductor", () => {
 	// 	const keys		= Object.keys( data );
 
 	// 	expect( keys.length		).to.equal( 4 );
-	// 	expect( data["cell_id"]	).to.equal(); // "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv::holofuel"
+	// 	expect( data["cell_id"]	).to.equal(); // "hCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv::holofuel"
 	// 	expect( data["zome"]		).to.equal("chat");
 	// 	expect( data["function"]	).to.equal("list_channels");
 	// 	expect( data["args"]		).to.be.an("object");
@@ -148,7 +148,7 @@ describe("Server with mock Conductor", () => {
 	// 	const keys		= Object.keys( data );
 
 	// 	expect( keys.length		).to.equal( 4 );
-	// 	expect( data["cell_id"]	).to.equal(`uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv::${agent_id}-holofuel`);
+	// 	expect( data["cell_id"]	).to.equal(`hCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv::${agent_id}-holofuel`);
 	// 	expect( data["zome"]		).to.equal("chat");
 	// 	expect( data["function"]	).to.equal("list_channels");
 	// 	expect( data["args"]		).to.be.an("object");

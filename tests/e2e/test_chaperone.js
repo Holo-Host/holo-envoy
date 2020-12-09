@@ -36,7 +36,7 @@ function delay(t, val) {
 }
 
 // NOT RANDOM: this hha_hash MUST match the one hard-coded in Chaperone for DEVELOP mode
-const hha_hash				= "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv";
+const hha_hash				= "hCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv";
 const host_agent_id				= 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // fs.readFileSync('./AGENTID', 'utf8').trim();
 log.info("Host Agent ID: %s", host_agent_id );
 
@@ -91,8 +91,8 @@ describe("Server", () => {
 	    response			= await page.evaluate(async function ( host_agent_id, hha_hash )  {
 		const client = new Chaperone({
 		    "mode": Chaperone.DEVELOP,
-			"agent_id": "uhCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7",
-			// "hha_hash": "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv",
+			"agent_id": "hCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3",
+			// "hha_hash": "hCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv",
 		    "connection": {
 			"ssl": false,
 			"host": "localhost",
@@ -123,7 +123,7 @@ describe("Server", () => {
 		console.log("Finished sign-up", client.agent_id );
 		if ( client.anonymous === true )
 		    return console.error("Client did not sign-in");
-		if ( client.agent_id !== "uhCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3" )
+		if ( client.agent_id !== "hCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3" )
 		    return console.error("Unexpected Agent ID:", client.agent_id );
 
 		try {
@@ -146,7 +146,7 @@ describe("Server", () => {
     // 	    await client.signUp( "someone@example.com", "Passw0rd!" );
 
     // 	    expect( client.anonymous	).to.be.false;
-    // 	    expect( client.agent_id	).to.equal("uhCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3");
+    // 	    expect( client.agent_id	).to.equal("hCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3");
     // 	} finally {
     // 	}
     // });
@@ -156,7 +156,7 @@ describe("Server", () => {
     // 	    await client.signOut();
 
     // 	    expect( client.anonymous	).to.be.true;
-    // 	    expect( client.agent_id	).to.not.equal("uhCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3");
+    // 	    expect( client.agent_id	).to.not.equal("hCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3");
     // 	} finally {
     // 	}
     // });
@@ -167,7 +167,7 @@ describe("Server", () => {
     // 	    await client.signIn( "someone@example.com", "Passw0rd!" );
     // 	    const agent_id		= client.agent_id;
 
-    // 	    expect( agent_id		).to.equal("uhCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3");
+    // 	    expect( agent_id		).to.equal("hCAk7S9HRgczL8oKQ6jfSH7XFd9qVJsBNSyWRrUVnzN8CS7/Xar3");
 	    
     // 	    const response		= await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args );
     // 	    log.debug("Response: %s", response );
