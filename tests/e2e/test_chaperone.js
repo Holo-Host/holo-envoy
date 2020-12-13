@@ -40,6 +40,33 @@ async function create_page ( url ) {
     return page;
 }
 
+class PageTestUtils {  
+	constructor( page ) {
+	this.logPageErrors			= () => page.on('pageerror', async error => {
+		if (error instanceof Error) {
+		log.silly( error.message );
+	    }
+	    else
+		log.silly( error );
+	});
+
+	this.describeJsHandleLogs	= () => page.on('console', async msg => {
+	    const args = await Promise.all(msg.args().map(arg => this.describeJsHandle( arg )))
+		  .catch(error => console.log( error.message ));
+	    console.log( ...args );
+	});
+
+	this.describeJsHandle		= ( jsHandle ) => {
+	    return jsHandle.executionContext().evaluate(arg => {
+		if (arg instanceof Error)
+		    return arg.message;
+		else
+		    return arg;
+	    }, jsHandle);
+	};
+    }
+}
+
 function delay(t, val) {
     return new Promise(function(resolve) {
 	setTimeout(function() {
@@ -122,7 +149,7 @@ describe("Server", () => {
 		
 	master_client		= envoy.hcc_clients.master;
 	registered_agent	= await registerHolochainAgent(master_client)
-    });
+	});
     after(async () => {
 	log.debug("Shutdown cleanly...");
 	log.debug("Close browser...");
@@ -146,7 +173,11 @@ describe("Server", () => {
 	try {
 	    let response;
 	    const page_url		= `${http_url}/html/chaperone.html`
-    	    const page			= await create_page( page_url );
+		const page			= await create_page( page_url );
+		const pageTestUtils			= new PageTestUtils(page)
+
+		pageTestUtils.logPageErrors();
+		pageTestUtils.describeJsHandleLogs();
 	    
 	    response			= await page.evaluate(async function ( host_agent_id, hha_hash, registered_agent )  {
 			console.log('registered_agent: ', registered_agent);
