@@ -5,21 +5,16 @@ import http				from 'http';
 import crypto				from 'crypto';
 import concat_stream			from 'concat-stream';
 import SerializeJSON			from 'json-stable-stringify';
-import * as msgpack 				from '@msgpack/msgpack'
 import { Codec }			from '@holo-host/cryptolib';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer }		from './wss';
 import { HHA_INSTALLED_APP_ID, SERVICELOGGER_INSTALLED_APP_ID } from './const';
 
+const TEST_NUMER = 9;
+
 const log				= logger(path.basename( __filename ), {
     level: process.env.LOG_LEVEL || 'fatal',
 });
-
-const binary				= async (data) => {
-	console.log('\n DATA TO ENCODE AS BINARY : ', data);
-	console.log('\n');
-	return await msgpack.encode(data)
-};
 
 export const base64FromBuffer = (buffer) => {
 	var binary = "";
@@ -66,6 +61,19 @@ interface CallSpec {
 	args?		: any;
 }
 
+interface AppDna {
+	path: string;
+	nick?: string;
+}
+
+interface EnvoyConfig {
+	mode: number;
+	port?: number;
+	NS?: string;
+	hosted_app_dnas?: [AppDna];
+	hosted_port_number?: number;
+}
+
 class HoloError extends Error {
 
     constructor( message, ...params ) {
@@ -98,7 +106,7 @@ class HoloError extends Error {
 class Envoy {
     ws_server		: any;
     http_server		: any;
-    opts		: any;
+    opts		: EnvoyConfig;
     conductor_opts	: any;
     connected		: any;
 
@@ -108,13 +116,19 @@ class Envoy {
     pending_signatures	: object	= {};
     anonymous_agents	: any		= {};
 
-    hcc_clients		: any		= {};
+	hcc_clients		: any		= {};
+	
+	static PRODUCT_MODE	: number		= 0;
+	static DEVELOP_MODE	: number		= 1;
+	static DEFAULT_OPTS					= {
+		mode: Envoy.PRODUCT_MODE,
+	}
 
-    constructor ( opts ) {
+    constructor ( opts: EnvoyConfig = Envoy.DEFAULT_OPTS ) {
 	log.silly("Initializing Envoy with input: %s", opts );
 	this.opts			= Object.assign({}, {
 	    "port": WS_SERVER_PORT,
-	    "NS": NAMESPACE,
+		"NS": NAMESPACE,
 	}, opts);
 	log.normal("Initializing with port (%s) and namespace (%s)", this.opts.port, this.opts.NS );
 
@@ -160,7 +174,7 @@ class Envoy {
 			console.log( client.checkConnection.name, err );
 			});
 			
-		console.log('CLIENT SOCKET >>>>> ', client);	
+		// console.log('CLIENT SOCKET >>>>> ', client);	
 		
 		log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.checkConnection.name, client.checkConnection.socket.readyState );
 	    })
@@ -252,19 +266,10 @@ class Envoy {
 	// Envoy - New Hosted Agent Sign-up Sequence
 	this.ws_server.register("holo/agent/signup", async ([ hha_hash, agent_id ]) => {
 		log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash )
-		
-		// const buffer_agent_id = await bufferFromBase64(agent_id);
-		// const buffer_hha_hash = await bufferFromBase64(hha_hash);
-		
-		// log.info("Encoded Agent ID (%s) into buffer form: %s", agent_id, buffer_agent_id );
-		// log.info("Encoded HHA Hash (%s) into binary form: %s", hha_hash, buffer_hha_hash );
-		// console.log('\n')
-
 		const failure_response	= (new HoloError("Failed to create a new hosted agent")).toJSON();
 	    let resp;
 
 		log.info("Retreive HHA cell id using the Installed App Id: '%s'", HHA_INSTALLED_APP_ID);
-		// TODO: Add cli param to holochain-run-dna that allows for agent specification - to use when creating cell_id.
 	    const appInfo			= await this.callConductor( "internal", { installed_app_id: HHA_INSTALLED_APP_ID  });
 
 	    if ( !appInfo ) {
@@ -291,7 +296,7 @@ class Envoy {
 	    }
 
 		const app			= resp[0];
-		const installed_app_id	= `${app.happ_bundle.happ_alias}-${hha_hash}:${agent_id}`;
+		const installed_app_id	= `hosted-app-${hha_hash}:${agent_id}`;
 
 	    log.silly("HHA bundle: %s", app );
 	    // Example response
@@ -312,18 +317,36 @@ class Envoy {
 		// }
 
 	    log.info("Found %s DNA(s) for App with HHA ID (%s)", app.happ_bundle.dnas.length, hha_hash );
+		
+		const buffer_agent_id = await bufferFromBase64(agent_id);	
+		console.log('\nDecoded agent ID', agent_id);
+
+		log.info("Encoded Agent ID (%s) into buffer form: %s", agent_id, buffer_agent_id );
+		console.log('\n')
+		
 		let failed			= false;
 			try {
-				let status;
+				let adminResponse;
 				// - Install App - This admin function creates cells for each dna with associated nick, under the hood.
 				try {				
 
 				log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, installed_app_id );
 
-				status			= await this.callConductor( "master", this.hcc_clients.master.installApp, {
+				console.log('\nAGENT PUB KEY >>> : ', buffer_agent_id);
+				console.log('\n');
+				
+				console.log('this.opts.mode', this.opts.mode)
+				console.log('\n');
+
+				let dnas;
+				if (this.opts.hosted_app_dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
+					dnas = this.opts.hosted_app_dnas;
+				}
+
+				adminResponse			= await this.callConductor( "master", this.hcc_clients.master.installApp, {
 					installed_app_id,
-					agent_key: agent_id,
-					dnas: app.happ_bundle.dnas.map(dna => {
+					agent_key: buffer_agent_id, // <<<< !!
+					dnas: dnas || app.happ_bundle.dnas.map(dna => {
 						let nick;
 						if (!dna.nick) {
 							const dnaFileName = dna.path.split("/");
@@ -334,10 +357,9 @@ class Envoy {
 						return { nick, path: dna.path };
 					  }),
 				});
-	
 
-				if ( status.success !== true ) {
-					log.error("Conductor 'installApp' returned non-success response: %s", status );
+				if ( adminResponse.type !== "success" ) {
+					log.error("Conductor 'installApp' returned non-success response: %s", adminResponse );
 					failed		= true
 					throw (new HoloError(`Failed to complete 'installApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
 				}
@@ -350,40 +372,47 @@ class Envoy {
 					}
 				}
 
-
 				// Activate App -  Add the Installed App to a hosted interface.
 				try {
-				log.info("Adding app (%s) to hosted interface", installed_app_id );
-				status		= await this.callConductor( "master", this.hcc_clients.master.activateApp, { installed_app_id });
+				log.info("Activating Installed App (%s)", installed_app_id );
+				adminResponse		= await this.callConductor( "master", this.hcc_clients.master.activateApp, { installed_app_id });
 
-				if ( status.success !== true ) {
-					log.error("Conductor 'activateApp' returned non-success response: %s", status );
+				if ( adminResponse.type !== "success" ) {
+					log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse );
 					failed		= true
 					throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
 				}
 				} catch ( err ) {
 				if ( err.message.toLowerCase().includes( "already in interface" ) )
-					log.warn("Installed App ID (%s) is already added to hosted interface", installed_app_id );
+					log.warn("Cannot Activate App: Installed App ID (%s) is already added to hosted interface", installed_app_id );
 				else {
 					log.error("Failed during 'activateApp': %s", String(err) );
 					throw err;
 				}
 				}
 
-
 				// Attach App to Interface - Connect app to hosted interface and start app (ie: spin up all cells within app bundle)
 				try {
-				log.info("Starting installed-app (%s)", installed_app_id );
-				status		= await this.callConductor( "master", this.hcc_clients.master.attachAppInterface, { port: this.conductor_opts.hosted_port });
+				let hosted_port
+				
+				if ( (this.opts.hosted_port_number === 0 || this.opts.hosted_port_number) && this.opts.mode === Envoy.DEVELOP_MODE) {
+					hosted_port = this.opts.hosted_port_number;
+				} else {
+					hosted_port = this.conductor_opts.interfaces.hosted_port;
+				}
 
-				if ( status.success !== true ) {
-					log.error("Conductor 'attachAppInterface' returned non-success response: %s", status );
+				log.info("Starting installed-app (%s) on port (%s)", installed_app_id, hosted_port );
+				
+				adminResponse		= await this.callConductor( "master", this.hcc_clients.master.attachAppInterface, { port: hosted_port });
+
+				if ( adminResponse.type !== "success" ) {
+					log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse );
 					failed		= true
 					throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id'${installed_app_id}'.`)).toJSON();
 				}
 				} catch ( err ) {
 				if ( err.message.toLowerCase().includes( "already active" ) )
-					log.warn("Intalled-app (%s) already started", installed_app_id );
+					log.warn("Cannot Start App: Intalled-app (%s) is already started", installed_app_id );
 				else {
 					log.error("Failed during 'attachAppInterface': %s", String(err) );
 					throw err;
@@ -410,22 +439,39 @@ class Envoy {
 	
 	// Chaperone AppInfo Call to Envoy Server
 	this.ws_server.register("holo/app-info", async ({ installed_app_id }) => {
+		const call_id = this.request_counter;
+		this.request_counter++;
+
 		let appInfo
 		try {
 			log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
-				appInfo			= await this.callConductor( "hosted", { installed_app_id });
+			appInfo			= await this.callConductor( "internal", { installed_app_id }); // update to call "hosted" port once hc-run-dna is updated to install multiple apps per conductor...
+			
+			if ( !appInfo ) {
+				log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo );
+				throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
+			}
 		} catch ( err ) {
 		log.error("Failed during Conductor AppInfo call: %s", String(err) );
-		throw (new HoloError("Failed to create a new hosted agent")).toJSON();
+		throw err;
 		}
 
-		log.normal("Completed AppInfo call for installed_app_id (%s)", installed_app_id, appInfo );
-		return appInfo;
-	});
+		log.normal("Completed AppInfo call for installed_app_id (%s)", installed_app_id);
+		console.log('appInfo stringified : ', JSON.stringify(appInfo))
+		
+		return {
+			"response_id": call_id,
+			"type": "success",
+			"payload": appInfo // JSON.stringify(appInfo);
+		}
+	}, this.opts.NS );
 
 	
 	// Chaperone ZomeCall to Envoy Server
 	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
+		const call_id = this.request_counter;
+		this.request_counter++;
+
 		// log.silly("Received request: %s", payload.call_spec );
 
 		// TODO: REVISIT Payload after updated for RSM and ensure validity
@@ -463,7 +509,7 @@ class Envoy {
 		request		= await this.logServiceRequest( agent_id, payload, service_signature );
 
 	    // ZomeCall to Conductor App Interface
-	    let zomeCall_response, holo_error;
+	    let zomeCall_response, holo_error, id;
 	    try {		
 		log.debug("Calling zome function %s::%s->%s( %s ) on cell_id (%s) with %s arguments, cap token (%s), and provenance (%s):", () => [
 			call_spec.zome_name, call_spec.fn_name, call_spec.cell_id, Object.entries(call_spec.payload).map(([k,v]) => `${k} : ${typeof v}`).join(", "), null, agent_id ]);
@@ -530,7 +576,12 @@ class Envoy {
 	    log.normal("Returning reponse (%s) for request (%s) with signature (%s), error : %s",
 			host_response, request, service_signature, holo_error);
 
-		return { "zome_call_id": zomeCall_response };
+		return {
+			// TODO: Update chaperone to expect new response callsig
+			"response_id": call_id,
+			"type": "success",
+			"payload": zomeCall_response
+		}
 	}, this.opts.NS );
 
 	// Chaperone Call to Envoy Server to confirm service
@@ -681,8 +732,7 @@ class Envoy {
 			interfaceMethod			= client.callZome;
 			callAgent = 'app'
 			if ( call_spec instanceof Function) {
-			log.debug("Admin Call spec details: %s( %s )", () => [
-				call_spec, Object.entries(args).map(([k,v]) => `${k} : ${typeof v}`).join(", ") ]);
+			log.debug("Admin Call spec payload: ( %s )", () => [Object.entries(args).map(([k,v]) => `${k} : ${typeof v}`).join(", ") ]);
 			interfaceMethod			= call_spec;
 			callAgent 				= 'admin'
 			}
@@ -705,33 +755,40 @@ class Envoy {
 		throw new HoloError("callConductor preamble threw error: %s", String(err));
 		}
 
-		console.log('\nINTERFACE METHOD : ', interfaceMethod.toString() );
-		console.log('\nARGS : ', JSON.stringify(args) );
-		console.log('\nHERE ..........')
-
-		// try {
-		// 	console.log('\nINTERFACE METHOD RESULT: ', JSON.stringify(await interfaceMethod(args)) );
-		// } catch (error) {
-		// 	throw new Error(`ZOME CALL ERROR >>>>> ${JSON.stringify(error)}`);
-		// }
-		console.log('\n');
+		console.log('\nCALL ARGS : ', JSON.stringify(args) );
 		
 		let resp;
 		try {
 			// log.silly("Calling Conductor method (%s) over client '%s' with input: %s", interfaceMethod, client.checkConnection.name, JSON.stringify(args) );
-			resp			= await interfaceMethod( args );
-			console.log('RESULT >>>>>>>>>>>> ', resp)
+			try {
+				console.log('\nHERE - Making Conductor call ..........');
+				console.log('\n');			
+				resp			= await interfaceMethod( args );
+				console.log('RESULT >>>>>>>>>>>> ', resp)
+			} catch (error) {
+				throw new Error(`CONDUCTOR CALL ERROR >>>>> ${JSON.stringify(error)}`);
+			}
 			
 			console.log('callAgent ', callAgent)
 			console.log('\n');
 
 			if ( callAgent === "app" ) {
-				console.log('typeof resp !== "object" && resp === null ', typeof resp !== 'object' && resp === null)
-				if ( typeof resp !== 'object' && resp === null)
+				if ( typeof resp !== 'object' || resp === null)
 					log.warn("Expected zome call result to be an object, not '%s'", typeof resp );
 				else {
-					log.debug("Successful zome call response : ", resp );
+					log.debug("Successful zome call response : ", resp);
+					console.log(resp);
 				}
+			} else {
+				log.debug("Successful admin call response : ", resp );
+				if (resp) {
+					resp.type = "success";
+				} else {
+					// In the case where admin function doesn't return anything, 
+					// **** but doesn't fail (eg: activate_app):
+					resp = { type: "success" };
+				}
+				console.log('RESPONSE : ', resp);
 			}
 		} catch ( err ) {
 			// -32700
@@ -747,6 +804,7 @@ class Envoy {
 			// -32000 to -32099
 			//     Server errorReserved for implementation-defined server-errors.
 			if ( err.code === -32000 ) {
+				// TODO: RETURN THESE ERROR to Chaperone with { type: "error", message:  }
 			if ( err.data.includes("response from service is not success") ) {
 				log.error("Failed during Conductor call because of a signing request error: %s", err.data );
 				throw new HoloError("Failed to get signatures from Client");
@@ -757,10 +815,10 @@ class Envoy {
 			}
 			} else if ( err instanceof Error ) {
 			log.error("Failed during Conductor call with error: %s", String(err) );
-			throw new HoloError(String(err));
+				throw new HoloError(String(err));
 			} else {
 			log.fatal("Failed during Conductor call with unknown error: %s", err );
-			throw new HoloError("Unknown RPC Error: %s", JSON.stringify( err ));
+				throw new HoloError("Unknown RPC Error: %s", JSON.stringify( err ));
 			}
 		}
 

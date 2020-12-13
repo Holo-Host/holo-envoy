@@ -10,9 +10,9 @@
     "test-unit": "mocha ./tests/unit/",
     "test-integration": "mocha ./tests/integration/",
     "fetch-dnas": "sh ./scripts/fetch-dna.sh",
-    "start-conductor:service": "holochain-run-dna -p 42222 -i servicelogger -a 3456 ./dnas/servicelogger.dna.gz &> conductors/service-conductor.log &",
-    "start-conductor:internal": "holochain-run-dna -p 42233 -i holo-hosting-app -a 2345 ./dnas/holo-hosting-app.dna.gz &> conductors/internal-conductor.log &",
-    "start-conductor:hosted": "holochain-run-dna -p 42244 -i hosted-app -a 1234 ./dnas/elemental-chat.dna.gz &> conductors/hosted-conductor.log &",
+    "start-conductor:service": "holochain-run-dna -p 42222 -i servicelogger -a 2345 ./dnas/servicelogger.dna.gz &> conductors/service-conductor.log &",
+    "start-conductor:internal": "holochain-run-dna -p 42233 -i holo-hosting-app -a 1234 ./dnas/holo-hosting-app.dna.gz &> conductors/internal-conductor.log &",
+    "start-conductor:hosted": "holochain-run-dna -p 42244 -i hosted-app -a 3456 ./dnas/elemental-chat.dna.gz &> conductors/hosted-conductor.log &",
     "start-conductor:all": "npm run start-conductor:service && npm run start-conductor:internal && npm run start-conductor:hosted",
     "start-conductor": "holochain-run-dna ./dnas/holo-hosting-app.dna.gz"
   },
