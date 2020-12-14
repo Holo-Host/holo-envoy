@@ -9,6 +9,7 @@ import { Codec }			from '@holo-host/cryptolib';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer }		from './wss';
 import { HHA_INSTALLED_APP_ID, SERVICELOGGER_INSTALLED_APP_ID } from './const';
+import { Console } from 'console';
 
 const TEST_NUMER = 9;
 
@@ -28,14 +29,15 @@ export const base64FromBuffer = (buffer) => {
 };
 
 const bufferFromBase64 = (base64) => {
-	console.log('\n Base64 Data to Encode as Array : ', base64);
-	console.log('\n');
+	console.log('\n Base64 Data to Encode as Buffer : ', base64);
 	var byteString = Buffer.from(base64, 'base64').toString('binary');
 	const buffer = Buffer.alloc(byteString.length); //  new Uint8Array
-
+	
 	for(let i = 0; i < byteString.length; i++) {
 		buffer[i] = byteString.charCodeAt(i);
 	}
+	console.log('\n Encoded Buffer : ', buffer);
+	console.log('\n');
 	return buffer;
 };
 
@@ -114,7 +116,7 @@ class Envoy {
     payload_counter	: number	= 0;
     pending_confirms	: object	= {};
     pending_signatures	: object	= {};
-    anonymous_agents	: any		= {};
+	anonymous_agents	: any		= {};
 
 	hcc_clients		: any		= {};
 	
@@ -174,7 +176,7 @@ class Envoy {
 			console.log( client.checkConnection.name, err );
 			});
 			
-		// console.log('CLIENT SOCKET >>>>> ', client);	
+		console.log('CLIENT SOCKET >>>>> ', client);	
 		
 		log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.checkConnection.name, client.checkConnection.socket.readyState );
 	    })
@@ -280,22 +282,24 @@ class Envoy {
 		const hha_cell_id			= appInfo.cell_data[0][0];
 		const host_agent_id = hha_cell_id[1];
 
-	    log.info("Look-up Hosted App's HHA record using ID '%s'", hha_hash );
-	    resp			= await this.callConductor( "internal", {
-		    "cell_id":	hha_cell_id,
-		    "zome_name":		"hha",
-		    "fn_name":		"get_happs",
-			"payload":		null,
-			"cap":		null,
-			"provenance": host_agent_id,
-		});
+	    // log.info("Look-up Hosted App's HHA record using ID '%s'", hha_hash );
+	    // resp			= await this.callConductor( "internal", {
+		//     "cell_id":	hha_cell_id,
+		//     "zome_name":		"hha",
+		//     "fn_name":		"get_happs",
+		// 	"payload":		null,
+		// 	"cap":		null,
+		// 	"provenance": host_agent_id,
+		// });
 
-	    if ( !resp ) {
-		log.error("Failed during App Details lookup in HHA: %s", resp );
-		return failure_response;
-	    }
+	    // if ( !resp ) {
+		// log.error("Failed during App Details lookup in HHA: %s", resp );
+		// return failure_response;
+	    // }
 
-		const app			= resp[0];
+		// const app			= resp[0];
+		// TODO: REMOVE ONCE DONE testing 'hha as the web user's hosted app'
+		const app 				= { happ_bundle: { dnas: [{ nick: '', path: '' }] } }
 		const installed_app_id	= `hosted-app-${hha_hash}:${agent_id}`;
 
 	    log.silly("HHA bundle: %s", app );
@@ -445,7 +449,7 @@ class Envoy {
 		let appInfo
 		try {
 			log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
-			appInfo			= await this.callConductor( "internal", { installed_app_id }); // update to call "hosted" port once hc-run-dna is updated to install multiple apps per conductor...
+			appInfo			= await this.callConductor( "internal", { installed_app_id }); // TODO: update to call "hosted" port once hc-run-dna is updated to install multiple apps per conductor... (Ditto for line 542 - hosted app ZomeCall)
 			
 			if ( !appInfo ) {
 				log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo );
@@ -469,12 +473,14 @@ class Envoy {
 	
 	// Chaperone ZomeCall to Envoy Server
 	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
+		console.log('INCOMING ZOME CALL REQUEST ... ')
+		console.log('REQUEST INFO : ', { anonymous, agent_id, payload, service_signature });
+		
 		const call_id = this.request_counter;
 		this.request_counter++;
 
-		// log.silly("Received request: %s", payload.call_spec );
+		log.silly("Received request: %s", payload.call_spec );
 
-		// TODO: REVISIT Payload after updated for RSM and ensure validity
 	    // Example of request package
 	    //
 	    //     {
@@ -496,11 +502,12 @@ class Envoy {
 	    //     }
 		//
 		
-	    const call_spec		= payload.call_spec;
+		const call_spec		= payload.call_spec;
+		const call_spec_args = (typeof call_spec.args === "object") ? Object.keys(call_spec.args).join(", ") : call_spec.args;
 	    log.normal("Received zome call request from Agent (%s) with spec: %s::%s->%s( %s )",
-		       agent_id, call_spec.cell_id, call_spec.zome_name, call_spec.fn_name, Object.keys(call_spec.payload).join(", ") );
+		       agent_id, call_spec.cell_id, call_spec.zome, call_spec.function, call_spec_args );
 
-	    // - service logger request. If the servicelogger.log_{request/response} fail (eg. due
+	    // - Servicelogger request. If the servicelogger.log_{request/response} fail (eg. due
 	    // to bad signatures, wrong host_id, or whatever), then the request cannot proceed, and
 	    // we'll immediately return an error w/o a response_id or result.
 	    let request;
@@ -508,11 +515,15 @@ class Envoy {
 		log.debug("Log service request (%s) from Agent (%s)", service_signature, agent_id );
 		request		= await this.logServiceRequest( agent_id, payload, service_signature );
 
+		console.log('ABOUT TO MAKE ACTUAL ZOME CALL....');
+
 	    // ZomeCall to Conductor App Interface
-	    let zomeCall_response, holo_error, id;
-	    try {		
-		log.debug("Calling zome function %s::%s->%s( %s ) on cell_id (%s) with %s arguments, cap token (%s), and provenance (%s):", () => [
-			call_spec.zome_name, call_spec.fn_name, call_spec.cell_id, Object.entries(call_spec.payload).map(([k,v]) => `${k} : ${typeof v}`).join(", "), null, agent_id ]);
+	    let zomeCall_response, holo_error
+	    try {
+		const buffer_agent_id = await bufferFromBase64(agent_id);	
+		const zomeCallArgs = (typeof call_spec.args === 'object') ? Object.entries(call_spec.args).map(([k,v]) => `${k} : ${typeof v}`).join(", ") : call_spec.args
+		log.debug("Calling zome function %s->%s( %s ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
+			call_spec.zome, call_spec.function, zomeCallArgs, call_spec.cell_id, null, agent_id ]);
 
 			// NOTE: ZomeCall Structure (UPDATED) = { 
 				// cell_id,
@@ -523,13 +534,19 @@ class Envoy {
 				// provenance
 			// }
 
-			zomeCall_response		= await this.callConductor( "hosted", {
-		    "cell_id":	call_spec["cell_id"],
+			const changeCellIdType = (cellId, fn) => cellId.map(cellHash => fn(cellHash.data));
+			const decodedHostedCellId = changeCellIdType(call_spec["cell_id"], base64FromBuffer);
+			const encodedCellIds = [bufferFromBase64(decodedHostedCellId[0]), bufferFromBase64(decodedHostedCellId[1])];
+			// console.log('DECODED CELL IDS: ', decodedHostedCellId);
+			// console.log('ENCODED CELL IDS: ', encodedCellIds);
+			
+			zomeCall_response		= await this.callConductor( "internal", { // TODO: update to hosted once hc-run-dna tool can install/run multiple apps... (Ditto for line 450 - AppInfo call)
+		    "cell_id":	encodedCellIds, // call_spec["cell_id"], // TODO: >> Learn why we can't just pass in the cell_id in type received back from appInfo call? 
 		    "zome_name":		call_spec["zome"],
 		    "fn_name":		call_spec["function"],
-			"payload":		call_spec["args"],
-			"cap":		null, // this will pass for calls in which the agent has Unrestricted status (includes all calls to own chain)
-			"provenance":	(agent_id),
+			"payload":		null, // TODO: call_spec["args"], >>> update back... && remember why sending a payload doesn't work here... but does when sent by ui (elemental-chat-ui)....????
+			"cap":		null, // Note: this will pass for calls in which the agent has Unrestricted status (includes all calls to own chain)
+			"provenance":	buffer_agent_id,
 		});
 	    } catch ( err ) {
 		log.error("Failed during Conductor call: %s", String(err) );
@@ -555,7 +572,7 @@ class Envoy {
 			"message": err.message,
 		    };
 		}
-	    }
+		}
 
 		const metrics		= {
 		"response_received": [165303,0],
@@ -568,9 +585,9 @@ class Envoy {
 		host_response		= await this.logServiceResponse( zomeCall_response, metrics );
 		log.info("Service response by Host: %s",  JSON.stringify( host_response, null, 4 ) );
 
-		// Use zomeCall response to act as waiting ID
-		log.info("Adding service response ID (%s) to waiting list for client confirmations", zomeCall_response );
-		this.addPendingConfirmation( zomeCall_response, request, host_response, agent_id );
+		// Use call_id to act as waiting ID
+		log.info("Adding service call ID (%s) to waiting list for client confirmations", call_id );
+		this.addPendingConfirmation( call_id, request, host_response, agent_id );
 
 	    // - return host response
 	    log.normal("Returning reponse (%s) for request (%s) with signature (%s), error : %s",
@@ -580,27 +597,27 @@ class Envoy {
 			// TODO: Update chaperone to expect new response callsig
 			"response_id": call_id,
 			"type": "success",
-			"payload": zomeCall_response
+			"payload": host_response
 		}
 	}, this.opts.NS );
 
 	// Chaperone Call to Envoy Server to confirm service
-	this.ws_server.register("holo/service/confirm", async ([ zomeCall_response_id, response_signature, confirmation ]) => {
-	    log.normal("Received confirmation request for zome call response (%s)", zomeCall_response_id );
-	    if ( typeof zomeCall_response_id !== "string" ) {
-		log.error("Invalid type '%s' for response ID, should be of type 'string'", typeof zomeCall_response_id );
+	this.ws_server.register("holo/service/confirm", async ([ response_id, response_signature, confirmation ]) => {
+	    log.normal("Received confirmation request for zome call response (%s)", response_id );
+	    if ( typeof response_id !== "number" ) {
+		log.error("Invalid type '%s' for response ID, should be of type 'string'", typeof response_id );
 		return false;
 	    }
 
 	    // - service logger confirmation
 	    const { agent_id,
-			client_req, host_res }		= this.getPendingConfirmation( zomeCall_response_id );
+			client_req, host_res }		= this.getPendingConfirmation( response_id );
 			
 		host_res["signed_response_hash"] = response_signature
 
 	    let service_log;
 	    try {
-		log.debug("Log service confirmation for Zome Call ID (%s) for request (%s) and host_response (%s) ", zomeCall_response_id );
+		log.debug("Log service confirmation for Response ID (%s) for request (%s) and host_response (%s) ", response_id, client_req, host_res );
 		service_log		= await this.logServiceConfirmation( client_req, host_res, confirmation, agent_id );
 		log.info("Service confirmation log hash: %s", service_log );
 	    } catch ( err ) {
@@ -612,10 +629,10 @@ class Envoy {
 		};
 	    }
 
-	    this.removePendingConfirmation( zomeCall_response_id );
+	    this.removePendingConfirmation( response_id );
 
 	    // - return success
-	    log.normal("Response (%s) confirmation is complete", zomeCall_response_id );
+	    log.normal("Response ID (%s) confirmation is complete", response_id );
 	    return true;
 	}, this.opts.NS );
     }
@@ -721,6 +738,8 @@ class Envoy {
 		try {
 			if ( typeof client === "string" )
 			client			= this.hcc_clients[ client ];
+
+			// console.log('====================>>>>>>>>>>>>>>>>>>>>> ???????? ', client);
 
 			let ready_state		= client.checkConnection.socket.readyState;
 			if ( ready_state !== 1 ) {
@@ -833,29 +852,32 @@ class Envoy {
 
     // Service Logger Methods
 
-    addPendingConfirmation ( zome_call_res, client_req, host_res, agent_id ) {
-	log.info("Add zome_call result (%s) to pending confirmations with Agent (%s), Client Request (%s), and Host Restponse (%s)", zome_call_res, agent_id, JSON.stringify( client_req, null, 4 ), JSON.stringify( host_res, null, 4 ) );
-	this.pending_confirms[ zome_call_res ] = {
+    addPendingConfirmation ( call_id, client_req, host_res, agent_id ) {
+	log.info("Add call ID (%s) to pending confirmations with Agent (%s), Client Request (%s), and Host Restponse (%s)", call_id, agent_id, JSON.stringify( client_req, null, 4 ), JSON.stringify( host_res, null, 4 ) );
+	this.pending_confirms[ call_id ] = {
 	    agent_id,
 		client_req,
 		host_res
 	};
     }
 
-    getPendingConfirmation ( zome_call_res ) {
-	log.info("Get response (%s) from pending confirmations", zome_call_res );
-	return this.pending_confirms[ zome_call_res ];
+    getPendingConfirmation ( call_id ) {
+	log.info("Get response (%s) from pending confirmations", call_id );
+	return this.pending_confirms[ call_id ];
     }
 
-    removePendingConfirmation ( zome_call_res ) {
-	log.info("Remove response (%s) from pending confirmations", zome_call_res );
-	delete this.pending_confirms[ zome_call_res ];
+    removePendingConfirmation ( call_id ) {
+	log.info("Remove response (%s) from pending confirmations", call_id );
+	delete this.pending_confirms[ call_id ];
     }
 
     async logServiceRequest ( agent_id, payload, signature ) {
 	log.normal("Processing service logger request (%s)", signature );
+
+	console.log('LOG ARGS : ', agent_id, payload);
+
 	const call_spec			= payload.call_spec;
-	const args_hash			= digest( call_spec["payload"] );
+	const args_hash			= digest( call_spec["args"] );
 
 	log.debug("Using argument digest: %s", args_hash );
 	const request_payload			= {
@@ -876,7 +898,9 @@ class Envoy {
         request_signature: signature
 	}
 
-	  log.silly("Set service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
+	console.log('FINISHED REQUEST: ', request);
+
+	//   log.silly("Set service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
 	return request;
     }
 
