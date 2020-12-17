@@ -26,7 +26,7 @@
     "url": "https://github.com/Holo-Host/envoy/"
   },
   "dependencies": {
-    "@holo-host/cryptolib": "^0.2.0",
+    "@holo-host/cryptolib": "Holo-Host/cryptolib-js#update-digest-for-rsm/2020-12-14",
     "@holochain/conductor-api": "0.0.1-dev.13",
     "@msgpack/msgpack": "^2.3.0",
     "@whi/stdlog": "^0.3.3",

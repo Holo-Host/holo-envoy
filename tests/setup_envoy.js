@@ -31,16 +31,17 @@ async function stop_envoy () {
 }
 
 async function create_client ( agent_id		= "hCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq",
-			       hha	= "hCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv",
+			       hha_hash	= "hCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv",
 			       timeout		= 50000 ) {
 
-    const host_agent_id				= 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // fs.readFileSync('./AGENTID', 'utf8').trim();
-    log.info("Host Agent ID: %s", host_agent_id );
+    // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
+    // note: this was working when changed to >>>> hCAkTFYCB48/Bx/QvKQPVSuXAV8sLHKJXrh6ZS8YVe2MdsvSgc7q
+    const host_agent_id				= 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // fs.readFileSync('./AGENTID', 'utf8').trim();    log.info("Host Agent ID: %s", host_agent_id );
 
     const client			= new Chaperone({
 	"port": envoy.ws_server.port,
 	// "agent_id": agent_id,
-	"hha": hha,
+	"instance_prefix": hha_hash,
 	"timeout": timeout,
 	"debug": ["debug", "silly"].includes( (process.env.LOG_LEVEL || "" ).toLowerCase() ),
 	"host": "localhost",

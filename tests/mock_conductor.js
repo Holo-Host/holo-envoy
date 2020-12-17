@@ -13,6 +13,8 @@
 // 	Codec, }			= require('@holo-host/cryptolib');
 
 // const { struct, superstruct }		= require('superstruct');
+
+// NB: We are no longer using sha256 to hash the encrypted data, instead use holohash pattern. 
 // const sha256				= (buf) => crypto.createHash('sha256').update( Buffer.from(buf) ).digest();
 
 // function ZomeAPIResult ( result ) {

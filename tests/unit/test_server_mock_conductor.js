@@ -58,7 +58,7 @@ describe("Server with mock Conductor", () => {
 	// 	return ZomeAPIResult([]);
 	//     });
 
-	//     const response		= await client.callZomeFunction( "hosted-app" , "elemental-chat", "chat", "list_channels", { category: "General"} );
+	//     const response		= await client.callZomeFunction("elemental-chat", "chat", "list_channels", { category: "General"} );
 	//     log.debug("Response: %s", response );
 
 	//     expect( response		).to.deep.equal( [] );
@@ -80,7 +80,7 @@ describe("Server with mock Conductor", () => {
 	//     });
 
 	//     try {
-	// 	await client.callZomeFunction( "holofuel", "chat", "list_channels", { category: "General"} );
+	// 	await client.callZomeFunction( "elemental-chat", "chat", "list_channels", { category: "General"} );
 	//     } catch ( err ) {
 	// 	failed			= true;
 	// 	expect( err.name	).to.include("HoloError");
@@ -156,7 +156,7 @@ describe("Server with mock Conductor", () => {
 	// 	return ZomeAPIResult([]);
 	//     });
 
-	//     const response		= await client.callZomeFunction( "holofuel", "chat", "list_channels", { category: "General"} );
+	//     const response		= await client.callZomeFunction( "elemental-chat", "chat", "list_channels", { category: "General"} );
 	//     log.debug("Response: %s", response );
 
 	//     expect( response		).to.deep.equal( [] );
@@ -174,7 +174,7 @@ describe("Server with mock Conductor", () => {
 	// 	return ZomeAPIResult(true);
 	//     });
 
-	//     const response		= await client.callZomeFunction( "holofuel", "chat", "list_channels", { category: "General"} );
+	//     const response		= await client.callZomeFunction( "elemental-chat", "chat", "list_channels", { category: "General"} );
 	//     log.debug("Response: %s", response );
 
 	//     expect( response		).to.be.true;
@@ -192,7 +192,7 @@ describe("Server with mock Conductor", () => {
 	//     let failed				= false;
 	//     try {
 	// 	failed				= true;
-	// 	const response			= await client.callZomeFunction( "holofuel", "chat", "list_channels", { category: "General"} );
+	// 	const response			= await client.callZomeFunction( "elemental-chat", "chat", "list_channels", { category: "General"} );
 	// 	log.debug("Response: %s", response );
 	//     } catch ( err )  {
 	// 	expect( err.message	).to.have.string("servicelogger.log_request threw");
@@ -215,7 +215,7 @@ describe("Server with mock Conductor", () => {
 	//     await conductor.stop();
 
 	//     log.silly("Issuing zome call while conductor stoped");
-	//     const request		= client.callZomeFunction( "holofuel", "chat", "list_channels", { category: "General"} );
+	//     const request		= client.callZomeFunction( "elemental-chat", "chat", "list_channels", { category: "General"} );
 
 	//     log.silly("Restart conductor");
 	//     conductor			= new Conductor();

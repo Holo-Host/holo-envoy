@@ -61,7 +61,7 @@ describe("Server", () => {
     // 		return [];
     // 	    });
 
-    // 	    const response		= await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args);
+    // 	    const response		= await client.callZomeFunction( "elemental-chat", "chat", "list_channels", channel_args);
     // 	    log.debug("Response: %s", response );
 
     // 	    expect( response		).to.deep.equal( [] );
@@ -83,7 +83,7 @@ describe("Server", () => {
     // 	    });
 
     // 	    try {
-    // 		await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args);
+    // 		await client.callZomeFunction( "elemental-chat", "chat", "list_channels", channel_args);
     // 	    } catch ( err ) {
     // 		failed			= true;
     // 		expect( err.name	).to.include("HoloError");
@@ -145,7 +145,7 @@ describe("Server", () => {
 	    expect( agent_id		).to.equal("HcSCJtd68XYQrh5mesTTtGyTN3Sa9rupqgMjhnHQFyuwgtab8GzE4MGz64e9pni");
 
 	    fail_client.conn.removeAllListeners("HcSCJtd68XYQrh5mesTTtGyTN3Sa9rupqgMjhnHQFyuwgtab8GzE4MGz64e9pni/wormhole/request");
-	    await fail_client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "create_channel", {
+	    await fail_client.callZomeFunction( "elemental-chat", "chat", "create_channel", {
 		"name": "The Social Room",
 		"channel": {
 			category: "General",
@@ -171,7 +171,7 @@ describe("Server", () => {
 
 	    expect( agent_id		).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
 	    
-	    const response		= await client.callZomeFunction( "hosted-app", "elemental-chat", "chat", "list_channels", channel_args );
+	    const response		= await client.callZomeFunction( "elemental-chat", "chat", "list_channels", channel_args );
 	    log.debug("Response: %s", response );
 
 	    expect( response			).to.be.an("object");
