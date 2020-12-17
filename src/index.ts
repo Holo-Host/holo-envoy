@@ -25,15 +25,12 @@ export const base64FromBuffer = (buffer) => {
 };
 
 const bufferFromBase64 = (base64) => {
-	console.log('\n Base64 Data to decode as Buffer : ', base64);
 	var byteString = Buffer.from(base64, 'base64').toString('binary');
 	const buffer = Buffer.alloc(byteString.length); //  new Uint8Array
 	
 	for(let i = 0; i < byteString.length; i++) {
 		buffer[i] = byteString.charCodeAt(i);
 	}
-	console.log('decoded Buffer : ', buffer);
-	console.log('\n');
 	return buffer;
 };
 
@@ -169,11 +166,9 @@ class Envoy {
 		await client.opened( CONDUCTOR_TIMEOUT )
 		    .catch( err => {
 			log.fatal("Conductor client '%s' failed to connect: %s", client.checkConnection.name, String(err) );
-			console.log( client.checkConnection.name, err );
+			// console.log( client.checkConnection.name, err );
 			});
-			
-		console.log('CLIENT SOCKET >>>>> ', client);	
-		
+					
 		log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.checkConnection.name, client.checkConnection.socket.readyState );
 	    })
 	);
@@ -278,6 +273,7 @@ class Envoy {
 		const hha_cell_id			= appInfo.cell_data[0][0];
 		const buffer_host_agent_hha_id = hha_cell_id[1];
 
+		// TODO: Comment back in once testing 'hha as the web user's hosted app'.
 	    // log.info("Look-up Hosted App's HHA record using ID '%s'", hha_hash );
 	    // resp			= await this.callConductor( "internal", {
 		//     "cell_id":		hha_cell_id,
@@ -292,11 +288,11 @@ class Envoy {
 		// log.error("Failed during App Details lookup in HHA: %s", resp );
 		// return failure_response;
 	    // }
-
 		// const app			= resp[0];
-		// ^^^
-		// TODO: REMOVE ONCE DONE testing 'hha as the web user's hosted app'
+
+		// TODO: REMOVE ONCE DONE testing 'hha as the web user's hosted app'.
 		const app 				= { happ_bundle: { dnas: [{ nick: '', path: '' }] } }
+		// ^^^
 		const installed_app_id	= `${hha_hash}:${agent_id}`;
 
 	    log.silly("HHA bundle: %s", app );
@@ -321,7 +317,6 @@ class Envoy {
 		
 		const buffer_agent_id = bufferFromBase64(agent_id);	
 		log.info("Encoded Agent ID (%s) into buffer form: %s", agent_id, buffer_agent_id );
-		console.log('\n')
 		
 		let failed			= false;
 			try {
@@ -330,12 +325,6 @@ class Envoy {
 				try {				
 
 				log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, installed_app_id );
-
-				// console.log('\nAGENT PUB KEY >>> : ', buffer_agent_id);
-				// console.log('\n');
-				
-				// console.log('this.opts.mode', this.opts.mode)
-				// console.log('\n');
 
 				let dnas;
 				if (this.opts.hosted_app_dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
@@ -397,6 +386,7 @@ class Envoy {
 				if ( (this.opts.hosted_port_number === 0 || this.opts.hosted_port_number) && this.opts.mode === Envoy.DEVELOP_MODE) {
 					log.info("Defaulting to port provided in opts config.  Attaching App to port (%s)", this.opts.hosted_port_number );
 					console.log('NOTICE: MAKE SURE THIS PORT IS SET TO THE WS PORT EXPECTED IN THE UI.');
+					// NOTICE: MAKE SURE THIS PORT IS SET TO THE WS PORT EXPECTED IN THE UI
 					hosted_port = this.opts.hosted_port_number;
 				} else {
 					hosted_port = this.conductor_opts.interfaces.hosted_port;
@@ -423,7 +413,6 @@ class Envoy {
 			} catch ( err ) {
 				failed		= true;
 				log.error("Failed during DNA processing for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, String(err) );
-				console.log( err );
 			}
 
 	    if ( failed === true ) {
@@ -446,33 +435,33 @@ class Envoy {
 		let appInfo
 		try {
 			log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
-			appInfo			= await this.callConductor( "internal", { installed_app_id }); // TODO: update to call "hosted" port once hc-run-dna is updated to install multiple apps per conductor... (Ditto for line 542 - hosted app ZomeCall)
-			
+			// TODO: update the callConductor port to "hosted" once hc-run-dna is updated to install multiple apps per conductor... (Ditto for hosted app ZomeCall)
+			appInfo			= await this.callConductor( "internal", { installed_app_id });
 			if ( !appInfo ) {
 				log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo );
 				throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
 			}
 		} catch ( err ) {
-		log.error("Failed during Conductor AppInfo call: %s", String(err) );
-		throw err;
+			log.error("Failed during Conductor AppInfo call: %s", String(err) );
+			return {
+				"response_id": call_id,
+				"type": "error",
+				"payload": err,
+			}
 		}
 
 		log.normal("Completed AppInfo call for installed_app_id (%s)", installed_app_id);
-		console.log('appInfo stringified : ', JSON.stringify(appInfo))
 		
 		return {
 			"response_id": call_id,
 			"type": "success",
-			"payload": appInfo // JSON.stringify(appInfo);
+			"payload": appInfo
 		}
 	}, this.opts.NS );
 
 	
 	// Chaperone ZomeCall to Envoy Server
 	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
-		console.log('INCOMING ZOME CALL REQUEST ... ')
-		console.log('REQUEST INFO : ', { anonymous, agent_id, payload, service_signature });
-		
 		const call_id = this.request_counter;
 		this.request_counter++;
 
@@ -537,7 +526,7 @@ class Envoy {
 		    "cell_id":	decodedHostedCellId, // call_spec["cell_id"], // TODO: >> Learn why we can't just pass in the cell_id in type received back from appInfo call? 
 		    "zome_name":		call_spec["zome"],
 		    "fn_name":		call_spec["function"],
-			"payload":		null, // TODO: call_spec["args"], >>> update back... && remember why sending a payload doesn't work here... but does when sent by ui (elemental-chat-ui)....????
+			"payload":		null, // TODO: call_spec["args"], >>> update back to args when serde wasm error is fixed...
 			"cap":		null, // Note: this will pass for calls in which the agent has Unrestricted status (includes all calls to own chain)
 			"provenance":	buffer_agent_id,
 		});
@@ -629,6 +618,7 @@ class Envoy {
 		const error		= `servicelogger.log_service threw: ${String(err)}`
 		log.error("Failed during service confirmation log: %s", error );
 		console.error( err );
+		// TODO: Update to match hhdt success message
 		return {
 		    "error": (new HoloError(error)).toJSON(),
 		};
@@ -636,6 +626,7 @@ class Envoy {
 
 	    this.removePendingConfirmation( response_id );
 
+		// TODO: Update to match hhdt success message
 	    // - return success
 	    log.normal("Response ID (%s) confirmation is complete", response_id );
 	    return true;
@@ -694,7 +685,6 @@ class Envoy {
 
 	const clients			= Object.values( this.hcc_clients );
 	clients.map( (client:any) => client.client.close() );
-	console.log()
 	await Promise.all( clients.map( (client:any) => client.client.close() ));
 	log.info("All Conductor clients are closed");
 
@@ -744,8 +734,6 @@ class Envoy {
 			if ( typeof client === "string" )
 			client			= this.hcc_clients[ client ];
 
-			// console.log('====================>>>>>>>>>>>>>>>>>>>>> ???????? ', client);
-
 			let ready_state		= client.checkConnection.socket.readyState;
 			if ( ready_state !== 1 ) {
 			log.silly("Waiting for 'CONNECTED' state because current ready state is %s (%s)", ready_state, READY_STATES[ready_state] );
@@ -775,32 +763,26 @@ class Envoy {
 			args			= call_spec;
 			}
 		} catch ( err ) {
-			console.log("callConductor preamble threw", err );
+			log.debug("CallConductor preamble threw error: ", err );
 		throw new HoloError("callConductor preamble threw error: %s", String(err));
 		}
 
-		console.log('\nCALL ARGS : ', JSON.stringify(args) );
+		// console.log('\nCALL ARGS : ', JSON.stringify(args) );
 		
 		let resp;
 		try {
 			// log.silly("Calling Conductor method (%s) over client '%s' with input: %s", interfaceMethod, client.checkConnection.name, JSON.stringify(args) );
-			try {
-				console.log('\nHERE - Making Conductor call ..........');
-				console.log('\n');			
+			try {	
 				resp			= await interfaceMethod( args );
-				console.log('Conductor/DNA Call RESULT >>>>>>>>>>>> ', resp)
 			} catch (error) {
-				throw new Error(`CONDUCTOR CALL ERROR >>>>> ${JSON.stringify(error)}`);
+				throw new Error(`CONDUCTOR CALL ERROR: ${JSON.stringify(error)}`);
 			}
-			
-			console.log('callAgent ', callAgent)
-			console.log('\n');
 
 			if ( callAgent === "app" ) {
 				if ( typeof resp !== 'object' || resp === null)
 					log.warn("Expected app interface (eg: ZomeCall, AppInfo) call result to be an object, not '%s'", typeof resp );
 				else {
-					log.debug("Successful app interface response : ", resp);
+					log.debug("Successful app interface response : ");
 					console.log(resp);
 				}
 			} else {
@@ -812,7 +794,7 @@ class Envoy {
 					// **** but doesn't fail (eg: activate_app):
 					resp = { type: "success" };
 				}
-				console.log('RESPONSE : ', resp);
+				log.debug('Successful admin interface response :', resp);
 			}
 		} catch ( err ) {
 			// -32700
@@ -846,9 +828,9 @@ class Envoy {
 			}
 		}
 
-		log.normal("Call returned successful response: typeof '%s'", typeof resp );
-		console.log('\nCONDUCTOR CALL COMPLETE <<<<<<<<<<< ')
-		console.log('--------------------------------------------\n');
+		log.normal("Conductor call returned successful response: typeof '%s'", typeof resp );
+		// console.log('\nCONDUCTOR CALL COMPLETE <<<<<<<<<<< ')
+		// console.log('--------------------------------------------\n');
 		return resp;
     }
 
@@ -879,14 +861,13 @@ class Envoy {
     async logServiceRequest ( buffer_agent_id, payload, signature ) {
 	log.normal("Processing service logger request (%s)", signature );
 
-	console.log('LOG ARGS : ', buffer_agent_id, payload);
-
 	const call_spec			= payload.call_spec;
 	const args_hash			= digest( "header", call_spec["args"] );
 
 	log.debug("Using argument digest: %s", args_hash );
 	const request_payload			= {
 		"timestamp":	[(new Date(payload.timestamp)).getTime(), 0],
+		// NB: Servicelogger is updated to expect the holo host agent ID as only a string for now
 	    "host_id":		payload.host_id,
 	    "call_spec": {
 			"hha_hash":	call_spec["hha_hash"],
@@ -941,7 +922,7 @@ class Envoy {
 		const servicelogger_cell_id			= appInfo.cell_data[0][0];
 		const buffer_host_agent_servicelogger_id = servicelogger_cell_id[1];
 
-		log.silly("Recording service confirmation (%s) with payload: activity: { request: %s, response: %s, confimation: %s }", client_request, host_response, confirmation );
+		log.silly("Recording service confirmation with payload: activity: { request: %s, response: %s, confimation: %s }", client_request, host_response, confirmation );
 		const resp			= await this.callConductor( "service", {
 			"cell_id":	servicelogger_cell_id,
 			"zome_name":		"service",

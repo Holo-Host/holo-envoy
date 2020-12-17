@@ -35,7 +35,6 @@ async function create_client ( agent_id		= "hCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1B
 			       timeout		= 50000 ) {
 
     // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
-    // note: this was working when changed to >>>> hCAkTFYCB48/Bx/QvKQPVSuXAV8sLHKJXrh6ZS8YVe2MdsvSgc7q
     const host_agent_id				= 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // fs.readFileSync('./AGENTID', 'utf8').trim();    log.info("Host Agent ID: %s", host_agent_id );
 
     const client			= new Chaperone({
