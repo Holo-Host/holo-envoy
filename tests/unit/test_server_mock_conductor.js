@@ -50,7 +50,7 @@ describe("Server with mock Conductor", () => {
 	// 	const keys		= Object.keys( data );
 
 	// 	expect( keys.length		).to.equal( 4 );
-	// 	expect( data["instance_id"]	).to.equal(); // "hCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv::holofuel"
+	// 	expect( data["instance_id"]	).to.equal(); // "HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi::holofuel"
 	// 	expect( data["zome"]		).to.equal("chat");
 	// 	expect( data["function"]	).to.equal("list_channels");
 	// 	expect( data["args"]		).to.be.an("object");

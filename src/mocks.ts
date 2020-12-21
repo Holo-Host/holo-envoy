@@ -24,7 +24,7 @@ async function hha ( zome, func, args ) {
 					ui_path: 'path/to/compressed/ui/file',
 					name: 'HoloFuel Console',
 					dnas: [{
-						hash: 'hCkk...', // hash of the dna, not a stored dht address
+						hash: 'uhCkk...', // hash of the dna, not a stored dht address
 						path: '/path/to/compressed/dna/file',
 						nick: 'holofuel'
 					}],

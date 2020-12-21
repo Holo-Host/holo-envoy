@@ -54,7 +54,7 @@ describe("Server", () => {
 	// 		const keys		= Object.keys( data );
 
     // 		expect( keys.length		).to.equal( 4 );
-    // 		expect( data["cell_id"]	).to.equal([Codec.Digest.decodeToHoloHash("hCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv")]);
+    // 		expect( data["cell_id"]	).to.equal([Codec.Digest.decodeToHoloHash("uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv")]);
     // 		expect( data["zome"]		).to.equal("chat");
     // 		expect( data["function"]	).to.equal("list_channels");
 	// 		expect( data["args"]		).to.be.an("object");
@@ -120,7 +120,7 @@ describe("Server", () => {
 	    await client.signUp( "someone@example.com", "Passw0rd!" );
 
 	    expect( client.anonymous	).to.be.false;
-	    expect( client.agent_id	).to.equal("hCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+	    expect( client.agent_id	).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
 	} finally {
 	}
     });
@@ -130,7 +130,7 @@ describe("Server", () => {
 	    await client.signOut();
 
 	    expect( client.anonymous	).to.be.true;
-	    expect( client.agent_id	).to.not.equal("hCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+	    expect( client.agent_id	).to.not.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
 	} finally {
 	}
     });
@@ -144,9 +144,9 @@ describe("Server", () => {
 	    await fail_client.signUp( "wormhole@example.com", "Passw0rd!" );
 
 	    const agent_id		= fail_client.agent_id;
-	    expect( agent_id		).to.equal("hCAkTFYCB48/Bx/QvKQPVSuXAV8sLHKJXrh6ZS8YVe2MdsvSgc7q");
+	    expect( agent_id		).to.equal("uhCAkTFYCB48/Bx/QvKQPVSuXAV8sLHKJXrh6ZS8YVe2MdsvSgc7q");
 
-	    fail_client.conn.removeAllListeners("hCAkTFYCB48/Bx/QvKQPVSuXAV8sLHKJXrh6ZS8YVe2MdsvSgc7q/wormhole/request");
+	    fail_client.conn.removeAllListeners("uhCAkTFYCB48/Bx/QvKQPVSuXAV8sLHKJXrh6ZS8YVe2MdsvSgc7q/wormhole/request");
 	    await fail_client.callZomeFunction( "elemental-chat", "chat", "create_channel", {
 		"name": "The Social Room",
 		"channel": {
@@ -171,7 +171,7 @@ describe("Server", () => {
 	    await client.signIn( "someone@example.com", "Passw0rd!" );
 	    const agent_id		= client.agent_id;
 
-	    expect( agent_id		).to.equal("hCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+	    expect( agent_id		).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
 	    
 	    const response		= await client.callZomeFunction( "elemental-chat", "chat", "list_channels", channel_args );
 	    log.debug("Response: %s", response );

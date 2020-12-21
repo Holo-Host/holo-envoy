@@ -75,7 +75,7 @@ function delay(t, val) {
 }
 
 // NOT RANDOM: this instance_prefix MUST match the one hard-coded in Chaperone for DEVELOP mode
-const instance_prefix				= "hCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv"; /// the hash of app in hha-dht  (aka hha_hash)
+const instance_prefix				= "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv"; /// the hash of app in hha-dht  (aka hha_hash)
 
 // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
 const host_agent_id				= 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // previously: fs.readFileSync('./AGENTID', 'utf8').trim();
