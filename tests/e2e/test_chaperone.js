@@ -11,20 +11,10 @@ const puppeteer				= require('puppeteer');
 const http_servers			= require('../setup_http_server.js');
 // const conductor				= require("../setup_conductor.js");
 const setup				= require("../setup_envoy.js");
+const { Codec }			= require('@holo-host/cryptolib');
+
 
 let browser;
-
-
-const base64FromBuffer = (buffer) => {
-	var binary = "";
-	var bytes = new Uint8Array(buffer);
-	var len = bytes.byteLength;
-	for (var i = 0; i < len; i++) {
-	  binary += String.fromCharCode(bytes[i]);
-	}
-	const base64 = Buffer.from(binary, 'binary').toString('base64')
-	return base64;
-};
 
 async function create_page ( url ) {
     const page				= await browser.newPage();
@@ -99,8 +89,8 @@ const envoyOpts = {
 const registerHolochainAgent = async(masterClient) => {
 	const pubkey = await masterClient.generateAgentPubKey();
 	return {
-		encoded: pubkey,
-		decoded: base64FromBuffer(pubkey)
+		decoded: pubkey,
+		encoded: Codec.AgentId.encodeFromHoloHash(pubkey)
 	}
 }
 
@@ -132,7 +122,7 @@ describe("Server", () => {
 		
 	master_client		= envoy.hcc_clients.master;
 	registered_agent	= await registerHolochainAgent(master_client)
-	log.info('Generated agent (%s) in conductor using master port(%s)', registered_agent, master_client)
+	log.info('Generated agent (%s) in conductor using master port(%s)', registered_agent, master_client.checkConnection.port)
 
 	});
     after(async () => {
@@ -167,7 +157,7 @@ describe("Server", () => {
 		const client = new Chaperone({
 		    "mode": Chaperone.DEVELOP,
 			"web_user_legend": {
-				"alice.test.1@holo.host": registered_agent.decoded,
+				"alice.test.1@holo.host": registered_agent.encoded,
 			},
 		    "connection": {
 				"ssl": false,
@@ -195,15 +185,14 @@ describe("Server", () => {
 		await client.ready( 200_000 );
 		console.log("READY..............");
 		await client.signUp( "alice.test.1@holo.host", "Passw0rd!" );
-		console.log("SIGNEDUP...........");
-		console.log("Finished sign-up", client.agent_id );
+		console.log("Finished sign-up for", client.agent_id );
 		if ( client.anonymous === true )
 		    return console.error("Client did not sign-in");
-		if ( client.agent_id !== registered_agent.decoded )
+		if ( client.agent_id !== registered_agent.encoded )
 		    return console.error("Unexpected Agent ID:", client.agent_id );
 
 		try {
-		    console.log( "Calling zome function" );
+		    console.log("\nCalling zome function" );
 			// return await client.callZomeFunction('test-elemental-chat', "chat", "list_channels", { category: "General" } );
 			// NOTE: This is just way to test zome calls until the zome call args / wasm issue is resolved.
 			// ** Until then, testing with a fn that does not require any args (fn is in hha app)
@@ -226,7 +215,7 @@ describe("Server", () => {
     // 	    await client.signUp( "alice.test.1@holo.host", "Passw0rd!" );
 
     // 	    expect( client.anonymous	).to.be.false;
-    // 	    expect( client.agent_id	).to.equal registered_agent.decoded);
+    // 	    expect( client.agent_id	).to.equal registered_agent.encoded);
     // 	} finally {
     // 	}
     // });
@@ -236,7 +225,7 @@ describe("Server", () => {
     // 	    await client.signOut();
 
     // 	    expect( client.anonymous	).to.be.true;
-    // 	    expect( client.agent_id	).to.not.equal registered_agent.decoded);
+    // 	    expect( client.agent_id	).to.not.equal registered_agent.encoded);
     // 	} finally {
     // 	}
     // });
@@ -247,7 +236,7 @@ describe("Server", () => {
     // 	    await client.signIn( "alice.test.1@holo.host", "Passw0rd!" );
     // 	    const agent_id		= client.agent_id;
 
-    // 	    expect( agent_id		).to.equal registered_agent.decoded);
+    // 	    expect( agent_id		).to.equal registered_agent.encoded);
 	    
     // 	    const response		= await client.callZomeFunction("elemental-chat", "chat", "list_channels", channel_args );
     // 	    log.debug("Response: %s", response );

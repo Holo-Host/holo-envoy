@@ -315,7 +315,7 @@ class Envoy {
 
 	    log.info("Found %s DNA(s) for the app bundle with HHA ID: %s", app.happ_bundle.dnas.length, hha_hash );
 		
-		const buffer_agent_id = bufferFromBase64(agent_id);	
+		const buffer_agent_id = Codec.AgentId.decodeToHoloHash(agent_id);	
 		log.info("Encoded Agent ID (%s) into buffer form: %s", agent_id, buffer_agent_id );
 		
 		let failed			= false;
@@ -499,13 +499,19 @@ class Envoy {
 	    let request;
 
 		log.debug("Log service request (%s) from Agent (%s)", service_signature, agent_id );
-		const buffer_agent_id = bufferFromBase64(agent_id);	
+		const buffer_agent_id = Codec.AgentId.decodeToHoloHash(agent_id);	
 		request		= await this.logServiceRequest( buffer_agent_id, payload, service_signature );
 
 	    // ZomeCall to Conductor App Interface
 	    let zomeCall_response, holo_error
 	    try {
-		const zomeCallArgs = (typeof call_spec.args === 'object') ? Object.entries(call_spec.args).map(([k,v]) => `${k} : ${typeof v}`).join(", ") : call_spec.args
+		console.log('?? ZOME CALL ARGS : ', call_spec.args);
+		const zomeCallArgs = (typeof call_spec.args === 'object')
+			? Object.entries(call_spec.args).map(([k,v]) => {
+				if(!k || !v) return {};
+				return `${k} : ${typeof v}`
+			}).join(", ")
+			: call_spec.args
 		log.debug("Calling zome function %s->%s( %s ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
 			call_spec.zome, call_spec.function, zomeCallArgs, call_spec.cell_id, null, agent_id ]);
 
@@ -628,7 +634,7 @@ class Envoy {
 
 		// TODO: Update to match hhdt success message
 	    // - return success
-	    log.normal("Response ID (%s) confirmation is complete", response_id );
+	    log.normal("!!!!!!!!!!!! Response ID (%s) confirmation is complete", response_id );
 	    return true;
 	}, this.opts.NS );
     }
@@ -767,7 +773,7 @@ class Envoy {
 		throw new HoloError("callConductor preamble threw error: %s", String(err));
 		}
 
-		// console.log('\nCALL ARGS : ', JSON.stringify(args) );
+		console.log('\nCALL ARGS : ', JSON.stringify(args) );
 		
 		let resp;
 		try {
@@ -829,8 +835,8 @@ class Envoy {
 		}
 
 		log.normal("Conductor call returned successful response: typeof '%s'", typeof resp );
-		// console.log('\nCONDUCTOR CALL COMPLETE <<<<<<<<<<< ')
-		// console.log('--------------------------------------------\n');
+		console.log('\nCONDUCTOR CALL COMPLETE <<<<<<<<<<< ')
+		console.log('--------------------------------------------\n');
 		return resp;
     }
 
@@ -884,7 +890,8 @@ class Envoy {
         request_signature: signature
 	}
 
-	console.log('FINISHED SERVICE REQUEST: ', request);
+	console.log('\nFINISHED SERVICE REQUEST: ', request);
+	console.log('------------------------------------------\n\n')
 
 	//   log.silly("Set service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
 	return request;
@@ -905,6 +912,9 @@ class Envoy {
 	};
 
 	log.silly("Set service response (%s) with metrics: %s", response_hash, metrics );
+
+	console.log('\nFINISHED SERVICE RESPONSE: ', resp);
+	console.log('------------------------------------------\n\n')
 	return resp;
     }
 
@@ -937,6 +947,9 @@ class Envoy {
 		});
 
 		if ( resp ) {
+			console.log('\nFINISHED SERVICE LOGGER CONFIRMATION: ', resp);
+			console.log('------------------------------------------\n\n')
+			
 			log.info("Returning success response for confirmation log (%s): typeof '%s, %s'", confirmation, typeof resp, resp );
 			return resp;
 		}
