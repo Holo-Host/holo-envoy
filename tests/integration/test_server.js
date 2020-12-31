@@ -54,7 +54,7 @@ describe("Server", () => {
 	// 		const keys		= Object.keys( data );
 
     // 		expect( keys.length		).to.equal( 4 );
-    // 		expect( data["cell_id"]	).to.equal([Codec.HoloHash.holoHashFromBuffer(Codec.HoloHash.decode("uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv"))]);
+    // 		expect( data["cell_id"]	).to.equal([Codec.HoloHash.holoHashFromBuffer('header', Codec.HoloHash.decode("uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"))]);
     // 		expect( data["zome"]		).to.equal("chat");
     // 		expect( data["function"]	).to.equal("list_channels");
 	// 		expect( data["args"]		).to.be.an("object");

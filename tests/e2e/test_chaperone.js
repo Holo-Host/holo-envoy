@@ -15,17 +15,13 @@ const { Codec }			= require('@holo-host/cryptolib');
 const { Console } = require('console');
 const { CONNREFUSED } = require('dns');
 
-const EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID = 'servicelogger';
 const HHA_INSTALLED_APP_ID = 'holo-hosting-app';
+const EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID = 'elemental-chat-dna:servicelogger';
 
 let browser;
 
 async function create_page ( url ) {
     const page				= await browser.newPage();
-    
-    page.on("console", async ( msg ) => {
-    	log.silly("From puppeteer: console.log( %s )", msg.text() );
-    });
     
     log.info("Go to: %s", url );
     await page.goto( url, { "waitUntil": "networkidle0" } );
@@ -62,7 +58,7 @@ class PageTestUtils {
 }
 
 // NOT RANDOM: this instance_prefix MUST match the one hard-coded in Chaperone for DEVELOP mode
-const instance_prefix				= "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv"; /// the hash of app in hha-dht  (aka hha_hash)
+const instance_prefix				= "uhCkk6GkjAxkweGXPo-cVOMRBJPkvJVrxFklCqIY0IadCcagABgv_"; /// the hash of app in hha-dht  (aka hha_hash)
 
 // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
 const host_agent_id				= 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // previously: fs.readFileSync('./AGENTID', 'utf8').trim();
@@ -91,6 +87,40 @@ const getHostAgentKey = async (serviceClient) => {
 		encoded: Codec.AgentId.encode(agentPubKey)
 	}
 }
+// Register test app in hha  (in real word scenario - will be done when provider registers app in hha):
+const registerTestAppInHha = async (hostedClient) => {
+	const hhaAppInfo = await hostedClient.appInfo({ installed_app_id: HHA_INSTALLED_APP_ID  });
+	const hhaCellId = hhaAppInfo.cell_data[0][0];
+
+	const happBundle = {
+		hosted_url:"https://testapp.com",
+		happ_alias: "test-app",
+		ui_path: "/path/to/test_app_ui.zip",
+		name: "Test App Hosted On Web",
+		dnas: [{
+			hash: "hC0k...",
+			path: envoyOpts.path,
+			nick: envoyOpts.nick,
+		}]
+	  };
+
+	  let happRegistrationId;
+	  try {
+		happRegistrationId = hostedClient.callZome({ 
+			// NOTE: Cell ID content MUST be passed in as a byte buffer not a u8int byte-array
+		   cell_id: [Buffer.from(hhaCellId[0]), Buffer.from(hhaCellId[1])],
+		   zome_name: 'hha',
+		   fn_name: 'register_happ',
+		   payload: happBundle,
+		   cap: null,
+		   provenance: Buffer.from(hhaCellId[1])
+	   });
+	} catch (error) {
+		throw new Error(JSON.stringify(error));
+	}
+
+	return happRegistrationId;
+}
 
 describe("Server", () => {
     let envoy;
@@ -117,13 +147,15 @@ describe("Server", () => {
 	log.debug("Setup config: %s", http_ctrls.ports );
 	http_url			= `http://localhost:${http_ctrls.ports.chaperone}`;
 		
-	// TODO: UPDATE client to hosted, once resolved install mutliple apps issue with holochain-run-dna
-	// hosted_client		= envoy.hcc_clients.hosted;
+	hosted_client		= envoy.hcc_clients.hosted;
 	service_client		= envoy.hcc_clients.service;
 
 	// NOTE: This is a workaround until wormhole signing is in place. Using the Host Servicelogger Agent Key to call public sign functions for activity log signatures.
-	registered_agent	= await getHostAgentKey(service_client); // hosted_client
+	registered_agent	= await getHostAgentKey(service_client);
 	log.info('Using host agent (%s) in conductor on service port(%s)', registered_agent, service_client.checkConnection.port);
+
+	// await registerTestAppInHha(hosted_client);
+
 	});
     after(async () => {
 	log.debug("Shutdown cleanly...");
@@ -151,49 +183,53 @@ describe("Server", () => {
 		pageTestUtils.logPageErrors();
 		pageTestUtils.describeJsHandleLogs();
 
-		// note: hack to retreive servicelogger dna hash
-		await page.exposeFunction('fetchServiceloggerCellId', async (hha_hash, agent_id) => {
-			// fetch hosted app dna hash
-			// TODO: update service_client to hosted_client when update port thrgh which the hosted app is installed
-			const hostedAppInfo = await service_client.appInfo({ installed_app_id: `${hha_hash}:${agent_id}`});
-			const hostedAppDna = hostedAppInfo.cell_data[0][0][0];
-			console.log('hostedAppDna : ', hostedAppDna)
-			
-			// note: this servicelogger dna hash needs to match the hash of the dna instance paired with the hosted_app used for zome_calls in this test
+		// NOTE: Once we begin installing instances of servicelogger, we will need to use hostedAppHha to form the installed_app_id instead - ie: `${<hostedAppHha>}:servicelogger`
+		await page.exposeFunction('fetchServiceloggerCellId', async () => { // async (hostedAppHha) =>
+			// NOTE: this servicelogger dna hash needs to match the hash of the dna instance paired with the hosted_app used for zome_calls in this test
 			// - make sure to use the installed_app_id of this cell
-			const serviceloggerAppInfo = await service_client.appInfo({ installed_app_id: EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID}); // `${<hostedAppDna>}:servicelogger`
-			console.log("serviceloggerAppInfo ", serviceloggerAppInfo);
-			const serviceloggerCellId = serviceloggerAppInfo.cell_data[0][0];
-			console.log("serviceloggerCellId...", serviceloggerCellId);
+			let serviceloggerCellId;
+			try {
+				// TODO: Replace the installed_app_id with `${<hostedAppDnaHash>}:servicelogger` once we have implemented servicelogger install pattern
+				const serviceloggerAppInfo = await service_client.appInfo({ installed_app_id: EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID});
+				serviceloggerCellId = serviceloggerAppInfo.cell_data[0][0];
+			} catch (error) {
+				throw new Error(JSON.stringify(error));
+			}
+			
+			console.log("serviceloggerCellId: ", serviceloggerCellId);
 			return serviceloggerCellId;
 		});
 
 		// Note: the host must set servicelogger settings prior to any activity logs being issued (otherwise, the activity log call will fail).
-		await page.exposeFunction('setupServiceLoggerSettings', async (servicelogger_cell_id, host_pubkey) => {
-			console.log('servicelogger_cell_id for hosted app >>> ', servicelogger_cell_id);
-			console.log('host pubkey >>> ', host_pubkey);
+		await page.exposeFunction('setupServiceLoggerSettings', async (servicelogger_cell_id) => {
+			const settings = {
+				// note: for this example, the host is also the provider
+				provider_pubkey: Buffer.from(servicelogger_cell_id[1]), // NOTE: THIS MUST BE PASSED IN AS A BUFFER!!!
+				max_fuel_before_invoice: 3,
+				price_per_unit: 1,
+				max_time_before_invoice: [604800, 0]
+			}
 
-			console.log('AGENT PUBKEY USED TO SET UP SERVICELOGGER SETTINGS : ', Codec.AgentId.decode(host_pubkey))
-			// const settings = {
-			// 	// note: for this example, the host is also the provider
-			// 	provider_pubkey: Codec.AgentId.decode(host_pubkey),
-			// 	max_fuel_before_invoice: 3,
-			// 	price_per_unit: 1,
-			// 	max_time_before_invoice: [604800, 0]
-			// }
-		
-			const logger_settings = await service_client.callZome({ 
-				cell_id: servicelogger_cell_id, // cell_id = [dna_hash_buf, agent_pubkey_buf]
-				zome_name: 'service',
-				fn_name: 'get_logger_settings',
-				payload: null, // { settings }
-				cap: null,
-				provenance: Codec.AgentId.decode(host_pubkey)
-			  });
-		
-			console.log("Logger Settings set: ",logger_settings);
-			
+			let logger_settings; 
+			try {
+				logger_settings = await service_client.callZome({ 
+					 // NOTE: Cell ID content MUST BE PASSED IN AS A BYTE BUFFER!!! >> cannot take a u8 byte array
+					cell_id: [Buffer.from(servicelogger_cell_id[0]), Buffer.from(servicelogger_cell_id[1])], // nb: cell_id = [dna_hash_buf, agent_pubkey_buf]
+					zome_name: 'service',
+					fn_name: 'set_logger_settings',
+					payload: settings,
+					cap: null,
+					provenance: Buffer.from(servicelogger_cell_id[1])
+				});
+			} catch (error) {
+				throw new Error(JSON.stringify(error));
+			}	
 			return logger_settings;
+		});
+
+		await page.exposeFunction('encodeHhaHash', (type, buf) => {
+			const hhaBuffer = Buffer.from(buf);
+			return Codec.HoloHash.encode(type, hhaBuffer);
 		});
 	    
 	    response			= await page.evaluate(async function ( host_agent_id, instance_prefix, registered_agent )  {
@@ -211,8 +247,7 @@ describe("Server", () => {
 		    },
 		    
 		    host_agent_id, // used to assign host (id generated by hpos-seed)
-		    instance_prefix, // NOT RANDOM: this matches the hash
-							// hard-coded in Chaperone
+		    instance_prefix, // NOT RANDOM: this needs to match the hash of app in hha
 
 		    "timeout": 50000,
 		    "debug": true,
@@ -238,19 +273,19 @@ describe("Server", () => {
 		if ( client.anonymous === true )
 		    return console.error("Client did not sign-in");
 		if ( client.agent_id !== registered_agent.encoded )
-		    return console.error("Unexpected Agent ID:", client.agent_id );
+		    return console.error("Unexpected Agent ID:", client.agent_id );	
 
+		// Set logger settings for hosted app (in real word scenario - will be done when host installs app):
 		try {
 			console.log("\nFetching Hosted App DNA..." );
-			servicelogger_cell_id				= await window.fetchServiceloggerCellId(client.hha_hash, client.agent_id); 
+			const servicelogger_cell_id				= await window.fetchServiceloggerCellId(); // client.hha_hash 
 			
 			console.log("\nCalling Host ServiceLog Settings Setup ");
 			
 			// NOTE: The host settings must be set prior to creating a service activity log with servicelogger (ie: when making a zome call from web client)
-			const logger_settings = await window.setupServiceLoggerSettings(servicelogger_cell_id, client.agent_id);
-			throw new Error('CHECK hosted_dna LOG >>>>');
+			const logger_settings = await window.setupServiceLoggerSettings(servicelogger_cell_id);
+			console.log("Logger Settings set: ",logger_settings);
 
-			console.log('logger_settings : ', logger_settings),
 			console.log('\nCOMPLETED SETTING SERVICE LOGGER SETTINGS (IN TESTS...) \n');
 		} catch (err) {
 			console.log( typeof err.stack, err.stack.toString() );
@@ -258,14 +293,22 @@ describe("Server", () => {
 		}
 
 		try {
-		    console.log("\nCalling zome function" );
+			console.log("\n >>>>>>>>>>> Calling zome function" );
+			console.log("\n >>>>>>>>>>> client.hha_hash", client.hha_hash );
+
 			// return await client.callZomeFunction('test-elemental-chat', "chat", "list_channels", { category: "General" } );
+			
 			// NOTE: This is just way to test zome calls until the zome call args / wasm issue is resolved.
 			// ** Until then, testing with a fn that does not require any args (fn is in hha app)
-			const zomeCall = await client.callZomeFunction('test-hha', "hha", "get_happs", {});
-			console.log('COMPLETED ZOME CALL (IN TESTS...): ', zomeCall);
-			await sleep(50000);
-			console.log('FINSIHED SLEEPING....');
+			const zomeCall = await client.callZomeFunction('test-hha', "hha", "get_happs", {} );
+			
+			console.log("\n >>>>>>>>>>> zomeCall", zomeCall );
+
+			const hhaAppBuf = zomeCall[0].happ_id;
+			const encodedBuf = await window.encodeHhaHash('header', hhaAppBuf);
+			const zomeCall2 = await client.callZomeFunction('test-hha', "hha", "get_happ", encodedBuf );
+
+			console.log('COMPLETED ZOME CALL (IN TESTS...): ', zomeCall, zomeCall2);
 			return zomeCall
 		} catch ( err ) {
 		    console.log( err.stack );
