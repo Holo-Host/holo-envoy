@@ -1,13 +1,13 @@
 SHELL		= bash
 
 package-lock.json: package.json
-	npm install
+	yarn install
 	touch $@
 node_modules: package-lock.json
-	npm install
+	yarn install
 
 build/index.js:		src/*.ts
-	npm run build
+	yarn run build
 docs/index.html:	build/index.js
 	npx jsdoc --verbose -c ./docs/.jsdoc.json --private --destination ./docs build/index.js
 
@@ -146,8 +146,8 @@ keystore-%.key:
 # TMP targets
 
 use-local-chaperone:
-	npm uninstall --save @holo-host/chaperone; npm install --save-dev ../chaperone
+	npm uninstall --save @holo-host/chaperone; yarn add --save-dev ../chaperone
 use-npm-chaperone:
-	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone
+	npm uninstall --save @holo-host/chaperone; yarn add --save-dev @holo-host/chaperone
 use-npm-chaperone-%:
-	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone@$*
+	npm uninstall --save @holo-host/chaperone; yarn add --save-dev @holo-host/chaperone@$*
