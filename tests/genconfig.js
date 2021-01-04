@@ -18,7 +18,7 @@ const output_file = process.argv[3];
 const output_path = path.resolve( __dirname, "..", output_file );
 
 const config = {
-    "environment_path": path.dirname( output_path ),
+    "environment_path": path.resolve( path.dirname( output_path ), "databases" ),
     "keystore_path": path.resolve( __dirname, "lair" ),
     "admin_interfaces": [{
 	"driver": {
