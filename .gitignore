@@ -6,10 +6,10 @@ lib
 build
 docs
 result
-conductor-*.toml
-keystore-*.key
+*.log
+tests/lair
+tests/conductor-storage
+*.key
+conductor*.toml
 AGENTID
-conductor.log
-sim2h.log
-holochain-conductor/storage
-config.yml
+holochain-conductor/storage/

@@ -1,64 +1,36 @@
 SHELL		= bash
 
-package-lock.json: package.json
-	yarn install
-	touch $@
-node_modules: package-lock.json
-	yarn install
-
-build/index.js:		src/*.ts
-	yarn run build
-docs/index.html:	build/index.js
-	npx jsdoc --verbose -c ./docs/.jsdoc.json --private --destination ./docs build/index.js
-
-
-.PRECIOUS:	keystore-%.key
 .PHONY:		src build docs docs-watch build-watch
 
+#
+# Project
+#
+package-lock.json: package.json
+	npm install
+	touch $@
+node_modules: package-lock.json
+	npm install
+
+build/index.js:		src/*.ts
+	npm run build
 build:			node_modules build/index.js
+dist/holo_hosting_chaperone.js:
+	ln -s node_modules/@holo-host/chaperone/dist dist
+
+
+# Documentation
+CURRENT_BRANCH = $(shell git branch | grep \* | cut -d ' ' -f2)
+
+docs/index.html:	build/index.js
+	npx jsdoc --verbose -c ./docs/.jsdoc.json --private --destination ./docs build/index.js
 docs:			node_modules docs/index.html
-
-MOCHA_OPTS		= 
-
-test:			build
-	make test-unit;
-	make reset-hcc; make test-integration
-	make reset-hcc; make test-e2e
-test-nix:		build
-	make test-unit;
-	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make reset-hcc; make test-integration
-test-debug:		build
-	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
-	make reset-hcc; make test-integration-debug
-	make reset-hcc; make test-e2e-debug2
-
-test-unit:		build
-	npx mocha $(MOCHA_OPTS) ./tests/unit/
-test-unit-debug:	build
-	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
-
-test-integration:	build
-	npx mocha $(MOCHA_OPTS) ./tests/integration/
-test-integration-debug:	build
-	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
-
-test-e2e:		build dist/holo_hosting_chaperone.js
-	npx mocha $(MOCHA_OPTS) ./tests/e2e
-test-e2e-debug:		build dist/holo_hosting_chaperone.js
-	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
-test-e2e-debug2:	build dist/holo_hosting_chaperone.js
-	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
-
 docs-watch:
 build-watch:
 # above targets are for autocompletion
 %-watch:
 	npx chokidar -d 3000 'src/**/*.ts' -c "make --no-print-directory $*" 2> /dev/null
-
 clean-docs:
 	git clean -df ./docs
-
-CURRENT_BRANCH = $(shell git branch | grep \* | cut -d ' ' -f2)
 publish-docs:
 	git branch -D gh-pages || true
 	git checkout -b gh-pages
@@ -75,73 +47,52 @@ publish-docs:
 	git checkout $(CURRENT_BRANCH)
 
 
-# Manage Holochain Conductor config
-HC_LOCAL_STORAGE	= $(shell pwd)/holochain-conductor/storage
+# Lair Keystore
+LAIR_DIR = ./tests/lair
+HC_DIR = ./tests/conductor-storage
+HC_CONF = $(HC_DIR)/conductor-config.yml
+HC_ADMIN_PORT = 35678
 
-.PHONY:		start-hcc-%
-conductor.log:
-	touch $@
+lair:			$(LAIR_DIR)/socket
+$(LAIR_DIR)/socket:
+	nix-shell --run "RUST_LOG=trace lair-keystore --lair-dir $(LAIR_DIR) > lair.log 2>&1 &"
+stop-lair:
+	kill $$(cat $(LAIR_DIR)/pid) && rm -f $(LAIR_DIR)/pid $(LAIR_DIR)/socket $(LAIR_DIR)/store
+check-lair:
+	@ps -efH | grep -v grep | grep lair-keystore
+	@pgrep lair-keystore
 
+
+# Holochain Conductor
 reset-hcc:
-	rm $(HC_LOCAL_STORAGE)/* -rf
-	rm -f dnas/*
-	rm -f conductor-*.toml
-# start-hcc-%:		DNAs holochain -c conductor-$*.toml > conductor.log 2>&1 & tail -f conductor.log
-
-dist/holo_hosting_chaperone.js:
-	ln -s node_modules/@holo-host/chaperone/dist dist
-
-# DNAs:			dnas/happ-store.dna.json dnas/holo-hosting-app.dna.json dnas/holofuel.dna.json dnas/servicelogger.dna.json
-# rm-DNAs:
-# 	rm dnas/*.json
-# update-DNAs:		rm-DNAs DNAs
-
-# dnas/%.dna.json:
-# 	@mkdir -p ./dnas
-# 	@for p in $$buildInputs; do \
-# 	    if [[ "$${p#*-}" == "$*" ]]; then \
-# 		echo "Linking $${p} to $@"; \
-# 		ln -fs $${p}/$*.dna.json $@; \
-# 	    fi \
-# 	done
-
-# check-sim2h:
-	# ps -efH | grep sim2h_server | grep 9000 | grep -v grep
-# restart-sim2h:		stop-sim2h start-sim2h
-# start-sim2h:
-# 	@if [[ $$(ps -efH | grep sim2h_server | grep 9000 | grep -v grep) ]]; then	\
-# 		echo "sim2h is already running on port 9000";				\
-# 	else										\
-# 		echo "Starting sim2h_server on port 9000";				\
-# 		sim2h_server -p 9000 > sim2h.log 2>&1 &					\
-# 	fi
-# stop-sim2h:
-# 	@if [[ $$(ps -efH | grep sim2h_server | grep 9000 | grep -v grep) ]]; then	\
-# 		echo "Stopping sim2h_server...";					\
-# 		killall sim2h_server || true;						\
-# 	else										\
-# 		echo "sim2h is not running on port 9000";				\
-# 	fi
-
+	rm $(HC_DIR)/databases/ -rf
+conductor:		$(HC_DIR)/pid
+$(HC_DIR):
+	mkdir -p $(HC_DIR)
+$(HC_CONF):		$(HC_DIR) tests/genconfig.js
+	node tests/genconfig.js $(HC_ADMIN_PORT) $(HC_CONF)
+$(HC_DIR)/pid:
+	make $(HC_CONF)
+	RUST_LOG=trace holochain --config-path $(HC_DIR)/conductor-config.yml > conductor.log 2>&1 & echo $$! | tee $(HC_DIR)/pid
+stop-conductor:
+	kill $$(cat $(HC_DIR)/pid) && rm -f $(HC_DIR)/pid && rm -rf $(HC_DIR)/databases
 check-conductor:	check-holochain
 check-holochain:
-	ps -efH | grep holochain | grep -E "conductor-[0-9]+.toml"
-stop-conductor:		stop-holochain
-stop-holochain:
-	@if [[ $$(ps -efH | grep holochain | grep -E "conductor-[0-9]+.toml") ]]; then	\
-		echo "Stopping holochain conductor...";					\
-		killall holochain || true;						\
-	else										\
-		echo "holochain conductor is not running";				\
-	fi
+	@ps -efH | grep -v grep | grep -E "holochain.*config.yml"
+	@pgrep holochain
+conductor.log:
+	touch $@
+DNAs:			dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz # dnas/holofuel.dna.json
+rm-DNAs:
+	rm dnas/*.dna.gz
+update-DNAs:		rm-DNAs DNAs
+dnas/holo-hosting-app.dna.gz:
+	@mkdir -p ./dnas
+	wget -O $@ 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.0.1-alpha3/holo-hosting-app.dna.gz'
+dnas/servicelogger.dna.gz:
+	@mkdir -p ./dnas
+	wget -O $@ dnas/ 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.0.1-alpha3/servicelogger.dna.gz'
 
-keystore-%.key:
-	@echo "Creating Holochain key for Agent $*: keystore-$*.key";
-	echo $$( hc keygen --nullpass --quiet --path ./keystore-$*.key)			\
-		| while read key _; do							\
-			echo $$key > AGENTID;						\
-		done
-	@echo "Agent ID: $$(cat AGENTID)";
 
 # TMP targets
 
@@ -151,3 +102,61 @@ use-npm-chaperone:
 	npm uninstall --save @holo-host/chaperone; yarn add --save-dev @holo-host/chaperone
 use-npm-chaperone-%:
 	npm uninstall --save @holo-host/chaperone; yarn add --save-dev @holo-host/chaperone@$*
+use-local-hhdt:
+	npm uninstall --save @holo-host/data-translator; npm install --save ../data-translator-js
+use-npm-hhdt:
+	npm uninstall --save @holo-host/data-translator; npm install --save @holo-host/data-translator
+use-local-hrd:
+	npm uninstall --save @holochain-open-dev/holochain-run-dna; npm install --save-dev ../holochain-run-dna
+use-npm-hrd:
+	npm uninstall --save @holochain-open-dev/holochain-run-dna; npm install --save-dev @holochain-open-dev/holochain-run-dna
+
+
+#
+# Testing
+#
+MOCHA_OPTS		=
+test:			build DNAs conductor-1.toml start-sim2h
+	make test-unit;
+	make test-integration;
+	make test-e2e;
+test-nix:		build DNAs conductor-1.toml start-sim2h
+	make test-unit;
+	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make reset-hcc; make test-integration
+test-debug:		build DNAs conductor-1.toml start-sim2h
+	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
+	make reset-hcc; make test-integration-debug
+	make reset-hcc; make test-e2e-debug2
+
+test-unit:		build
+	npx mocha $(MOCHA_OPTS) ./tests/unit/
+test-unit-debug:	build
+	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
+
+test-integration:	build runtime
+	npx mocha $(MOCHA_OPTS) ./tests/integration/
+test-integration-debug:	build runtime
+	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
+
+test-e2e:		build runtime dist/holo_hosting_chaperone.js
+	npx mocha $(MOCHA_OPTS) ./tests/e2e
+test-e2e-debug:		build runtime dist/holo_hosting_chaperone.js
+	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
+test-e2e-debug2:	build runtime dist/holo_hosting_chaperone.js
+	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
+runtime:		DNAs lair conductor
+
+
+#
+# Repository
+#
+clean-remove-chaff:
+	@find . -name '*~' -exec rm {} \;
+clean-files:		clean-remove-chaff
+	git clean -nd
+clean-files-force:	clean-remove-chaff
+	git clean -fd
+clean-files-all:	clean-remove-chaff
+	git clean -ndx
+clean-files-all-force:	clean-remove-chaff
+	git clean -fdx
