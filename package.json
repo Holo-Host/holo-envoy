@@ -8,7 +8,9 @@
     "build": "tsc --esModuleInterop --lib es7,dom --outDir ./build -p ./src",
     "test": "npm run test-unit && npm run test-integration",
     "test-unit": "mocha ./tests/unit/",
-    "test-integration": "mocha ./tests/integration/"
+    "test-integration": "mocha ./tests/integration/",
+    "fetch-dnas": "sh ./scripts/fetch-dna.sh",
+    "start-conductor": "make lair conductor"
   },
   "author": "Holo Ltd.",
   "contributors": [
@@ -20,7 +22,9 @@
     "url": "https://github.com/Holo-Host/envoy/"
   },
   "dependencies": {
-    "@holo-host/cryptolib": "^0.2.0",
+    "@holo-host/cryptolib": "Holo-Host/cryptolib-js#update-digest-for-rsm/2020-12-14",
+    "@holochain/conductor-api": "0.0.1-dev.13",
+    "@msgpack/msgpack": "^2.3.0",
     "@whi/stdlog": "^0.3.3",
     "concat-stream": "^2.0.0",
     "json-stable-stringify": "^1.0.1",
@@ -28,12 +32,15 @@
     "sprintf-js": "^1.1.2"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "^0.2.0",
+    "@holo-host/chaperone": "Holo-Host/chaperone#e2e-envoy",
+    "@holo-host/holo-cli": "git+https://github.com/Holo-Host/holo-cli.git#rebuild-for-rsm-2020-01-05",
+    "@holochain-open-dev/holochain-run-dna": "^0.3.0",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
     "chai": "^4.2.0",
     "chokidar-cli": "^2.0.0",
     "fetch-mock": "^8.0.0",
+    "js-yaml": "^4.0.0",
     "jsdoc": "^3.6.3",
     "mocha": "^6.2.1",
     "node-fetch": "^2.6.0",
