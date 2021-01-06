@@ -1,15 +1,10 @@
 node_modules
 dnas
 dist
-.cache
-lib
 build
 docs
 result
 *.log
 tests/lair
 tests/conductor-storage
-*.key
-conductor*.toml
-AGENTID
-holochain-conductor/storage/
+tests/AGENT

@@ -48,10 +48,11 @@ publish-docs:
 
 
 # Lair Keystore
-LAIR_DIR = ./tests/lair
-HC_DIR = ./tests/conductor-storage
-HC_CONF = $(HC_DIR)/conductor-config.yml
-HC_ADMIN_PORT = 35678
+LAIR_DIR	= ./tests/lair
+AGENT		= ./tests/AGENT
+HC_DIR		= ./tests/conductor-storage
+HC_CONF		= $(HC_DIR)/conductor-config.yml
+HC_ADMIN_PORT	= 35678
 
 lair:			$(LAIR_DIR)/socket
 $(LAIR_DIR)/socket:
@@ -92,6 +93,14 @@ dnas/holo-hosting-app.dna.gz:
 dnas/servicelogger.dna.gz:
 	@mkdir -p ./dnas
 	wget -O $@ dnas/ 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.0.1-alpha3/servicelogger.dna.gz'
+$(AGENT):
+	npx conductor-cli -q -p $(HC_ADMIN_PORT) gen-agent > $@
+install-dnas:		$(AGENT)
+	npx conductor-cli -vvv -p $(HC_ADMIN_PORT) install -a "$$(cat $(AGENT))" holo-hosting-app "dnas/holo-hosting-app.dna.gz:hha"
+	npx conductor-cli -vvv -p $(HC_ADMIN_PORT) install -a "$$(cat $(AGENT))" servicelogger "dnas/servicelogger.dna.gz:servicelogger"
+	npx conductor-cli -vvv -p $(HC_ADMIN_PORT) activate holo-hosting-app
+	npx conductor-cli -vvv -p $(HC_ADMIN_PORT) activate servicelogger
+	npx conductor-cli -vvv -p $(HC_ADMIN_PORT) attach-interface 44001
 
 
 # TMP targets
@@ -116,6 +125,7 @@ use-npm-hrd:
 # Testing
 #
 MOCHA_OPTS		=
+runtime:		DNAs lair conductor install-dnas
 test:			build DNAs conductor-1.toml start-sim2h
 	make test-unit;
 	make test-integration;
@@ -144,7 +154,6 @@ test-e2e-debug:		build runtime dist/holo_hosting_chaperone.js
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
 test-e2e-debug2:	build runtime dist/holo_hosting_chaperone.js
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
-runtime:		DNAs lair conductor
 
 
 #
