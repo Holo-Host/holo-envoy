@@ -53,6 +53,7 @@ AGENT		= ./tests/AGENT
 HC_DIR		= ./tests/conductor-storage
 HC_CONF		= $(HC_DIR)/conductor-config.yml
 HC_ADMIN_PORT	= 35678
+CCLI_OPTS	= -p $(HC_ADMIN_PORT) #-vvvvvv
 
 lair:			$(LAIR_DIR)/socket
 $(LAIR_DIR)/socket:
@@ -87,20 +88,24 @@ DNAs:			dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz # dnas/holofuel.d
 rm-DNAs:
 	rm dnas/*.dna.gz
 update-DNAs:		rm-DNAs DNAs
-dnas/holo-hosting-app.dna.gz:
-	@mkdir -p ./dnas
-	wget -O $@ 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.0.1-alpha3/holo-hosting-app.dna.gz'
-dnas/servicelogger.dna.gz:
-	@mkdir -p ./dnas
-	wget -O $@ dnas/ 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.0.1-alpha3/servicelogger.dna.gz'
+dnas:
+	mkdir -p ./dnas
+dnas/holo-hosting-app.dna.gz:	dnas
+	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.0.1-alpha3/holo-hosting-app.dna.gz' -o $@
+dnas/servicelogger.dna.gz:	dnas
+	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.0.1-alpha3/servicelogger.dna.gz' -o $@
+dnas/elemental-chat.dna.gz:	dnas
+	curl 'https://github.com/holochain/elemental-chat/releases/download/v0.0.1-alpha9/elemental-chat.dna.gz' -o $@
 $(AGENT):
 	npx conductor-cli -q -p $(HC_ADMIN_PORT) gen-agent > $@
 install-dnas:		$(AGENT)
-	npx conductor-cli -vvv -p $(HC_ADMIN_PORT) install -a "$$(cat $(AGENT))" holo-hosting-app "dnas/holo-hosting-app.dna.gz:hha"
-	npx conductor-cli -vvv -p $(HC_ADMIN_PORT) install -a "$$(cat $(AGENT))" servicelogger "dnas/servicelogger.dna.gz:servicelogger"
-	npx conductor-cli -vvv -p $(HC_ADMIN_PORT) activate holo-hosting-app
-	npx conductor-cli -vvv -p $(HC_ADMIN_PORT) activate servicelogger
-	npx conductor-cli -vvv -p $(HC_ADMIN_PORT) attach-interface 44001
+	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" holo-hosting-app "dnas/holo-hosting-app.dna.gz:hha"
+	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" servicelogger "dnas/servicelogger.dna.gz:servicelogger"
+	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" elemental-chat "dnas/elemental-chat.dna.gz:elementalchat"
+	npx conductor-cli $(CCLI_OPTS) activate holo-hosting-app
+	npx conductor-cli $(CCLI_OPTS) activate servicelogger
+	npx conductor-cli $(CCLI_OPTS) activate elemental-chat
+	npx conductor-cli $(CCLI_OPTS) attach-interface 44001
 
 
 # TMP targets
@@ -115,10 +120,12 @@ use-local-hhdt:
 	npm uninstall --save @holo-host/data-translator; npm install --save ../data-translator-js
 use-npm-hhdt:
 	npm uninstall --save @holo-host/data-translator; npm install --save @holo-host/data-translator
-use-local-hrd:
-	npm uninstall --save @holochain-open-dev/holochain-run-dna; npm install --save-dev ../holochain-run-dna
-use-npm-hrd:
-	npm uninstall --save @holochain-open-dev/holochain-run-dna; npm install --save-dev @holochain-open-dev/holochain-run-dna
+use-local-ccli:
+	npm uninstall --save @holo-host/holo-cli; npm install --save-dev ../../projects/holo-cli
+use-npm-ccli:
+	npm uninstall --save @holo-host/holo-cli; npm install --save-dev @holo-host/holo-cli
+use-git-ccli:
+	npm uninstall --save @holo-host/holo-cli; npm install --save-dev 'https://github.com/Holo-Host/holo-cli#rebuild-for-rsm-2020-01-05'
 
 
 #
