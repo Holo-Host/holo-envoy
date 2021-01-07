@@ -84,7 +84,7 @@ check-holochain:
 	@pgrep holochain
 conductor.log:
 	touch $@
-DNAs:			dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz # dnas/holofuel.dna.json
+DNAs:			dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz dnas/elemental-chat.dna.gz # dnas/holofuel.dna.json
 rm-DNAs:
 	rm dnas/*.dna.gz
 update-DNAs:		rm-DNAs DNAs
@@ -97,14 +97,14 @@ dnas/servicelogger.dna.gz:	dnas
 dnas/elemental-chat.dna.gz:	dnas
 	curl 'https://github.com/holochain/elemental-chat/releases/download/v0.0.1-alpha9/elemental-chat.dna.gz' -o $@
 $(AGENT):
-	npx conductor-cli -q -p $(HC_ADMIN_PORT) gen-agent > $@
-install-dnas:		$(AGENT)
-	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" holo-hosting-app "dnas/holo-hosting-app.dna.gz:hha"
-	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" servicelogger "dnas/servicelogger.dna.gz:servicelogger"
-	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" elemental-chat "dnas/elemental-chat.dna.gz:elementalchat"
-	npx conductor-cli $(CCLI_OPTS) activate holo-hosting-app
-	npx conductor-cli $(CCLI_OPTS) activate servicelogger
-	npx conductor-cli $(CCLI_OPTS) activate elemental-chat
+	npx conductor-cli -q -p $(HC_ADMIN_PORT) gen-agent > $@ || rm $@
+install-dnas:		$(AGENT) DNAs
+	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" holo-hosting-app "dnas/holo-hosting-app.dna.gz:hha"	|| true
+	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" servicelogger "dnas/servicelogger.dna.gz:servicelogger"	|| true
+	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" elemental-chat "dnas/elemental-chat.dna.gz:elementalchat"	|| true
+	npx conductor-cli $(CCLI_OPTS) activate holo-hosting-app	|| true
+	npx conductor-cli $(CCLI_OPTS) activate servicelogger		|| true
+	npx conductor-cli $(CCLI_OPTS) activate elemental-chat		|| true
 	npx conductor-cli $(CCLI_OPTS) attach-interface 44001
 
 
@@ -121,7 +121,7 @@ use-local-hhdt:
 use-npm-hhdt:
 	npm uninstall --save @holo-host/data-translator; npm install --save @holo-host/data-translator
 use-local-ccli:
-	npm uninstall --save @holo-host/holo-cli; npm install --save-dev ../../projects/holo-cli
+	npm uninstall --save @holo-host/holo-cli; npm install --save-dev ../holo-cli
 use-npm-ccli:
 	npm uninstall --save @holo-host/holo-cli; npm install --save-dev @holo-host/holo-cli
 use-git-ccli:

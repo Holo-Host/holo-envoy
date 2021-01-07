@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@holo-host/chaperone": "Holo-Host/chaperone#e2e-envoy",
-    "@holo-host/holo-cli": "git+https://github.com/Holo-Host/holo-cli.git#rebuild-for-rsm-2020-01-05",
+    "@holo-host/holo-cli": "^0.1.0",
     "@holochain-open-dev/holochain-run-dna": "^0.3.0",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
