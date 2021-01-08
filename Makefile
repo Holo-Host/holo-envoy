@@ -111,11 +111,11 @@ install-dnas:		$(AGENT) DNAs
 # TMP targets
 
 use-local-chaperone:
-	npm uninstall --save @holo-host/chaperone; yarn add --save-dev ../chaperone
+	npm uninstall --save @holo-host/chaperone; npm install --save-dev ../chaperone
 use-npm-chaperone:
-	npm uninstall --save @holo-host/chaperone; yarn add --save-dev @holo-host/chaperone
+	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone
 use-npm-chaperone-%:
-	npm uninstall --save @holo-host/chaperone; yarn add --save-dev @holo-host/chaperone@$*
+	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone@$*
 use-local-hhdt:
 	npm uninstall --save @holo-host/data-translator; npm install --save ../data-translator-js
 use-npm-hhdt:
