@@ -124,8 +124,10 @@ use-local-ccli:
 	npm uninstall --save @holo-host/holo-cli; npm install --save-dev ../holo-cli
 use-npm-ccli:
 	npm uninstall --save @holo-host/holo-cli; npm install --save-dev @holo-host/holo-cli
-use-git-ccli:
-	npm uninstall --save @holo-host/holo-cli; npm install --save-dev 'https://github.com/Holo-Host/holo-cli#rebuild-for-rsm-2020-01-05'
+use-local-lair-client:
+	npm uninstall --save @holochain/lair-client; npm install --save-dev ../lair-client-js
+use-npm-lair-client:
+	npm uninstall --save @holochain/lair-client; npm install --save-dev @holochain/lair-client
 
 
 #

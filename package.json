@@ -24,7 +24,7 @@
   "dependencies": {
     "@holo-host/cryptolib": "Holo-Host/cryptolib-js#update-digest-for-rsm/2020-12-14",
     "@holochain/conductor-api": "0.0.1-dev.13",
-    "@holochain/lair-client": "^0.1.0",
+    "@holochain/lair-client": "git+https://github.com/holochain/lair-client-js.git#parser-forward-message-2020-01-11",
     "@msgpack/msgpack": "^2.3.0",
     "@whi/stdlog": "^0.3.3",
     "concat-stream": "^2.0.0",
