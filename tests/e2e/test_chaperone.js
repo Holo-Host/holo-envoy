@@ -276,8 +276,8 @@ describe("Server", () => {
 
 		try {
 			return client.callZomeFunction('test-hha', "hha", "get_happ", client.hha_hash );
-			// const zomeCall = await client.callZomeFunction('test-elemental-chat', "chat", "list_channels", { category: "General" } );
-			// console.log('COMPLETED ZOME CALL (IN TESTS...): ', zomeCall);
+			// const zomeCall = await client.callZomeFunction('test-dna', "test", "returns_obj", null);
+			// console.log('completed zome call function (in e2e test): ', zomeCall);
 			// return zomeCall;
 		} catch ( err ) {
 		    console.log( err.stack );
@@ -287,7 +287,11 @@ describe("Server", () => {
 
 		log.info("Completed evaluation: %s", response );
 		expect( Object.keys(response)	).to.have.members([ "happ_id", "happ_bundle", "provider_pubkey" ]);
-	    // expect( Object.keys(response)	).to.have.members([ "channel", "info", "latest_chunk" ]);
+		// const expectedResponse =  {
+		// 	value: "This is the returned value".to_string(),
+		// }
+		// expect( Object.keys(response)	).to.have.members([ "value" ]);
+		// expect(response).to.deep.equal(expectedResponse);
 	} finally {
 	}
     });

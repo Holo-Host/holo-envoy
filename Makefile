@@ -61,6 +61,10 @@ cargo:
 dna:
 	cd ./tests/test-dna/ && dna-util -c test.dna.workdir
 
+# copy build file to dnas directory
+# store-build:
+# 	cp ./tests/test-dna/test.dna.gz ./dnas/test.dna.gz
+
 docs-watch:
 build-watch:
 # above targets are for autocompletion
