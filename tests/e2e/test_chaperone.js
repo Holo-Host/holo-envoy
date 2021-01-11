@@ -6,7 +6,6 @@ const log				= require('@whi/stdlog')(path.basename( __filename ), {
 const fs				= require('fs');
 const yaml 				= require('js-yaml');
 const expect				= require('chai').expect;
-const fetch				= require('node-fetch');
 const puppeteer				= require('puppeteer');
 
 const http_servers			= require('../setup_http_server.js');
@@ -60,7 +59,7 @@ class PageTestUtils {
 }
 
 // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
-const host_agent_id				= 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // previously: fs.readFileSync('./AGENTID', 'utf8').trim();
+const host_agent_id				= 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k'
 
 log.info("Host Agent ID: %s", host_agent_id );
 
@@ -196,9 +195,7 @@ describe("Server", () => {
 				serviceloggerCellId = serviceloggerAppInfo.cell_data[0][0];
 			} catch (error) {
 				throw new Error(JSON.stringify(error));
-			}
-			
-			console.log("serviceloggerCellId: ", serviceloggerCellId);
+			}			
 			return serviceloggerCellId;
 		});
 
@@ -257,9 +254,8 @@ describe("Server", () => {
 		client.skip_assign_host	= true;
 		
 		await client.ready( 200_000 );
-		console.log("READY..............");
 		await client.signUp( "alice.test.1@holo.host", "Passw0rd!" );
-		console.log("Finished sign-up for", client.agent_id );
+		console.log("Finished sign-up for agent: %s", client.agent_id );
 		if ( client.anonymous === true )
 		    return console.error("Client did not sign-in");
 		if ( client.agent_id !== registered_agent.encoded )
@@ -267,46 +263,31 @@ describe("Server", () => {
 
 		// Set logger settings for hosted app (in real word scenario - will be done when host installs app):
 		try {
-			console.log("\nFetching Hosted App DNA..." );
 			const servicelogger_cell_id				= await window.fetchServiceloggerCellId();
-			
-			console.log("\nCalling Host ServiceLog Settings Setup ");
-			
+			console.log("Found servicelogger cell_id: %s", servicelogger_cell_id);
+
 			// NOTE: The host settings must be set prior to creating a service activity log with servicelogger (eg: when making a zome call from web client)...
 			const logger_settings = await window.setupServiceLoggerSettings(servicelogger_cell_id);
-			console.log("Logger Settings set: ", logger_settings);
+			console.log("happ service preferences set in servicelogger as: %s", logger_settings);
 		} catch (err) {
 			console.log( typeof err.stack, err.stack.toString() );
 			throw err;
 		}
 
 		try {
-			console.log("\n >>>>>>>>>>> Calling zome function" );
-			console.log("\n >>>>>>>>>>> client.hha_hash", client.hha_hash );
-
-			// return await client.callZomeFunction('test-elemental-chat', "chat", "list_channels", { category: "General" } );
-			
-			// NOTE: This is just way to test zome calls until the zome call args / wasm issue is resolved.
-			// ** Until then, testing with a fn that does not require any args (fn is in hha app)
-			const zomeCall = await client.callZomeFunction('test-hha', "hha", "get_happs", {} );
-			
-			console.log("\n >>>>>>>>>>> zomeCall", zomeCall );
-
-			const hhaAppBuf = zomeCall[0].happ_id;
-			const encodedBuf = await window.encodeHhaHash('header', hhaAppBuf);
-			const zomeCall2 = await client.callZomeFunction('test-hha', "hha", "get_happ", encodedBuf );
-
-			console.log('COMPLETED ZOME CALL (IN TESTS...): ', zomeCall, zomeCall2);
-			return zomeCall
+			return client.callZomeFunction('test-hha', "hha", "get_happ", client.hha_hash );
+			// const zomeCall = await client.callZomeFunction('test-elemental-chat', "chat", "list_channels", { category: "General" } );
+			// console.log('COMPLETED ZOME CALL (IN TESTS...): ', zomeCall);
+			// return zomeCall;
 		} catch ( err ) {
 		    console.log( err.stack );
 		    console.log( typeof err.stack, err.stack.toString() );
 		}
 	    }, host_agent_id, registered_agent, registered_happ_hash );
 
-		log.info("\n\nCHAPERONE TEST FINISHED >>>>> Completed evaluation: %s", response );
-	    // expect( Object.keys(response[0])	).to.have.members([ "channel", "info", "latest_chunk" ]);
-		expect( Object.keys(response[0])	).to.have.members([ "happ_id", "happ_bundle", "provider_pubkey" ]);
+		log.info("Completed evaluation: %s", response );
+		expect( Object.keys(response)	).to.have.members([ "happ_id", "happ_bundle", "provider_pubkey" ]);
+	    // expect( Object.keys(response)	).to.have.members([ "channel", "info", "latest_chunk" ]);
 	} finally {
 	}
     });
