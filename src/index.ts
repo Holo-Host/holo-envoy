@@ -269,7 +269,6 @@ class Envoy {
 		const hha_cell_id			= appInfo.cell_data[0][0];
 		const buffer_host_agent_hha_id = hha_cell_id[1];
 
-		// TODO: Comment back in once not testing 'hha as the web user's hosted app'.
 	    log.info("Look-up Hosted App's HHA record using ID '%s'", hha_hash );
 	    resp			= await this.callConductor( "internal", {
 		    "cell_id":		hha_cell_id,
@@ -325,7 +324,7 @@ class Envoy {
 					dnas = this.opts.hosted_app.dnas;
 				}
 
-				adminResponse			= await this.callConductor( "master", this.hcc_clients.master.installApp, {
+				adminResponse			= await this.callConductor( "master", 'installApp', {
 					installed_app_id,
 					agent_key: buffer_agent_id,
 					dnas: dnas || app.happ_bundle.dnas.map(dna => {
@@ -359,7 +358,7 @@ class Envoy {
 				// Activate App -  Add the Installed App to a hosted interface.
 				try {
 				log.info("Activating Installed App (%s)", installed_app_id );
-				adminResponse		= await this.callConductor( "master", this.hcc_clients.master.activateApp, { installed_app_id });
+				adminResponse		= await this.callConductor( "master", 'activateApp', { installed_app_id });
 
 				if ( adminResponse.type !== "success" ) {
 					log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse );
@@ -391,7 +390,7 @@ class Envoy {
 
 				log.info("Starting installed-app (%s) on port (%s)", installed_app_id, hosted_port );
 				
-				adminResponse		= await this.callConductor( "master", this.hcc_clients.master.attachAppInterface, { port: hosted_port });
+				adminResponse		= await this.callConductor( "master", 'attachAppInterface', { port: hosted_port });
 
 				if ( adminResponse.type !== "success" ) {
 					log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse );
@@ -537,7 +536,7 @@ class Envoy {
 		    "zome_name":		call_spec["zome"],
 		    "fn_name":		call_spec["function"],
 			"payload":		call_spec["args"],
-			"cap":		null, // Note: this will pass for calls in which the agent has Unrestricted status (includes all calls to own chain)
+			"cap":		null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
 			"provenance":	Codec.AgentId.decodeToHoloHash(agent_id),
 		});
 	    } catch ( err ) {
@@ -593,7 +592,7 @@ class Envoy {
 		// - return host response
 		let response_message;
 		if (holo_error) {
-			// note: remove pending log confirmation when fail
+			// Remove pending log confirmation when fail
 			this.removePendingConfirmation( response_id );
 
 			const errorPack = Package.createFromError("HoloError", holo_error);
@@ -774,7 +773,7 @@ class Envoy {
 
     async callConductor ( client, call_spec, args : any = {} ) {
 		log.normal("Received request to call Conductor using client '%s' with call spec of type '%s'", client, typeof call_spec);
-		let interfaceMethod, callAgent;
+		let interfaceMethod, methodName, callAgent;
 		try {
 			if ( typeof client === "string" )
 			client			= this.hcc_clients[ client ];
@@ -787,17 +786,20 @@ class Envoy {
 
 			// Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a function (admin client).
 			interfaceMethod			= client.callZome;
+			methodName				= 'callZome'
 			callAgent = 'app'
-			if ( call_spec instanceof Function) {
+			if ( typeof call_spec === 'string') {
 			log.debug("Admin Call spec payload: ( %s )", () => [Object.entries(args).map(([k,v]) => `${k} : ${typeof v}`).join(", ") ]);
-			interfaceMethod			= call_spec;
-			callAgent 				= 'admin'
+			interfaceMethod			= client[call_spec];
+			methodName				= call_spec;
+			callAgent 				= 'admin';
 			}
 			else if ( call_spec.installed_app_id && Object.keys(call_spec).length === 1 ) {
 				log.debug("App Info Call spec details for installed_app_id ( %s )", () => [
 					call_spec.installed_app_id ]);
 				args					= call_spec;
 				interfaceMethod			= client.appInfo;
+				methodName				= 'appInfo'
 			}
 			else {
 			// NOTE: call_spec.payload should be null when the zome function accepts no payload
@@ -811,12 +813,10 @@ class Envoy {
 			log.debug("CallConductor preamble threw error: ", err );
 		throw new HoloError("callConductor preamble threw error: %s", String(err));
 		}
-
-		// console.log('\nCALL ARGS : ', JSON.stringify(args) );
 		
 		let resp;
 		try {
-			// log.silly("Calling Conductor method (%s) over client '%s' with input: %s", interfaceMethod, client.checkConnection.name, JSON.stringify(args) );
+			log.silly("Calling Conductor method (%s) over client '%s' with input %s: ", methodName, client.checkConnection.name, JSON.stringify(args));
 			try {	
 				resp			= await interfaceMethod( args );
 			} catch (error) {
@@ -826,18 +826,15 @@ class Envoy {
 			if ( callAgent === "app" ) {
 				if ( typeof resp !== 'object' || resp === null) {
 					const validHoloHash = this.verifyHoloHash(resp);
-					// if appInterface call response is not an object, it should be a holohash of type header, entry, agent, or dna
+					// If appInterface call response is not an object, it should be a holohash of type header, entry, agent, or dna
 					if (validHoloHash) {
-						log.debug("Successful app interface response: ");
-						console.log(resp);
+						log.debug("Successful app interface response: %s ", JSON.stringify(resp));
 					} else {
-						log.warn("Expected app interface (eg: ZomeCall, AppInfo) call result to be an object, not '%s', resp: ", typeof resp);
-						 console.log(resp);
+						log.warn("Expected app interface (eg: ZomeCall, AppInfo) call result to be an object, not '%s', resp: ", typeof resp, JSON.stringify(resp));
 					}
 				}
 				else {
-					log.debug("Successful app interface response: ");
-					console.log(resp);
+					log.debug("Successful app interface response: %s ", JSON.stringify(resp));
 				}
 			} else {
 				if (resp) {
@@ -847,8 +844,7 @@ class Envoy {
 					// *** but doesn't fail, need to form response obj:
 					resp = { type: "success" };
 				}
-				log.debug('Successful admin interface response: ');
-				console.log(resp);
+				log.debug("Successful admin interface response: %s ", JSON.stringify(resp));
 			}
 		} catch ( err ) {
 			// -32700
@@ -943,7 +939,7 @@ class Envoy {
 	console.log('\nFINISHED SERVICE REQUEST: ', request);
 	console.log('------------------------------------------\n\n')
 
-	//   log.silly("Set service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
+	// log.silly("Set service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
 	return request;
     }
 
@@ -951,11 +947,11 @@ class Envoy {
 	const response_hash		= digest( response );
 	log.normal("Processing service logger response (%s)", response_hash );
 
+	// NB: The signed_response_hash is added to the response obj when `logServiceConfirmation` is called
 	const resp			=  {
 		response_hash,
         host_metrics,
         weblog_compat,
-		// NB: `signed_response_hash` is added once logServiceConfirmation is called
 	};
 
 	log.silly("Set service response (%s) with metrics (%s) and weblog_compat (%s)", response_hash, host_metrics, weblog_compat );
