@@ -33,6 +33,7 @@ class ConnectionCheck {
     }
       
     checkReconnect = () => {
+        log.silly(`checking reconnection opts for WebSocket client (%s)`, this.name );
         if (!this.opts.reconnectInterval || !this.opts.maxReconnects) return;
         if (reconnections < this.opts.maxReconnects && this.closed) {
             const reconnectId = setInterval(this.connect(this.socket.url), this.opts.reconnectInterval);
@@ -92,14 +93,14 @@ class ConnectionCheck {
     }
 
     setWsClosed ( timeout = 1000  ) {
-        console.log('THIS.NAME port closing !! ', this.name)
+        log.silly('port closing for WebSocket client %s ', this.name);
         this.setListeners();
         return async_with_timeout(() => {
             return new Promise((f,r) => {
             return this.closeListener(() => {
+                log.silly(`'close' event triggered on ${this.wsProtocol} WebSocket client (%s)`, this.name );
                 this.closed = true;
                 checkReconnect();
-                log.silly(`'close' event triggered on ${this.wsProtocol} WebSocket client (%s)`, this.name );
                 f();
             });
             });
