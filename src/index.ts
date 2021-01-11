@@ -6,10 +6,10 @@ import http				from 'http';
 import concat_stream			from 'concat-stream';
 import SerializeJSON			from 'json-stable-stringify';
 import { Codec }			from '@holo-host/cryptolib';
+import { Package }				from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer }		from './wss';
 import { HHA_INSTALLED_APP_ID, EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID } from './const';
-import { Console } from 'console';
 
 const log				= logger(path.basename( __filename ), {
     level: process.env.LOG_LEVEL || 'fatal',
@@ -236,10 +236,25 @@ class Envoy {
 	    return true;
 	}, this.opts.NS );
 
+
+	// ------------------------------------------------------------------------
+
 	// Envoy - New Hosted Agent Sign-up Sequence
 	this.ws_server.register("holo/agent/signup", async ([ hha_hash, agent_id ]) => {
 		log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash )
+
 		const failure_response	= (new HoloError("Failed to create a new hosted agent")).toJSON();
+	
+		// TODO: Update to hhdt response format:
+		// const failure_response = new Package({
+		// 	"type": "error",
+		// 	"payload": {
+		// 		"source": error.name,
+		// 		"message": error.message		
+		// 	},
+		// });
+		// const failure_response = Package.createFromError("HoloError", (new HoloError("Failed to create a new hosted agent")).toJSON())
+
 	    let resp;
 
 		log.info("Retrieve the holo-hosting-app cell id using the Installed App Id: '%s'", HHA_INSTALLED_APP_ID);
@@ -328,15 +343,17 @@ class Envoy {
 				if ( adminResponse.type !== "success" ) {
 					log.error("Conductor 'installApp' returned non-success response: %s", adminResponse );
 					failed		= true
+					// TODO: Update to hhdt response format to fwd on to web client:
+					// return Package.createFromError("HoloError", (new HoloError(`Failed to complete 'installApp' for installed_app_id'${installed_app_id}'.`)).toJSON())
 					throw (new HoloError(`Failed to complete 'installApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
 				}
 				} catch ( err ) {
 				if ( err.message.toLowerCase().includes( "duplicate cell" ) )
 					log.warn("Cell (%s) already exists in Conductor", installed_app_id );
-					else {
-						log.error("Failed during 'installApp': %s", String(err) );
-						throw err;
-					}
+				else {
+					log.error("Failed during 'installApp': %s", String(err) );
+					throw err;
+				}
 				}
 
 				// Activate App -  Add the Installed App to a hosted interface.
@@ -347,6 +364,8 @@ class Envoy {
 				if ( adminResponse.type !== "success" ) {
 					log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse );
 					failed		= true
+					// TODO: Update to hhdt response format to fwd on to web client:
+					// return Package.createFromError("HoloError", (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`)).toJSON())
 					throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
 				}
 				} catch ( err ) {
@@ -377,6 +396,8 @@ class Envoy {
 				if ( adminResponse.type !== "success" ) {
 					log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse );
 					failed		= true
+					// TODO: Update to hhdt response format to fwd on to web client:
+					// return Package.createFromError("HoloError", (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`)).toJSON())
 					throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id'${installed_app_id}'.`)).toJSON();
 				}
 				} catch ( err ) {
@@ -397,24 +418,19 @@ class Envoy {
 		// TODO: Rollback cells that were already created << check to see if is already being done in core.
 		log.error("Failed during sign-up process for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, failure_response );
 		
-		// TODO: Update to match hhdt success message in both envoy and chaperone
 		return failure_response;
 	    }
 
 	    // - return success
 	    log.normal("Completed sign-up process for Agent (%s) HHA ID (%s)", agent_id, hha_hash );
-		return true;
 		// TODO: Update to match hhdt success message in both envoy and chaperone
-		// return {
-		// 	"response_id": response_id,
-		// 	"type": "success",
-		// 	"payload": true,
-		// };
+		// return  new Package( true, { "type": "success" });
+		return true;
 	}, this.opts.NS );
 
 	
 	// Chaperone AppInfo Call to Envoy Server
-	this.ws_server.register("holo/app-info", async ({ installed_app_id }) => {
+	this.ws_server.register("holo/app_info", async ({ installed_app_id }) => {
 		const response_id = this.request_counter;
 		this.request_counter++;
 
@@ -428,20 +444,20 @@ class Envoy {
 			}
 		} catch ( err ) {
 			log.error("Failed during Conductor AppInfo call: %s", String(err) );
-			return {
-				"response_id": response_id,
-				"type": "error",
-				"payload": err,
-			}
+			return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
 		}
 
 		log.normal("Completed AppInfo call for installed_app_id (%s)", installed_app_id);
+
+		return  new Package( appInfo, { "type": "success" }, { response_id });
 		
-		return {
-			"response_id": response_id,
-			"type": "success",
-			"payload": appInfo
-		}
+		// Example of hhdt generated success package:
+		// ({
+		// 	"type": "success",
+		// 	"metadata": { response_id },
+		// 	"payload": appInfo
+		// })
+
 	}, this.opts.NS );
 
 	
@@ -543,7 +559,7 @@ class Envoy {
 		    log.fatal("Conductor call threw unknown error: %s", String(err) );
 		    console.error( err );
 		    holo_error		= {
-			"name": err.name,
+			"source": 'HoloError',
 			"message": err.message,
 		    };
 		}
@@ -552,8 +568,11 @@ class Envoy {
 		// - Servicelogger response
 		let host_response;
 
-		// TODO: Replace hardcoded values with actual:
+		// TODO: Replace hardcoded values with actual once possible:
+		// NOTE: cpu will be calculated in holochain-rsm, bandwidth should be calculated in envoy
 		const host_metrics		= {
+			// TODO: Calculate bandwidth of zomeCall response payload and pass in here:
+			// bandwidth: 1256,
 			"cpu": 7
 	    };
 		// TODO: Replace hardcoded values with actual:
@@ -563,7 +582,7 @@ class Envoy {
 		}
 
 		log.debug("Form service response for signed request (%s): %s", service_signature, JSON.stringify( request, null, 4 ));
-		host_response		= await this.logServiceResponse( zomeCall_response, host_metrics, weblog_compat );
+		host_response		= this.logServiceResponse( zomeCall_response, host_metrics, weblog_compat );
 		log.info("Service response by Host: %s",  JSON.stringify( host_response, null, 4 ) );
 
 		// Use response_id to act as waiting ID
@@ -576,25 +595,16 @@ class Envoy {
 			// note: remove pending log confirmation when fail
 			this.removePendingConfirmation( response_id );
 
-			log.normal('Returning error: ', holo_error);
-			response_message = {
-				"response_id": response_id,
-				"type": "error",
-				"payload": holo_error,
-			}
+			const errorPack = Package.createFromError("HoloError", holo_error);
+			log.normal('Returning error: ', errorPack);
+
+			response_message = errorPack;
 		}
 	    else {
 			log.normal("Returning host reponse (%s) for request (%s) with signature (%s) as response_id (%s) to chaperone",
 			JSON.stringify( host_response, null, 4 ), JSON.stringify( request, null, 4 ), JSON.stringify(service_signature), response_id);
 
-			response_message =	{
-				"response_id": response_id,
-				"type": "success",
-				"payload": { 
-					host_response, 
-					zomeCall_response
-				}
-			}
+			response_message = new Package({ host_response, zomeCall_response }, { "type": "success" }, { response_id });
 		} 
 
 		return response_message;
@@ -622,16 +632,16 @@ class Envoy {
 	    } catch ( err ) {
 		const error		= `servicelogger.log_service threw: ${String(err)}`
 		log.error("Failed during service confirmation log: %s", error );
+		
 		console.error( err );
 
 		this.removePendingConfirmation( response_id );
+		
+		const errorPack = Package.createFromError("HoloError", err);
+		log.normal('Returning error: ', errorPack);
 
-		// Note: Updatedd to match hhdt error message
-		return {
-			"response_id": response_id,
-			"type": "error",
-			"payload": (new HoloError(error)).toJSON(),
-		};
+		return errorPack;
+
 	    }
 
 		this.removePendingConfirmation( response_id );
@@ -640,11 +650,7 @@ class Envoy {
 	    // - return success
 		return true;
 		// TODO: Update to match hhdt success message in both envoy and chaperone
-		// return {
-		// 	"response_id": response_id,
-		// 	"type": "success",
-		// 	"payload": true,
-		// };
+		// return new Package(true, { "type": "success" }, { response_id });
 	}, this.opts.NS );
     }
 
@@ -693,14 +699,45 @@ class Envoy {
 	    socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
 	});
 	this.http_server.listen( WH_SERVER_PORT );
-    }
+	}
+	
+    signingRequest ( agent_id : string, payload : string, timeout = 5_000 ) {
+		const payload_id		= this.payload_counter++;
+		log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, typeof payload );
+	
+		return new Promise((f,r) => {
+			const event			= `${agent_id}/wormhole/request`;
+	
+			if ( this.ws_server.eventList( this.opts.NS ).includes( event ) === false ) {
+			log.warn("Trying to get signature from unknown Agent (%s)", agent_id );
+			if ( Object.keys( this.anonymous_agents ).includes( agent_id ) )
+				throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
+			else
+				throw new Error(`Agent ${agent_id} is not registered.  Something must have broke?`);
+			}
+	
+			let toid			= setTimeout(() => {
+			log.error("Failed during signing request #%s with timeout (%sms)", payload_id, timeout );
+			r("Failed to get signature from Chaperone")
+			}, timeout );
+	
+			log.info("Adding signature request #%s to pending signatures", payload_id );
+			this.pending_signatures[ payload_id ] = [ payload, f, r, toid ];
+	
+			this.ws_server.emit( event, [ payload_id, payload ] );
+			log.normal("Sent signing request #%s to Agent (%s)", payload_id, agent_id );
+		});
+		}
+
+	// --------------------------------------------------------------------------------------------
+
+	// RPC Connection Handling
 
     async close () {
 	log.normal("Initiating shutdown; closing Conductor clients, RPC WebSocket server, then HTTP server");
 
 	const clients			= Object.values( this.hcc_clients );
-	clients.map( (client:any) => client.client.close() );
-	await Promise.all( clients.map( (client:any) => client.client.close() ));
+	await Promise.all( clients.map( (client:any) => client.checkConnection.socket.close() ));
 	log.info("All Conductor clients are closed");
 
 	await this.ws_server.close();
@@ -708,34 +745,6 @@ class Envoy {
 
 	await this.http_server.close();
 	log.info("HTTP server is closed");
-    }
-
-    signingRequest ( agent_id : string, payload : string, timeout = 5_000 ) {
-	const payload_id		= this.payload_counter++;
-	log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, typeof payload );
-
-	return new Promise((f,r) => {
-	    const event			= `${agent_id}/wormhole/request`;
-
-	    if ( this.ws_server.eventList( this.opts.NS ).includes( event ) === false ) {
-		log.warn("Trying to get signature from unknown Agent (%s)", agent_id );
-		if ( Object.keys( this.anonymous_agents ).includes( agent_id ) )
-		    throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
-		else
-		    throw new Error(`Agent ${agent_id} is not registered.  Something must have broke?`);
-	    }
-
-	    let toid			= setTimeout(() => {
-		log.error("Failed during signing request #%s with timeout (%sms)", payload_id, timeout );
-		r("Failed to get signature from Chaperone")
-	    }, timeout );
-
-	    log.info("Adding signature request #%s to pending signatures", payload_id );
-	    this.pending_signatures[ payload_id ] = [ payload, f, r, toid ];
-
-	    this.ws_server.emit( event, [ payload_id, payload ] );
-	    log.normal("Sent signing request #%s to Agent (%s)", payload_id, agent_id );
-	});
     }
 
 	// --------------------------------------------------------------------------------------------
@@ -938,7 +947,7 @@ class Envoy {
 	return request;
     }
 
-    async logServiceResponse ( response, host_metrics, weblog_compat ) {
+    logServiceResponse ( response, host_metrics, weblog_compat ) {
 	const response_hash		= digest( response );
 	log.normal("Processing service logger response (%s)", response_hash );
 
