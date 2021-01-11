@@ -266,8 +266,8 @@ class Envoy {
 	    resp			= await this.callConductor( "internal", {
 		    "cell_id":		hha_cell_id,
 		    "zome_name":		"hha",
-		    "fn_name":		"get_happs", // get_happ (update once tests load test app)
-				"payload":		null, // hha_hash (update once tests load test app)
+		    "fn_name":		"get_happ",
+				"payload":		hha_hash,
 				"cap":		null,
 				"provenance": buffer_host_agent_hha_id,
 		});
@@ -278,8 +278,7 @@ class Envoy {
 		log.error("Failed during App Details lookup in HHA: %s", resp );
 		return failure_response;
 	    }
-		const app			= resp[0]; // resp (update once tests load test app)
-		
+		const app			= resp;
 		const installed_app_id	= `${hha_hash}:${agent_id}`;
 
 	    log.silly("HHA bundle: %s", app );
@@ -835,8 +834,8 @@ class Envoy {
 				if (resp) {
 					resp.type = "success";
 				} else {
-					// In the case where admin function doesn't return anything, 
-					// **** but doesn't fail (eg: activate_app):
+					// In the case where admin function doesn't return anything (eg: activate_app), 
+					// *** but doesn't fail, need to form response obj:
 					resp = { type: "success" };
 				}
 				log.debug('Successful admin interface response: ');
@@ -855,8 +854,9 @@ class Envoy {
 			//     Internal errorInternal JSON-RPC error.
 			// -32000 to -32099
 			//     Server errorReserved for implementation-defined server-errors.
+
+			// TODO: Return errors to Chaperone in hhdt format:
 			if ( err.code === -32000 ) {
-				// TODO: RETURN THESE ERRORS to Chaperone with according to hhdt format:
 			if ( err.data.includes("response from service is not success") ) {
 				log.error("Failed during Conductor call because of a signing request error: %s", err.data );
 				throw new HoloError("Failed to get signatures from Client");
