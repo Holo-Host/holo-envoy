@@ -1,4 +1,7 @@
 SHELL		= bash
+WASM		= target/wasm32-unknown-unknown/release/test.wasm
+DNANAME		= test
+DNA		= $(DNANAME).dna.gz
 
 package-lock.json: package.json
 	npm install
@@ -18,7 +21,7 @@ docs/index.html:	build/index.js
 build:			node_modules build/index.js
 docs:			node_modules docs/index.html
 
-MOCHA_OPTS		= 
+MOCHA_OPTS		=
 
 test:			build
 	make test-unit;
@@ -48,6 +51,15 @@ test-e2e-debug:		build dist/holo_hosting_chaperone.js
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
 test-e2e-debug2:	build dist/holo_hosting_chaperone.js
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
+
+build-dna:	cargo dna
+
+cargo:
+	cd ./tests/test-dna/ && RUST_BACKTRACE=1 CARGO_TARGET_DIR=target cargo build \
+	--release --target wasm32-unknown-unknown
+
+dna:
+	cd ./tests/test-dna/ && dna-util -c test.dna.workdir
 
 docs-watch:
 build-watch:
