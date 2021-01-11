@@ -4,6 +4,7 @@ const log				= require('@whi/stdlog')(path.basename( __filename ), {
 });
 
 const fs				= require('fs');
+const yaml 				= require('js-yaml');
 const expect				= require('chai').expect;
 const fetch				= require('node-fetch');
 const puppeteer				= require('puppeteer');
@@ -12,11 +13,12 @@ const http_servers			= require('../setup_http_server.js');
 // const conductor				= require("../setup_conductor.js");
 const setup				= require("../setup_envoy.js");
 const { Codec }			= require('@holo-host/cryptolib');
-const { Console } = require('console');
-const { CONNREFUSED } = require('dns');
 
-const HHA_INSTALLED_APP_ID = 'holo-hosting-app';
-const EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID = 'elemental-chat-dna:servicelogger';
+const installedAppIds = yaml.safeLoad(fs.readFileSync('dna-config.yml'));
+// NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}:servicelogger`)
+// TODO: verify this pattern once we have DL for servicelogger install pattern
+const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
+const HHA_INSTALLED_APP_ID = installedAppIds[1].app_name;
 
 let browser;
 
@@ -70,14 +72,17 @@ const envoy_mode_map = {
 const envoyOpts = {
 	mode: envoy_mode_map.develop,
 	hosted_port_number: 0,
-	hosted_app_dnas: [{
-		nick: 'test-hha', // 'test-elemental-chat',
-		path: '/home/lisa/Documents/gitrepos/holo/rsm-updated/holo-envoy/dnas/holo-hosting-app.dna.gz', // '/home/lisa/Documents/gitrepos/holo/rsm-updated/holo-envoy/dnas/elemental-chat.dna.gz',
-	}]
+	hosted_app: {
+		servicelogger_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID,
+		dnas: [{
+			nick: 'test-hha', // 'test-elemental-chat',
+			path: '/home/lisa/Documents/gitrepos/holo/rsm-updated/holo-envoy/dnas/holo-hosting-app.dna.gz', // '/home/lisa/Documents/gitrepos/holo/rsm-updated/holo-envoy/dnas/elemental-chat.dna.gz',
+		}]
+	}
 }
 
 const getHostAgentKey = async (serviceClient) => {
-	const appInfo = await serviceClient.appInfo({ installed_app_id: EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID  });
+	const appInfo = await serviceClient.appInfo({ installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID  });
 	const agentPubKey = appInfo.cell_data[0][0][1];
 	return {
 		decoded: agentPubKey,
@@ -96,8 +101,8 @@ const registerTestAppInHha = async (hostedClient) => {
 		name: "Test App Hosted On Web",
 		dnas: [{
 			hash: "hC0k...",
-			path: envoyOpts.hosted_app_dnas[0].path,
-			nick: envoyOpts.hosted_app_dnas[0].nick,
+			path: envoyOpts.hosted_app.dnas[0].path,
+			nick: envoyOpts.hosted_app.dnas[0].nick,
 		}]
 	  };
 
@@ -145,7 +150,7 @@ describe("Server", () => {
 	browser				= await puppeteer.launch();
 	log.debug("Setup config: %s", http_ctrls.ports );
 	http_url			= `http://localhost:${http_ctrls.ports.chaperone}`;
-		
+
 	hosted_client		= envoy.hcc_clients.hosted;
 	service_client		= envoy.hcc_clients.service;
 
@@ -183,14 +188,11 @@ describe("Server", () => {
 		pageTestUtils.logPageErrors();
 		pageTestUtils.describeJsHandleLogs();
 
-		// NOTE: Once we begin installing instances of servicelogger, we will need to use hostedAppHha to form the installed_app_id instead - ie: `${hostedAppHha}:servicelogger`
-		await page.exposeFunction('fetchServiceloggerCellId', async () => { // async (hostedAppHha) =>
-			// NOTE: this servicelogger dna instance is needs to pair with the hosted_app used for zome_calls in this test
-			// - reminder: there is one servicelogger instance per installed hosted app, each with their own installed_app_id
+		await page.exposeFunction('fetchServiceloggerCellId', async () => {
 			let serviceloggerCellId;
 			try {
-				// TODO: Replace the installed_app_id with `${hostedAppHha}:servicelogger` once we have implemented servicelogger install pattern
-				const serviceloggerAppInfo = await service_client.appInfo({ installed_app_id: EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID});
+				// REMINDER: there is one servicelogger instance per installed hosted app, each with their own installed_app_id
+				const serviceloggerAppInfo = await service_client.appInfo({ installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID});
 				serviceloggerCellId = serviceloggerAppInfo.cell_data[0][0];
 			} catch (error) {
 				throw new Error(JSON.stringify(error));
@@ -203,8 +205,8 @@ describe("Server", () => {
 		// Note: the host must set servicelogger settings prior to any activity logs being issued (otherwise, the activity log call will fail).
 		await page.exposeFunction('setupServiceLoggerSettings', async (servicelogger_cell_id) => {
 			const settings = {
-				// note: for this example/test, the host is also the provider
-				provider_pubkey: Buffer.from(servicelogger_cell_id[1]), // NOTE: THIS MUST BE PASSED IN AS A BUFFER!!!
+				// Note: for the purposes of simplifying the test, the host is also the provider
+				provider_pubkey: Buffer.from(servicelogger_cell_id[1]),
 				max_fuel_before_invoice: 3,
 				price_per_unit: 1,
 				max_time_before_invoice: [604800, 0]
@@ -213,8 +215,8 @@ describe("Server", () => {
 			let logger_settings; 
 			try {
 				logger_settings = await service_client.callZome({ 
-					 // NOTE: Cell ID content MUST BE PASSED IN AS A BYTE BUFFER!!! >> cannot take a u8 byte array
-					cell_id: [Buffer.from(servicelogger_cell_id[0]), Buffer.from(servicelogger_cell_id[1])], // nb: cell_id = [dna_hash_buf, agent_pubkey_buf]
+					 // Note: Cell ID content MUST BE passed in as a Byte Buffer, not a u8int Byte Array
+					cell_id: [Buffer.from(servicelogger_cell_id[0]), Buffer.from(servicelogger_cell_id[1])],
 					zome_name: 'service',
 					fn_name: 'set_logger_settings',
 					payload: settings,
@@ -233,8 +235,7 @@ describe("Server", () => {
 		});
 	    
 	    response			= await page.evaluate(async function ( host_agent_id, registered_agent, registered_happ_hash )  {
-			log.info("Registered Web Agent ID: %s", registered_agent );
-			log.info("Registered Happ Hash (also used as instance_prefix): %s", registered_happ_hash );
+			console.log("Registered Happ Hash (also used as instance_prefix): %s", registered_happ_hash );
 
 		const client = new Chaperone({
 		    "mode": Chaperone.DEVELOP,
@@ -254,18 +255,6 @@ describe("Server", () => {
 		    "debug": true,
 		});
 		client.skip_assign_host	= true;
-
-		function delay(t, val) {
-		    return new Promise(function(resolve) {
-			setTimeout(function() {
-			    resolve(val);
-			}, t);
-		    });
-		}
-
-		function sleep(ms) {
-			return new Promise(resolve => setTimeout(resolve, ms));
-		}
 		
 		await client.ready( 200_000 );
 		console.log("READY..............");
@@ -279,15 +268,13 @@ describe("Server", () => {
 		// Set logger settings for hosted app (in real word scenario - will be done when host installs app):
 		try {
 			console.log("\nFetching Hosted App DNA..." );
-			const servicelogger_cell_id				= await window.fetchServiceloggerCellId(); // client.hha_hash 
+			const servicelogger_cell_id				= await window.fetchServiceloggerCellId();
 			
 			console.log("\nCalling Host ServiceLog Settings Setup ");
 			
-			// NOTE: The host settings must be set prior to creating a service activity log with servicelogger (ie: when making a zome call from web client)
+			// NOTE: The host settings must be set prior to creating a service activity log with servicelogger (eg: when making a zome call from web client)...
 			const logger_settings = await window.setupServiceLoggerSettings(servicelogger_cell_id);
-			console.log("Logger Settings set: ",logger_settings);
-
-			console.log('\nCOMPLETED SETTING SERVICE LOGGER SETTINGS (IN TESTS...) \n');
+			console.log("Logger Settings set: ", logger_settings);
 		} catch (err) {
 			console.log( typeof err.stack, err.stack.toString() );
 			throw err;

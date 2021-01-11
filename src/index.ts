@@ -1,4 +1,5 @@
 import path				from 'path';
+import fs				from 'fs';
 import logger				from '@whi/stdlog';
 import { sprintf }			from 'sprintf-js';
 import crypto				from 'crypto';
@@ -9,12 +10,14 @@ import { Codec }			from '@holo-host/cryptolib';
 import { Package }				from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer }		from './wss';
-import { HHA_INSTALLED_APP_ID, EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID } from './const';
 
 const log				= logger(path.basename( __filename ), {
     level: process.env.LOG_LEVEL || 'fatal',
 });
- 
+
+// NB: The hha installed app id must match the id provided in the hpos config when installing hha as an internal host app
+const HHA_INSTALLED_APP_ID = 'holo-hosting-app';
+
 const sha256				= (buf) => crypto.createHash('sha256').update( Buffer.from(buf) ).digest();
 const digest				= (data) => Codec.Digest.encode( sha256( typeof data === "string" ? data : SerializeJSON( data ) ));
 
@@ -42,11 +45,16 @@ interface AppDna {
 	nick?: string;
 }
 
+interface HostedAppConfig {
+	servicelogger_id: string;
+	dnas: [AppDna];
+}
+
 interface EnvoyConfig {
 	mode: number;
 	port?: number;
 	NS?: string;
-	hosted_app_dnas?: [AppDna];
+	hosted_app?: HostedAppConfig;
 	hosted_port_number?: number;
 }
 
@@ -138,7 +146,7 @@ class Envoy {
 			name: k,
 			port: this.conductor_opts.interfaces[`${k}_port`]
 		 });
-	    log.info("Conductor client '%s' configured for port (%s)", k, this.hcc_clients[k].port );
+	    log.info("Conductor client '%s' configured for port (%s)", k, this.hcc_clients[k].checkConnection.port );
 	});
 
 	const clients			= Object.values( this.hcc_clients );
@@ -313,8 +321,8 @@ class Envoy {
 				log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, installed_app_id );
 
 				let dnas;
-				if (this.opts.hosted_app_dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
-					dnas = this.opts.hosted_app_dnas;
+				if (this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
+					dnas = this.opts.hosted_app.dnas;
 				}
 
 				adminResponse			= await this.callConductor( "master", this.hcc_clients.master.installApp, {
@@ -524,7 +532,8 @@ class Envoy {
 			const hosted_app_cell_id = call_spec["cell_id"];
 				
 			zomeCall_response		= await this.callConductor( "hosted", {
-		    "cell_id":	[Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])], // TODO: Determine why we can't just pass directly in the cell_id received back from appInfo call here...
+			// TODO: Determine why we can't just pass directly in the cell_id received back from appInfo call...
+		    "cell_id":	[Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])],
 		    "zome_name":		call_spec["zome"],
 		    "fn_name":		call_spec["function"],
 			"payload":		call_spec["args"],
@@ -959,8 +968,21 @@ class Envoy {
     async logServiceConfirmation ( client_request, host_response, confirmation ) {
 		log.normal("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response );
 
-		log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID);
-		const appInfo			= await this.callConductor( "service", { installed_app_id: EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID });
+		const hha_hash = client_request.request.call_spec.hha_hash;
+		console.log('hha_hash : ', hha_hash)		
+		
+		let servicelogger_installed_app_id;
+		if (this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
+			servicelogger_installed_app_id = this.opts.hosted_app.servicelogger_id;
+		} else {
+			// NB: There will be a new servicelogger app for each hosted happ (should happen at the time of self-hosted install - prompted in host console.)
+			// TODO: verify this pattern once we have DL for servicelogger install pattern
+			servicelogger_installed_app_id = `${hha_hash}:servicelogger`;
+		}
+		console.log('servicelogger_installed_app_id: ', servicelogger_installed_app_id)		
+
+		log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
+		const appInfo			= await this.callConductor( "service", { installed_app_id: servicelogger_installed_app_id });
 
 		if ( !appInfo ) {
 		log.error("Failed during Servicelogger AppInfo lookup: %s", appInfo );
