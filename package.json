@@ -33,7 +33,7 @@
     "sprintf-js": "^1.1.2"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "Holo-Host/chaperone#e2e-envoy",
+    "@holo-host/chaperone": "file:/home/lisa/Documents/gitrepos/holo/rust-compatible/holo-web-arch/chaperone",
     "@holochain-open-dev/holochain-run-dna": "^0.3.1",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
