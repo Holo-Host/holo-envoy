@@ -57,9 +57,6 @@ class PageTestUtils {
     }
 }
 
-// NOT RANDOM: this instance_prefix MUST match the one hard-coded in Chaperone for DEVELOP mode
-const instance_prefix				= "uhCkk6GkjAxkweGXPo-cVOMRBJPkvJVrxFklCqIY0IadCcagABgv_"; /// the hash of app in hha-dht  (aka hha_hash)
-
 // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
 const host_agent_id				= 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // previously: fs.readFileSync('./AGENTID', 'utf8').trim();
 
@@ -99,14 +96,14 @@ const registerTestAppInHha = async (hostedClient) => {
 		name: "Test App Hosted On Web",
 		dnas: [{
 			hash: "hC0k...",
-			path: envoyOpts.path,
-			nick: envoyOpts.nick,
+			path: envoyOpts.hosted_app_dnas[0].path,
+			nick: envoyOpts.hosted_app_dnas[0].nick,
 		}]
 	  };
 
 	  let happRegistrationId;
 	  try {
-		happRegistrationId = hostedClient.callZome({ 
+		({ happ_id: happRegistrationId } = await hostedClient.callZome({ 
 			// NOTE: Cell ID content MUST be passed in as a byte buffer not a u8int byte-array
 		   cell_id: [Buffer.from(hhaCellId[0]), Buffer.from(hhaCellId[1])],
 		   zome_name: 'hha',
@@ -114,12 +111,12 @@ const registerTestAppInHha = async (hostedClient) => {
 		   payload: happBundle,
 		   cap: null,
 		   provenance: Buffer.from(hhaCellId[1])
-	   });
+	   }));
 	} catch (error) {
 		throw new Error(JSON.stringify(error));
 	}
 
-	return happRegistrationId;
+	return Codec.HoloHash.encode('header', happRegistrationId);
 }
 
 describe("Server", () => {
@@ -134,6 +131,8 @@ describe("Server", () => {
 	this.timeout(10_000);
 
 	log.info("Starting conductor");
+	
+	// TODO: sync start conductor in make file
 	// await conductor.start();
 
 	envoy				= await setup.start(envoyOpts);
@@ -153,10 +152,10 @@ describe("Server", () => {
 	// NOTE: This is a workaround until wormhole signing is in place. Using the Host Servicelogger Agent Key to call public sign functions for activity log signatures.
 	registered_agent	= await getHostAgentKey(service_client);
 	log.info('Using host agent (%s) in conductor on service port(%s)', registered_agent, service_client.checkConnection.port);
-
-	// await registerTestAppInHha(hosted_client);
-
+	
+	registered_happ_hash 			= await registerTestAppInHha(hosted_client);
 	});
+
     after(async () => {
 	log.debug("Shutdown cleanly...");
 	log.debug("Close browser...");
@@ -169,6 +168,7 @@ describe("Server", () => {
 	await setup.stop();
 
 	// log.info("Stopping Conductor...");
+	// TODO: Capture step to close the conductor socket in make file for now
 	// await conductor.stop();
     });
     it("should sign-in and make a zome function call", async function () {
@@ -183,13 +183,13 @@ describe("Server", () => {
 		pageTestUtils.logPageErrors();
 		pageTestUtils.describeJsHandleLogs();
 
-		// NOTE: Once we begin installing instances of servicelogger, we will need to use hostedAppHha to form the installed_app_id instead - ie: `${<hostedAppHha>}:servicelogger`
+		// NOTE: Once we begin installing instances of servicelogger, we will need to use hostedAppHha to form the installed_app_id instead - ie: `${hostedAppHha}:servicelogger`
 		await page.exposeFunction('fetchServiceloggerCellId', async () => { // async (hostedAppHha) =>
-			// NOTE: this servicelogger dna hash needs to match the hash of the dna instance paired with the hosted_app used for zome_calls in this test
-			// - make sure to use the installed_app_id of this cell
+			// NOTE: this servicelogger dna instance is needs to pair with the hosted_app used for zome_calls in this test
+			// - reminder: there is one servicelogger instance per installed hosted app, each with their own installed_app_id
 			let serviceloggerCellId;
 			try {
-				// TODO: Replace the installed_app_id with `${<hostedAppDnaHash>}:servicelogger` once we have implemented servicelogger install pattern
+				// TODO: Replace the installed_app_id with `${hostedAppHha}:servicelogger` once we have implemented servicelogger install pattern
 				const serviceloggerAppInfo = await service_client.appInfo({ installed_app_id: EL_CHAT_SERVICELOGGER_INSTALLED_APP_ID});
 				serviceloggerCellId = serviceloggerAppInfo.cell_data[0][0];
 			} catch (error) {
@@ -203,7 +203,7 @@ describe("Server", () => {
 		// Note: the host must set servicelogger settings prior to any activity logs being issued (otherwise, the activity log call will fail).
 		await page.exposeFunction('setupServiceLoggerSettings', async (servicelogger_cell_id) => {
 			const settings = {
-				// note: for this example, the host is also the provider
+				// note: for this example/test, the host is also the provider
 				provider_pubkey: Buffer.from(servicelogger_cell_id[1]), // NOTE: THIS MUST BE PASSED IN AS A BUFFER!!!
 				max_fuel_before_invoice: 3,
 				price_per_unit: 1,
@@ -232,8 +232,9 @@ describe("Server", () => {
 			return Codec.HoloHash.encode(type, hhaBuffer);
 		});
 	    
-	    response			= await page.evaluate(async function ( host_agent_id, instance_prefix, registered_agent )  {
-			console.log('registered_agent: ', registered_agent);
+	    response			= await page.evaluate(async function ( host_agent_id, registered_agent, registered_happ_hash )  {
+			log.info("Registered Web Agent ID: %s", registered_agent );
+			log.info("Registered Happ Hash (also used as instance_prefix): %s", registered_happ_hash );
 
 		const client = new Chaperone({
 		    "mode": Chaperone.DEVELOP,
@@ -247,7 +248,7 @@ describe("Server", () => {
 		    },
 		    
 		    host_agent_id, // used to assign host (id generated by hpos-seed)
-		    instance_prefix, // NOT RANDOM: this needs to match the hash of app in hha
+		    instance_prefix: registered_happ_hash, // NOT RANDOM: this needs to match the hash of app in hha
 
 		    "timeout": 50000,
 		    "debug": true,
@@ -314,7 +315,7 @@ describe("Server", () => {
 		    console.log( err.stack );
 		    console.log( typeof err.stack, err.stack.toString() );
 		}
-	    }, host_agent_id, instance_prefix, registered_agent );
+	    }, host_agent_id, registered_agent, registered_happ_hash );
 
 		log.info("\n\nCHAPERONE TEST FINISHED >>>>> Completed evaluation: %s", response );
 	    // expect( Object.keys(response[0])	).to.have.members([ "channel", "info", "latest_chunk" ]);
