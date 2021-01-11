@@ -246,13 +246,6 @@ class Envoy {
 		const failure_response	= (new HoloError("Failed to create a new hosted agent")).toJSON();
 	
 		// TODO: Update to hhdt response format:
-		// const failure_response = new Package({
-		// 	"type": "error",
-		// 	"payload": {
-		// 		"source": error.name,
-		// 		"message": error.message		
-		// 	},
-		// });
 		// const failure_response = Package.createFromError("HoloError", (new HoloError("Failed to create a new hosted agent")).toJSON())
 
 	    let resp;
@@ -632,7 +625,6 @@ class Envoy {
 	    } catch ( err ) {
 		const error		= `servicelogger.log_service threw: ${String(err)}`
 		log.error("Failed during service confirmation log: %s", error );
-		
 		console.error( err );
 
 		this.removePendingConfirmation( response_id );
@@ -648,9 +640,8 @@ class Envoy {
 		
 	    log.normal("Confirmation for call with response ID (%s) is complete", response_id );
 	    // - return success
-		return true;
-		// TODO: Update to match hhdt success message in both envoy and chaperone
-		// return new Package(true, { "type": "success" }, { response_id });
+		// updated to match hhdt success message format
+		return new Package(true, { "type": "success" }, { response_id });
 	}, this.opts.NS );
     }
 
