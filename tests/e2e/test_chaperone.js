@@ -9,7 +9,6 @@ const expect				= require('chai').expect;
 const puppeteer				= require('puppeteer');
 
 const http_servers			= require('../setup_http_server.js');
-// const conductor				= require("../setup_conductor.js");
 const setup				= require("../setup_envoy.js");
 const { Codec }			= require('@holo-host/cryptolib');
 
@@ -126,24 +125,22 @@ const registerTestAppInHha = async (hostedClient) => {
 describe("Server", () => {
     let envoy;
     let server;
-    let chaperone_client;
 	let http_ctrls, http_url;
-	let master_client;
+	let hosted_client;
+    let service_client;
 	let registered_agent;
 
     before(async function() {
 	this.timeout(10_000);
 
-	log.info("Starting conductor");
-	
-	// TODO: sync start conductor in make file
-	// await conductor.start();
-
+	log.info("Starting Envoy");
 	envoy				= await setup.start(envoyOpts);
 	server				= envoy.ws_server;
 	
 	log.info("Waiting for Conductor connections...");
 	await envoy.connected;
+
+	log.info("Envoy Connected...");
 
 	http_ctrls			= http_servers();
 	browser				= await puppeteer.launch();
@@ -170,10 +167,6 @@ describe("Server", () => {
 	
 	log.info("Stopping Envoy...");
 	await setup.stop();
-
-	// log.info("Stopping Conductor...");
-	// TODO: Capture step to close the conductor socket in make file for now
-	// await conductor.stop();
     });
     it("should sign-in and make a zome function call", async function () {
 	this.timeout( 300_000 );
