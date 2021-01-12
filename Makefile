@@ -28,9 +28,9 @@ docs-watch:
 build-watch:
 # above targets are for autocompletion
 %-watch:
-	npx chokidar -d 3000 'src/**/*.ts' -c "make --no-print-directory $*" 2> /dev/null
-clean-docs:
-	git clean -df ./docs
+	npx-env chokidar -d 3000 'src/**/*.ts' -c "make --no-print-directory $*" 2> /dev/null
+clean-env-doc-envs:
+	git clean-env -df ./docs
 publish-docs:
 	git branch -D gh-pages || true
 	git checkout -b gh-pages
@@ -52,8 +52,9 @@ LAIR_DIR	= ./tests/lair
 AGENT		= ./tests/AGENT
 HC_DIR		= ./tests/conductor-storage
 HC_CONF		= $(HC_DIR)/conductor-config.yml
-HC_ADMIN_PORT	= 35678
+HC_ADMIN_PORT	= 1234
 CCLI_OPTS	= -p $(HC_ADMIN_PORT) #-vvvvvv
+CCLI_CONFIG = ./app-config.yml
 
 lair:			$(LAIR_DIR)/socket
 $(LAIR_DIR)/socket:
@@ -68,7 +69,7 @@ check-lair:
 # Holochain Conductor
 reset-hcc:
 	rm $(HC_DIR)/databases/ -rf
-conductor:		$(HC_DIR)/pid
+start-conductor:		$(HC_DIR)/pid
 $(HC_DIR):
 	mkdir -p $(HC_DIR)
 $(HC_CONF):		$(HC_DIR) tests/genconfig.js
@@ -84,7 +85,7 @@ check-holochain:
 	@pgrep holochain
 conductor.log:
 	touch $@
-DNAs:			dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz dnas/elemental-chat.dna.gz # dnas/holofuel.dna.json
+DNAs:			dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz dnas/elemental-chat.dna.gz # dnas/holofuel.dna.json # dnas/test.dna.json
 rm-DNAs:
 	rm dnas/*.dna.gz
 update-DNAs:		rm-DNAs DNAs
@@ -95,9 +96,10 @@ dnas/holo-hosting-app.dna.gz:	dnas
 dnas/servicelogger.dna.gz:	dnas
 	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.0.1-alpha3/servicelogger.dna.gz' -o $@
 dnas/elemental-chat.dna.gz:	dnas
-	curl 'https://github.com/holochain/elemental-chat/releases/download/v0.0.1-alpha9/elemental-chat.dna.gz' -o $@
+	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.0.1-alpha9/elemental-chat.dna.gz' -o $@
+
 $(AGENT):
-	npx conductor-cli -q -p $(HC_ADMIN_PORT) gen-agent > $@ || rm $@
+	npx conductor-cli -q -p $(HC_ADMIN_PORT) gen-agent > $@ || rm $0
 install-dnas:		$(AGENT) DNAs
 	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" holo-hosting-app "dnas/holo-hosting-app.dna.gz:hha"	|| true
 	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" servicelogger "dnas/servicelogger.dna.gz:servicelogger"	|| true
@@ -107,6 +109,8 @@ install-dnas:		$(AGENT) DNAs
 	npx conductor-cli $(CCLI_OPTS) activate elemental-chat		|| true
 	npx conductor-cli $(CCLI_OPTS) attach-interface 44001
 
+install-config: 	$(AGENT) $(CCLI_CONFIG) DNAs
+	npx conductor-cli $(CCLI_OPTS) install-config -a "$$(cat $(AGENT))" $(CCLI_CONFIG)	|| true
 
 # TMP targets
 
@@ -132,15 +136,18 @@ use-git-ccli:
 # Testing
 #
 MOCHA_OPTS		=
-runtime:		DNAs lair conductor install-dnas
-test:			build DNAs conductor-1.toml start-sim2h
+clear-env:			stop-lair stop-conductor
+clean-env: 			clear-env reset-hcc
+runtime:		DNAs lair start-conductor install-dnas
+runtime-config: DNAs lair start-conductor install-config
+test:			build runtime
 	make test-unit;
 	make test-integration;
 	make test-e2e;
-test-nix:		build DNAs conductor-1.toml start-sim2h
+test-nix:		build runtime
 	make test-unit;
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make reset-hcc; make test-integration
-test-debug:		build DNAs conductor-1.toml start-sim2h
+test-debug:		build runtime
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make reset-hcc; make test-integration-debug
 	make reset-hcc; make test-e2e-debug2
@@ -155,24 +162,27 @@ test-integration:	build runtime
 test-integration-debug:	build runtime
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
 
-test-e2e:		build runtime dist/holo_hosting_chaperone.js
-	npx mocha $(MOCHA_OPTS) ./tests/e2e
-test-e2e-debug:		build runtime dist/holo_hosting_chaperone.js
-	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
-test-e2e-debug2:	build runtime dist/holo_hosting_chaperone.js
-	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
+test-e2e:		build runtime-config dist/holo_hosting_chaperone.js
+	npx mocha $(MOCHA_OPTS) ./tests/e2e;
+	make stop-conductor;
+test-e2e-debug:		build runtime-config dist/holo_hosting_chaperone.js
+	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/;
+	make stop-conductor;
+test-e2e-debug2:	build runtime-config dist/holo_hosting_chaperone.js
+	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/;
+	make stop-conductor;
 
 
 #
-# Repository
+# Repository-env
 #
-clean-remove-chaff:
-	@find . -name '*~' -exec rm {} \;
-clean-files:		clean-remove-chaff
-	git clean -nd
-clean-files-force:	clean-remove-chaff
-	git clean -fd
-clean-files-all:	clean-remove-chaff
-	git clean -ndx
-clean-files-all-force:	clean-remove-chaff
-	git clean -fdx
+clean-env-remove-chaff:
+	@fi-envnd . -name '*~' -exec rm-env {} \;
+clean-env-file-envs:		clean-env-remove-chaff
+	git-env clean-env --envnd
+clean-env-files-env-force:	clean-env-remove-chaff
+	git-env clean-env --envfd
+clean-env-files-env-all:	clean-env-remove-chaff
+	git-env clean-env -n-envdx
+clean-env-files-env-all-force:	clean-env-remove-chaff
+	git clean-env -fdx

@@ -30,12 +30,31 @@ const NAMESPACE				= "/hosting/";
 const READY_STATES			= ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
 
 interface CallSpec {
-    instance_id?	: string;
+	hha_hash	: string;
+	dna_alias	: string;
+	cell_id?	: string;
     zome?		: string;
     function?		: string;
-    args?		: any;
+	args?		: any;
 }
 
+interface AppDna {
+	path: string;
+	nick?: string;
+}
+
+interface HostedAppConfig {
+	servicelogger_id: string;
+	dnas: [AppDna];
+}
+
+interface EnvoyConfig {
+	mode: number;
+	port?: number;
+	NS?: string;
+	hosted_app?: HostedAppConfig;
+	hosted_port_number?: number;
+}
 
 class HoloError extends Error {
 
@@ -70,7 +89,7 @@ class HoloError extends Error {
 class Envoy {
     ws_server		: any;
     http_server		: any;
-    opts		: any;
+    opts		: EnvoyConfig;
     conductor_opts	: any;
     connected		: any;
 
@@ -78,15 +97,21 @@ class Envoy {
     payload_counter	: number	= 0;
     pending_confirms	: object	= {};
     pending_signatures	: object	= {};
-    anonymous_agents	: any		= {};
+	anonymous_agents	: any		= {};
 
-    hcc_clients		: any		= {};
+	hcc_clients		: any		= {};
+	
+	static PRODUCT_MODE	: number		= 0;
+	static DEVELOP_MODE	: number		= 1;
+	static DEFAULT_OPTS					= {
+		mode: Envoy.PRODUCT_MODE,
+	}
 
-    constructor ( opts ) {
+    constructor ( opts: EnvoyConfig = Envoy.DEFAULT_OPTS ) {
 	log.silly("Initializing Envoy with input: %s", opts );
 	this.opts			= Object.assign({}, {
 	    "port": WS_SERVER_PORT,
-	    "NS": NAMESPACE,
+		"NS": NAMESPACE,
 	}, opts);
 	log.normal("Initializing with port (%s) and namespace (%s)", this.opts.port, this.opts.NS );
 

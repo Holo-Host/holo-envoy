@@ -9,8 +9,9 @@
     "test": "npm run test-unit && npm run test-integration",
     "test-unit": "mocha ./tests/unit/",
     "test-integration": "mocha ./tests/integration/",
-    "fetch-dnas": "sh ./scripts/fetch-dna.sh",
-    "start-conductor": "make lair conductor"
+    "test-e2e": "make test-e2e",
+    "fetch-dnas": "make DNAs",
+    "start-holochain": "make lair start-conductor"
   },
   "author": "Holo Ltd.",
   "contributors": [
@@ -23,7 +24,8 @@
   },
   "dependencies": {
     "@holo-host/cryptolib": "Holo-Host/cryptolib-js#update-digest-for-rsm/2020-12-14",
-    "@holochain/conductor-api": "0.0.1-dev.13",
+    "@holo-host/data-translator": "^0.1.1",
+    "@holochain/conductor-api": "^0.0.1-dev.15",
     "@msgpack/msgpack": "^2.3.0",
     "@whi/stdlog": "^0.3.3",
     "concat-stream": "^2.0.0",
@@ -33,8 +35,8 @@
   },
   "devDependencies": {
     "@holo-host/chaperone": "Holo-Host/chaperone#e2e-envoy",
-    "@holo-host/holo-cli": "^0.1.0",
-    "@holochain-open-dev/holochain-run-dna": "^0.3.0",
+    "@holo-host/holo-cli": "Holo-Host/holo-cli#add-install-config",
+    "@holochain-open-dev/holochain-run-dna": "^0.3.1",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
     "chai": "^4.2.0",

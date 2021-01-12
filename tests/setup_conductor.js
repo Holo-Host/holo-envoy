@@ -23,9 +23,18 @@ function extract_sanitized_lines ( buf ) {
 async function start_conductor () {
     if ( holochain === undefined ) {
 	const cmd			= "holochain";
-	const args			=  "-c conductor-1.toml".split(" "); //  > conductor.log 2>&1 & tail -f conductor.log
+	const args			=  "-c ./tests/condutor-storage/conductor-config.yml".split(" "); //  > conductor.log 2>&1 & tail -f conductor.log
+	const opts		=  {
+		stdio: "inherit",
+		env: {
+		  ...process.env,
+		  RUST_LOG: process.env.RUST_LOG ? process.env.RUST_LOG : "info",
+		},
+	  }
+
 	log.debug("Spawning child holochain: %s %s (pwd %s)", cmd, args, process.env.PWD );
-	holochain			= ChildProcess.spawn( cmd, args );
+	
+	holochain			= ChildProcess.spawn( cmd, args, opts );
 	log.info("Started holochain with PID: %s", holochain.pid );
 
 	const hc_log_filters		= ["error", "warn"];
