@@ -11,7 +11,10 @@
     "test-integration": "mocha ./tests/integration/",
     "test-e2e": "make test-e2e",
     "fetch-dnas": "make DNAs",
-    "start-holochain": "make lair start-conductor"
+    "start-holochain": "make lair start-conductor",
+    "reset-holochain": "make stop-conductor reset-hcc",
+    "start-conductor": "make start-conductor",
+    "stop-conductor": "make stop-conductor"
   },
   "author": "Holo Ltd.",
   "contributors": [

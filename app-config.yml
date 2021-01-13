@@ -12,8 +12,15 @@
   app_name: holo-hosting-app
   app_port: 42233 # internal port
  
+
 # Hosted App
 - dnas:
-  - ./dnas/test.dna.gz
-  app_name: hosted-app
+  - ./dnas/elemental-chat.dna.gz
+  app_name: elemental-chat
   app_port: 42244 # hosted port
+
+# # Test Hosted App
+# - dnas:
+#   - ./dnas/test.dna.gz
+#   app_name: hosted-app
+#   app_port: 42244 # hosted port

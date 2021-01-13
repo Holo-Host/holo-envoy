@@ -56,11 +56,13 @@ HC_ADMIN_PORT	= 1234
 CCLI_OPTS	= -p $(HC_ADMIN_PORT) #-vvvvvv
 CCLI_CONFIG = ./app-config.yml
 
-lair:			$(LAIR_DIR)/socket
+$(LAIR_DIR):
+	mkdir -p $(LAIR_DIR)
+lair:	$(LAIR_DIR)	$(LAIR_DIR)/socket
 $(LAIR_DIR)/socket:
 	nix-shell --run "RUST_LOG=trace lair-keystore --lair-dir $(LAIR_DIR) > lair.log 2>&1 &"
 stop-lair:
-	kill $$(cat $(LAIR_DIR)/pid) && rm -f $(LAIR_DIR)/pid $(LAIR_DIR)/socket $(LAIR_DIR)/store
+	kill $$(cat $(LAIR_DIR)/pid) && rm -rf $(LAIR_DIR)
 check-lair:
 	@ps -efH | grep -v grep | grep lair-keystore
 	@pgrep lair-keystore
@@ -76,9 +78,10 @@ $(HC_CONF):		$(HC_DIR) tests/genconfig.js
 	node tests/genconfig.js $(HC_ADMIN_PORT) $(HC_CONF)
 $(HC_DIR)/pid:
 	make $(HC_CONF)
-	RUST_LOG=trace holochain --config-path $(HC_DIR)/conductor-config.yml > conductor.log 2>&1 & echo $$! | tee $(HC_DIR)/pid
+	RUST_LOG=info holochain --config-path $(HC_DIR)/conductor-config.yml > conductor.log 2>&1 & echo $$! | tee $(HC_DIR)/pid
 stop-conductor:
-	kill $$(cat $(HC_DIR)/pid) && rm -f $(HC_DIR)/pid && rm -rf $(HC_DIR)/databases
+	kill $$(cat $(HC_DIR)/pid) && rm -f $(HC_DIR)/pid
+clear-conductor: stop-conductor reset-hcc
 check-conductor:	check-holochain
 check-holochain:
 	@ps -efH | grep -v grep | grep -E "holochain.*config.yml"
@@ -100,6 +103,11 @@ dnas/elemental-chat.dna.gz:	dnas
 
 $(AGENT):
 	npx conductor-cli -q -p $(HC_ADMIN_PORT) gen-agent > $@ || rm $0
+create-agent: $(AGENT)
+delete-agent:
+	rm -rf $(AGENT);
+	make reset-hcc;
+
 install-dnas:		$(AGENT) DNAs
 	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" holo-hosting-app "dnas/holo-hosting-app.dna.gz:hha"	|| true
 	npx conductor-cli $(CCLI_OPTS) install -a "$$(cat $(AGENT))" servicelogger "dnas/servicelogger.dna.gz:servicelogger"	|| true
@@ -136,10 +144,12 @@ use-git-ccli:
 # Testing
 #
 MOCHA_OPTS		=
-clear-env:			stop-lair stop-conductor
-clean-env: 			clear-env reset-hcc
 runtime:		DNAs lair start-conductor install-dnas
 runtime-config: DNAs lair start-conductor install-config
+
+clear-env:		stop-lair stop-conductor 
+clean-env: 		stop-lair clear-conductor delete-agent
+
 test:			build runtime
 	make test-unit;
 	make test-integration;
@@ -169,7 +179,7 @@ test-e2e-debug:		build runtime-config dist/holo_hosting_chaperone.js
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/;
 	make stop-conductor;
 test-e2e-debug2:	build runtime-config dist/holo_hosting_chaperone.js
-	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/;
+	LOG_LEVEL=silly CONDUCTOR_LOGS=info,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/;
 	make stop-conductor;
 
 
