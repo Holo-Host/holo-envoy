@@ -29,7 +29,6 @@ async function init ( lair_socket, shim_socket, signing_handler ) {
 	for await ( let header of parser ) {
 	    if ( header === null )
 		continue;
-		// throw new Error(`Got a null header`);
 
 	    if ( header.wire_type_id === structs.Ed25519.SignByPublicKey.Request.WIRE_TYPE ) {
 		log.normal("Intercepted sign by public key");
