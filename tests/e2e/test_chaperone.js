@@ -8,6 +8,7 @@ const yaml 				= require('js-yaml');
 const expect				= require('chai').expect;
 const puppeteer				= require('puppeteer');
 
+const conductor				= require("../setup_conductor.js");
 const http_servers			= require('../setup_http_server.js');
 const setup				= require("../setup_envoy.js");
 const { Codec }			= require('@holo-host/cryptolib');
@@ -167,7 +168,11 @@ describe("Server", () => {
 	
 	log.info("Stopping Envoy...");
 	await setup.stop();
-    });
+	
+	// log.info("Stopping Conductor...");
+	// await conductor.forceStop();
+	});
+
     it("should sign-in and make a zome function call", async function () {
 	this.timeout( 300_000 );
 
@@ -269,9 +274,6 @@ describe("Server", () => {
 
 		try {
 			return client.callZomeFunction('test-hha', "hha", "get_happ", client.hha_hash );
-			// const zomeCall = await client.callZomeFunction('test-elemental-chat', "chat", "list_channels", { category: "General" } );
-			// console.log('COMPLETED ZOME CALL (IN TESTS...): ', zomeCall);
-			// return zomeCall;
 		} catch ( err ) {
 		    console.log( err.stack );
 		    console.log( typeof err.stack, err.stack.toString() );
@@ -280,7 +282,6 @@ describe("Server", () => {
 
 		log.info("Completed evaluation: %s", response );
 		expect( Object.keys(response)	).to.have.members([ "happ_id", "happ_bundle", "provider_pubkey" ]);
-	    // expect( Object.keys(response)	).to.have.members([ "channel", "info", "latest_chunk" ]);
 	} finally {
 	}
     });
