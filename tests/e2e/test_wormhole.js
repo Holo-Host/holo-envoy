@@ -27,7 +27,7 @@ describe("Wormhole tests", () => {
 	await wormhole.stop();
     });
 
-    it("should process request and respond", async () => {
+    it("should complete round-trip request to Lair", async () => {
 	let shim_client, resp;
 	let recv_unlock			= false;
 
@@ -54,7 +54,7 @@ describe("Wormhole tests", () => {
 	expect( recv_unlock		).to.be.true;
     });
 
-    it("should process request and respond", async () => {
+    it("should complete round-trip request to Envoy", async () => {
 	let shim_client, resp;
 
 	try {
