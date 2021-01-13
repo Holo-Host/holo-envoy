@@ -111,11 +111,11 @@ install-dnas:		$(AGENT) DNAs
 # TMP targets
 
 use-local-chaperone:
-	npm uninstall --save @holo-host/chaperone; yarn add --save-dev ../chaperone
+	npm uninstall --save @holo-host/chaperone; npm install --save-dev ../chaperone
 use-npm-chaperone:
-	npm uninstall --save @holo-host/chaperone; yarn add --save-dev @holo-host/chaperone
+	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone
 use-npm-chaperone-%:
-	npm uninstall --save @holo-host/chaperone; yarn add --save-dev @holo-host/chaperone@$*
+	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone@$*
 use-local-hhdt:
 	npm uninstall --save @holo-host/data-translator; npm install --save ../data-translator-js
 use-npm-hhdt:
@@ -124,8 +124,10 @@ use-local-ccli:
 	npm uninstall --save @holo-host/holo-cli; npm install --save-dev ../holo-cli
 use-npm-ccli:
 	npm uninstall --save @holo-host/holo-cli; npm install --save-dev @holo-host/holo-cli
-use-git-ccli:
-	npm uninstall --save @holo-host/holo-cli; npm install --save-dev 'https://github.com/Holo-Host/holo-cli#rebuild-for-rsm-2020-01-05'
+use-local-lair-client:
+	npm uninstall --save @holochain/lair-client; npm install --save-dev ../lair-client-js
+use-npm-lair-client:
+	npm uninstall --save @holochain/lair-client; npm install --save-dev @holochain/lair-client
 
 
 #
