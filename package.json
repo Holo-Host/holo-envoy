@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@holo-host/cryptolib": "Holo-Host/cryptolib-js#update-digest-for-rsm/2020-12-14",
+    "@holo-host/mock-conductor": "^0.1.2",
     "@holochain/conductor-api": "0.0.1-dev.13",
     "@holochain/lair-client": "git+https://github.com/holochain/lair-client-js.git#parser-forward-message-2020-01-11",
     "@msgpack/msgpack": "^2.3.0",

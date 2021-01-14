@@ -11,9 +11,10 @@ import concat_stream			from 'concat-stream';
 import SerializeJSON			from 'json-stable-stringify';
 import { Codec }			from '@holo-host/cryptolib';
 import { sprintf }			from 'sprintf-js';
-import { Server as WebSocketServer,
-	 Client as WebSocket }		from './wss';
+import { Server as WebSocketServer }	from './wss';
 import mocks				from './mocks';
+import { AdminWebsocket,
+	 AppWebsocket, }		from '@holochain/conductor-api';
 
 
 const sha256				= (buf) => crypto.createHash('sha256').update( Buffer.from(buf) ).digest();
@@ -107,11 +108,22 @@ class Envoy {
     async connections () {
 	try {
 	    const ifaces		= this.conductor_opts.interfaces;
+	    const client_promises	= {
+		"master":	AdminWebsocket.connect(`ws://localhost:${ifaces.master_port}`),
+		"service":	AppWebsocket.connect(`ws://localhost:${ifaces.service_port}`),
+		"internal":	AppWebsocket.connect(`ws://localhost:${ifaces.internal_port}`),
+		"hosted":	AppWebsocket.connect(`ws://localhost:${ifaces.hosted_port}`),
+	    };
 
-	    this.hcc_clients.master	= new WebSocket(`ws://localhost:${ifaces.master_port}`,   RPC_CLIENT_OPTS );
-	    this.hcc_clients.service	= new WebSocket(`ws://localhost:${ifaces.service_port}`,  RPC_CLIENT_OPTS );
-	    this.hcc_clients.internal	= new WebSocket(`ws://localhost:${ifaces.internal_port}`, RPC_CLIENT_OPTS );
-	    this.hcc_clients.hosted	= new WebSocket(`ws://localhost:${ifaces.hosted_port}`,   RPC_CLIENT_OPTS );
+	    this.connected		= Promise.all( Object.values(client_promises) );
+
+	    this.hcc_clients		= {
+		"master":	await client_promises.master,
+		"service":	await client_promises.service,
+		"internal":	await client_promises.internal,
+		"hosted":	await client_promises.hosted,
+	    };
+	    log.normal("All Conductor clients are in a 'CONNECTED' state");
 	} catch ( err ) {
 	    console.error( err );
 	}
@@ -121,21 +133,6 @@ class Envoy {
 	    this.hcc_clients[k].port = this.conductor_opts.interfaces[`${k}_port`];
 	    log.info("Conductor client '%s' configured for port (%s)", k, this.hcc_clients[k].port );
 	});
-
-	const clients			= Object.values( this.hcc_clients );
-	this.connected			= Promise.all(
-	    clients.map(async (client:any) => {
-		await client.opened( CONDUCTOR_TIMEOUT )
-		    .catch( err => {
-			log.fatal("Conductor client '%s' failed to connect: %s", client.name, String(err) );
-			console.log( client.name, err );
-		    });
-		log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.name, client.socket.readyState );
-	    })
-	);
-
-	await this.connected;
-	log.normal("All Conductor clients are in a 'CONNECTED' state");
     }
 
     async startWebsocketServer () {
@@ -645,9 +642,9 @@ class Envoy {
 	log.normal("Initiating shutdown; closing Conductor clients, RPC WebSocket server, then HTTP server");
 
 	const clients			= Object.values( this.hcc_clients );
-	clients.map( (client:any) => client.close() );
+	clients.map( (client:any) => client.client.close() );
 
-	await Promise.all( clients.map( (client:any) => client.closed() ));
+	await Promise.all( clients.map( (client:any) => client.client.awaitClose() ));
 	log.info("All Conductor clients are closed");
 
 	await this.ws_server.close();
