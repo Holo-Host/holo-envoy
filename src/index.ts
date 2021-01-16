@@ -604,7 +604,7 @@ class Envoy {
 			log.normal("Returning host reponse (%s) for request (%s) with signature (%s) as response_id (%s) to chaperone",
 			JSON.stringify( host_response, null, 4 ), JSON.stringify( request, null, 4 ), JSON.stringify(service_signature), response_id);
 
-			response_message = new Package({ host_response, zomeCall_response }, { "type": "success" }, { response_id });
+			response_message = new Package({ zomeCall_response }, { "type": "success" }, { response_id, host_response });
 		} 
 
 		return response_message;
@@ -880,8 +880,7 @@ class Envoy {
 		}
 
 		log.normal("\nConductor call returned successful response: typeof '%s'", typeof resp );
-		console.log('CONDUCTOR CALL COMPLETE ')
-		console.log('--------------------------------------------\n');
+		// console.log('--------------------------------------------\n');
 		return resp;
     }
 
@@ -1055,8 +1054,8 @@ class Envoy {
 		});
 
 		if ( resp ) {
-			console.log('\nFINISHED SERVICE LOGGER CONFIRMATION: ', resp);
-			console.log('------------------------------------------\n\n')
+			log.silly('\nFinished Servicelogger confirmation: ', resp);
+			// console.log('------------------------------------------\n\n')
 			
 			log.info("Returning success response for confirmation log (%s): typeof '%s, %s'", confirmation, typeof resp, resp );
 			return resp;
