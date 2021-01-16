@@ -430,7 +430,6 @@ class Envoy {
 	
 	// Chaperone AppInfo Call to Envoy Server
 	this.ws_server.register("holo/app_info", async ({ installed_app_id }) => {
-		const response_id = this.request_counter;
 		this.request_counter++;
 
 		let appInfo
@@ -446,7 +445,10 @@ class Envoy {
 			return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
 		}
 
-		log.normal("Completed AppInfo call for installed_app_id (%s)", installed_app_id);
+		const response_hash = digest( appInfo );
+		const response_id = response_hash;
+
+		log.normal("Completed AppInfo call for installed_app_id (%s) with response_id (%s)", installed_app_id, response_id);
 
 		return  new Package( appInfo, { "type": "success" }, { response_id });
 		
@@ -462,7 +464,6 @@ class Envoy {
 	
 	// Chaperone ZomeCall to Envoy Server
 	this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
-		const response_id = this.request_counter;
 		this.request_counter++;
 
 		log.silly("Received request: %s", payload.call_spec );
@@ -586,6 +587,7 @@ class Envoy {
 		log.info("Service response by Host: %s",  JSON.stringify( host_response, null, 4 ) );
 
 		// Use response_id to act as waiting ID
+		const response_id = host_response.response_hash;
 		log.info("Adding service call ID (%s) to waiting list for client confirmations for agent (%s)", response_id, agent_id );
 		this.addPendingConfirmation( response_id, request, host_response, agent_id );
 
