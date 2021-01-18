@@ -132,16 +132,27 @@ describe("Server", () => {
 	let registered_agent;
 
     before(async function() {
-	this.timeout(10_000);
+	this.timeout(20_000);
+
+	function delay(t, val) {
+    	return new Promise(function(resolve) {
+    	    setTimeout(function() {
+    		resolve(val);
+    	    }, t);
+    	});
+    }
+	
+	log.info("Waiting for Conductor to spin up");
+	await delay(8000);
 
 	log.info("Starting Envoy");
 	envoy				= await setup.start(envoyOpts);
 	server				= envoy.ws_server;
 	
-	log.info("Waiting for Conductor connections...");
+	log.info("Waiting to connect to Conductor");
 	await envoy.connected;
 
-	log.info("Envoy Connected...");
+	log.info("Envoy Connected");
 
 	http_ctrls			= http_servers();
 	browser				= await puppeteer.launch();

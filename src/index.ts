@@ -279,8 +279,6 @@ class Envoy {
 				"provenance": buffer_host_agent_hha_id,
 		});
 
-		// console.log('HHA CALL RESPONSE : ', resp)
-
 	    if ( !resp ) {
 		log.error("Failed during App Details lookup in HHA: %s", resp );
 		return failure_response;
@@ -615,7 +613,7 @@ class Envoy {
 	// Chaperone Call to Envoy Server to confirm service
 	this.ws_server.register("holo/service/confirm", async ([ response_id, response_signature, confirmation ]) => {
 	    log.normal("Received confirmation request for call response (%s)", response_id );
-	    if ( typeof response_id !== "number" ) {
+	    if ( typeof response_id !== "string" ) {
 		log.error("Invalid type '%s' for response ID, should be of type 'string'", typeof response_id );
 		return false;
 		}
@@ -828,7 +826,7 @@ class Envoy {
 			if ( callAgent === "app" ) {
 				if ( typeof resp !== 'object' || resp === null) {
 					const validHoloHash = this.verifyHoloHash(resp);
-					// If appInterface call response is not an object, it should be a holohash of type header, entry, agent, or dna
+					// If AppInterface call response is not an object, it should be a holohash of type header, entry, agent, or dna
 					if (validHoloHash) {
 						log.debug("Successful app interface response: %s ", JSON.stringify(resp));
 					} else {
@@ -882,7 +880,6 @@ class Envoy {
 		}
 
 		log.normal("\nConductor call returned successful response: typeof '%s'", typeof resp );
-		// console.log('--------------------------------------------\n');
 		return resp;
     }
 
@@ -919,7 +916,7 @@ class Envoy {
 		log.debug("Using argument digest: %s", args_hash );
 		const request_payload			= {
 			"timestamp":	[(new Date(payload.timestamp)).getTime(), 0],
-			// NB: Servicelogger is updated to expect the holo host agent ID as only a string for now
+			// NB: Servicelogger is updated to expect the holo host agent ID as only a string
 			"host_id":		payload.host_id,
 			"call_spec": {
 				"hha_hash":	call_spec["hha_hash"],
@@ -937,10 +934,7 @@ class Envoy {
         request_signature: signature
 	}
 
-	console.log('\nFINISHED SERVICE REQUEST: ', request);
-	console.log('------------------------------------------\n\n')
-
-	// log.silly("Set service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
+	log.silly("Set service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify( request, null, 4 ));
 	return request;
     }
 
@@ -956,17 +950,13 @@ class Envoy {
 	};
 
 	log.silly("Set service response (%s) with metrics (%s) and weblog_compat (%s)", response_hash, host_metrics, weblog_compat );
-
-	console.log('\nFINISHED SERVICE RESPONSE: ', resp);
-	console.log('------------------------------------------\n\n')
 	return resp;
     }
 
     async logServiceConfirmation ( client_request, host_response, confirmation ) {
 		log.normal("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response );
 
-		const hha_hash = client_request.request.call_spec.hha_hash;
-		console.log('hha_hash : ', hha_hash)		
+		const hha_hash = client_request.request.call_spec.hha_hash;	
 		
 		let servicelogger_installed_app_id;
 		if (this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
@@ -975,8 +965,7 @@ class Envoy {
 			// NB: There will be a new servicelogger app for each hosted happ (should happen at the time of self-hosted install - prompted in host console.)
 			// TODO: verify this pattern once we have DL for servicelogger install pattern
 			servicelogger_installed_app_id = `${hha_hash}:servicelogger`;
-		}
-		console.log('servicelogger_installed_app_id: ', servicelogger_installed_app_id)		
+		}	
 
 		log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
 		const appInfo			= await this.callConductor( "service", { installed_app_id: servicelogger_installed_app_id });
@@ -1057,7 +1046,6 @@ class Envoy {
 
 		if ( resp ) {
 			log.silly('\nFinished Servicelogger confirmation: ', resp);
-			// console.log('------------------------------------------\n\n')
 			
 			log.info("Returning success response for confirmation log (%s): typeof '%s, %s'", confirmation, typeof resp, resp );
 			return resp;
