@@ -118,7 +118,7 @@ class Envoy {
 
 	this.conductor_opts		= {
 	    "interfaces": {
-		"master_port":		1234, // conductor admin interface (adminPort) >>> NB: Currently set for holochain-run-dna - needs to be 4444
+		"master_port":		4444, // conductor admin interface (adminPort)
 		"service_port":		42222, // servicelogger (happPort)
 		"internal_port":	42233, //  self-hosted (happPort)
 		"hosted_port":		42244,  // hosted (happPort)

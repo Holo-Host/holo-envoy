@@ -12,7 +12,7 @@ const MockConductor        		= require('@holo-host/mock-conductor');
 const { ZomeAPIResult }			= MockConductor;
 
 describe("Server with mock Conductor", () => {
-	const MASTER_PORT = 1234;
+	const MASTER_PORT = 4444;
 	const MOCK_CELL_ID = ["dnaHash", "agentPubkey"];
 
     let envoy;

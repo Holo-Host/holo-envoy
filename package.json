@@ -11,7 +11,7 @@
     "test-integration": "mocha ./tests/integration/",
     "test-e2e": "mocha ./tests/e2e",
     "fetch-dnas": "sh ./scripts/fetch-dna.sh",
-    "start-conductor": "holochain-run-dna -c ./app-config.yml -a 1234"
+    "start-conductor": "holochain-run-dna -c ./app-config.yml -a 4444"
   },
   "author": "Holo Ltd.",
   "contributors": [
