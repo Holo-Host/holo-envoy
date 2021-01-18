@@ -19,7 +19,7 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Holo-Host/envoy/"
+    "url": "https://github.com/Holo-Host/holo-envoy/"
   },
   "dependencies": {
     "@holo-host/cryptolib": "Holo-Host/cryptolib-js#update-digest-for-rsm/2020-12-14",
