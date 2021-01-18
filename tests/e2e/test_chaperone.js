@@ -13,7 +13,7 @@ const http_servers			= require('../setup_http_server.js');
 const setup				= require("../setup_envoy.js");
 const { Codec }			= require('@holo-host/cryptolib');
 
-const installedAppIds = yaml.safeLoad(fs.readFileSync('dna-config.yml'));
+const installedAppIds = yaml.load(fs.readFileSync('app-config.yml'));
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}:servicelogger`)
 // TODO: verify this pattern once we have DL for servicelogger install pattern
 const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
