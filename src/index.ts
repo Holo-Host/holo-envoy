@@ -251,11 +251,7 @@ class Envoy {
 	this.ws_server.register("holo/agent/signup", async ([ hha_hash, agent_id ]) => {
 		log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash )
 
-		const failure_response	= (new HoloError("Failed to create a new hosted agent")).toJSON();
-	
-		// TODO: Update to hhdt response format:
-		// const failure_response = Package.createFromError("HoloError", (new HoloError("Failed to create a new hosted agent")).toJSON())
-
+		const failure_response	= (new HoloError("Failed to create a new hosted agent")).toJSON();	
 	    let resp;
 
 		log.info("Retrieve the holo-hosting-app cell id using the Installed App Id: '%s'", HHA_INSTALLED_APP_ID);
@@ -271,13 +267,13 @@ class Envoy {
 
 	    log.info("Look-up Hosted App's HHA record using ID '%s'", hha_hash );
 	    resp			= await this.callConductor( "internal", {
-		    "cell_id":		hha_cell_id,
-		    "zome_name":		"hha",
-		    "fn_name":		"get_happ",
-				"payload":		hha_hash,
-				"cap":		null,
-				"provenance": buffer_host_agent_hha_id,
-		});
+		"cell_id":		hha_cell_id,
+		"zome_name":		"hha",
+		"fn_name":		"get_happ",
+		"payload":		hha_hash,
+		"cap":			null,
+		"provenance": buffer_host_agent_hha_id,
+	    });
 
 	    if ( !resp ) {
 		log.error("Failed during App Details lookup in HHA: %s", resp );
@@ -310,69 +306,64 @@ class Envoy {
 		log.info("Encoded Agent ID (%s) into buffer form: %s", agent_id, buffer_agent_id );
 		
 		let failed			= false;
-			try {
-				let adminResponse;
-				// - Install App - This admin function creates cells for each dna with associated nick, under the hood.
-				try {				
+		try {
+		    let adminResponse;
+		    // - Install App - This admin function creates cells for each dna with associated nick, under the hood.
+		    try {				
+			log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, installed_app_id );
 
-				log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, installed_app_id );
+			let dnas;
+			if (this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
+				dnas = this.opts.hosted_app.dnas;
+			}
 
-				let dnas;
-				if (this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
-					dnas = this.opts.hosted_app.dnas;
-				}
-
-				adminResponse			= await this.callConductor( "master", 'installApp', {
-					installed_app_id,
-					agent_key: buffer_agent_id,
-					dnas: dnas || app.happ_bundle.dnas.map(dna => {
-						let nick;
-						if (!dna.nick) {
-							const dnaFileName = dna.path.split("/");
-							nick = dnaFileName[dnaFileName.length - 1]
-						} else {
-							nick = dna.nick
-						}
-						return { nick, path: dna.path };
-					  }),
-				});
+			adminResponse			= await this.callConductor( "master", 'installApp', {
+				installed_app_id,
+				agent_key: buffer_agent_id,
+				dnas: dnas || app.happ_bundle.dnas.map(dna => {
+					let nick;
+					if (!dna.nick) {
+						const dnaFileName = dna.path.split("/");
+						nick = dnaFileName[dnaFileName.length - 1]
+					} else {
+						nick = dna.nick
+					}
+					return { nick, path: dna.path };
+				}),
+			});
 
 				if ( adminResponse.type !== "success" ) {
 					log.error("Conductor 'installApp' returned non-success response: %s", adminResponse );
 					failed		= true
-					// TODO: Update to hhdt response format to fwd on to web client:
-					// return Package.createFromError("HoloError", (new HoloError(`Failed to complete 'installApp' for installed_app_id'${installed_app_id}'.`)).toJSON())
 					throw (new HoloError(`Failed to complete 'installApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
 				}
-				} catch ( err ) {
-				if ( err.message.toLowerCase().includes( "duplicate cell" ) )
-					log.warn("Cell (%s) already exists in Conductor", installed_app_id );
-				else {
-					log.error("Failed during 'installApp': %s", String(err) );
+		    } catch ( err ) {
+			if ( err.message.toLowerCase().includes( "duplicate cell" ) ) {
+			    log.warn("Cell (%s) already exists in Conductor", installed_app_id );
+			} else {
+				log.error("Failed during 'installApp': %s", String(err) );
 					throw err;
-				}
-				}
+			}
+		    }
 
-				// Activate App -  Add the Installed App to a hosted interface.
-				try {
-				log.info("Activating Installed App (%s)", installed_app_id );
-				adminResponse		= await this.callConductor( "master", 'activateApp', { installed_app_id });
+		    // Activate App -  Add the Installed App to a hosted interface.
+		    try {
+			log.info("Activating Installed App (%s)", installed_app_id );
+			adminResponse		= await this.callConductor( "master", 'activateApp', { installed_app_id });
 
-				if ( adminResponse.type !== "success" ) {
-					log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse );
-					failed		= true
-					// TODO: Update to hhdt response format to fwd on to web client:
-					// return Package.createFromError("HoloError", (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`)).toJSON())
-					throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
-				}
-				} catch ( err ) {
-				if ( err.message.toLowerCase().includes( "already in interface" ) )
+			if ( adminResponse.type !== "success" ) {
+				log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse );
+				failed		= true
+				throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
+			}
+		    } catch ( err ) {
+			if ( err.message.toLowerCase().includes( "already in interface" ) )
 					log.warn("Cannot Activate App: Installed App ID (%s) is already added to hosted interface", installed_app_id );
 				else {
 					log.error("Failed during 'activateApp': %s", String(err) );
 					throw err;
-				}
-				}
+			}
+		    }
 
 				// Attach App to Interface - Connect app to hosted interface and start app (ie: spin up all cells within app bundle)
 				try {
@@ -393,8 +384,6 @@ class Envoy {
 				if ( adminResponse.type !== "success" ) {
 					log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse );
 					failed		= true
-					// TODO: Update to hhdt response format to fwd on to web client:
-					// return Package.createFromError("HoloError", (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`)).toJSON())
 					throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id'${installed_app_id}'.`)).toJSON();
 				}
 				} catch ( err ) {
