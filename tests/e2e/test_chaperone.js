@@ -178,9 +178,6 @@ describe("Server", () => {
 
     log.info("Stopping Envoy...");
     await setup.stop();
-
-    // log.info("Stopping Conductor...");
-    // await conductor.forceStop();
   });
 
   it("should sign-in and make a zome function call", async function () {
@@ -264,10 +261,12 @@ describe("Server", () => {
         await client.ready(200_000);
         await client.signUp("alice.test.1@holo.host", "Passw0rd!");
         console.log("Finished sign-up for agent: %s", client.agent_id);
-        if (client.anonymous === true)
-          return console.error("Client did not sign-in");
-        if (client.agent_id !== registered_agent.encoded)
-          return console.error("Unexpected Agent ID:", client.agent_id);
+        if (client.anonymous === true) {
+          throw new Error ("Client did not sign-in")
+        }
+        if (client.agent_id !== registered_agent.encoded) {
+          throw new Error (`Unexpected Agent ID: ${client.agent_id}`)
+        }
 
         // Set logger settings for hosted app (in real word scenario - will be done when host installs app):
         try {
@@ -287,12 +286,12 @@ describe("Server", () => {
         } catch (err) {
           console.log(err.stack);
           console.log(typeof err.stack, err.stack.toString());
+          throw err
         }
       }, host_agent_id, registered_agent, registered_happ_hash);
 
       log.info("Completed evaluation: %s", response);
       expect(Object.keys(response)).to.have.members(["happ_id", "happ_bundle", "provider_pubkey"]);
-    } finally {
     }
   });
 

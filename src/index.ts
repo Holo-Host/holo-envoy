@@ -401,7 +401,7 @@ class Envoy {
       }
 
       if (failed === true) {
-        // TODO: Rollback cells that were already created << check to see if is already being done in core.
+        // TODO: Rollback cells that were already created << check to see if is already being done in RSM.
         log.error("Failed during sign-up process for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, failure_response);
 
         return failure_response;
@@ -556,14 +556,10 @@ class Envoy {
       // - Servicelogger response
       let host_response;
 
-      // TODO: Replace hardcoded values with actual once possible:
-      // NOTE: cpu will be calculated in holochain-rsm, bandwidth should be calculated in envoy
       const host_metrics = {
-        // TODO: Calculate bandwidth of zomeCall response payload and pass in here:
-        // bandwidth: 1256,
         "cpu": 7
       };
-      // TODO: Replace hardcoded values with actual:
+
       const weblog_compat = {
         source_ip: "100:0:0:0",
         status_code: 200
@@ -645,6 +641,7 @@ class Envoy {
 
   // WORMHOLE HTTP SERVER
 
+  // this is currently not used
   async startHTTPServer() {
     let wormhole_counter = 0;
     function prefix(msg) {
