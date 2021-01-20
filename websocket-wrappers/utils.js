@@ -1,14 +1,12 @@
 
-const { openStdin } = require('process');
 const async_with_timeout		= require('./async_with_timeout.js');
-const { TimeoutError }			= async_with_timeout;
 
 const path				= require('path');
 const log				= require('@whi/stdlog')(path.basename( __filename ), {
     level: process.env.LOG_LEVEL || 'fatal',
 });
 
-class ConnectionCheck {
+class ConnectionMonitor {
     constructor(client, connect, wsProtocol, { reconnectInterval, maxReconnects }) {
         this.socket = client.socket;
         this.connect = connect;
@@ -107,4 +105,4 @@ class ConnectionCheck {
         }, timeout );
     } 
 } 
-module.exports				= ConnectionCheck
+module.exports				= ConnectionMonitor

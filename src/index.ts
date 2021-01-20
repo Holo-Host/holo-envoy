@@ -146,7 +146,7 @@ class Envoy {
 			name: k,
 			port: this.conductor_opts.interfaces[`${k}_port`]
 		 });
-	    log.info("Conductor client '%s' configured for port (%s)", k, this.hcc_clients[k].checkConnection.port );
+	    log.info("Conductor client '%s' configured for port (%s)", k, this.hcc_clients[k].connectionMonitor.port );
 	});
 
 	const clients			= Object.values( this.hcc_clients );
@@ -154,10 +154,10 @@ class Envoy {
 	    clients.map(async (client:any) => {
 		await client.opened( CONDUCTOR_TIMEOUT )
 		    .catch( err => {
-			log.fatal("Conductor client '%s' failed to connect: %s", client.checkConnection.name, String(err) );
+			log.fatal("Conductor client '%s' failed to connect: %s", client.connectionMonitor.name, String(err) );
 			});
 					
-		log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.checkConnection.name, client.checkConnection.socket.readyState );
+		log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.connectionMonitor.name, client.connectionMonitor.socket.readyState );
 	    })
 	);
 
@@ -735,7 +735,7 @@ class Envoy {
 	log.normal("Initiating shutdown; closing Conductor clients, RPC WebSocket server, then HTTP server");
 
 	const clients			= Object.values( this.hcc_clients );
-	await Promise.all( clients.map( (client:any) => client.checkConnection.socket.close() ));
+	await Promise.all( clients.map( (client:any) => client.connectionMonitor.socket.close() ));
 	log.info("All Conductor clients are closed");
 
 	await this.ws_server.close();
@@ -778,7 +778,7 @@ class Envoy {
 			if ( typeof client === "string" )
 			client			= this.hcc_clients[ client ];
 
-			let ready_state		= client.checkConnection.socket.readyState;
+			let ready_state		= client.connectionMonitor.socket.readyState;
 			if ( ready_state !== 1 ) {
 			log.silly("Waiting for 'CONNECTED' state because current ready state is %s (%s)", ready_state, READY_STATES[ready_state] );
 			await client.opened();
@@ -816,7 +816,7 @@ class Envoy {
 		
 		let resp;
 		try {
-			log.silly("Calling Conductor method (%s) over client '%s' with input %s: ", methodName, client.checkConnection.name, JSON.stringify(args));
+			log.silly("Calling Conductor method (%s) over client '%s' with input %s: ", methodName, client.connectionMonitor.name, JSON.stringify(args));
 			try {	
 				resp			= await interfaceMethod( args );
 			} catch (error) {

@@ -164,7 +164,7 @@ describe("Server", () => {
 
 	// NOTE: This is a workaround until wormhole signing is in place. Using the Host Servicelogger Agent Key to call public sign functions for activity log signatures.
 	registered_agent	= await getHostAgentKey(service_client);
-	log.info('Using host agent (%s) in conductor on service port(%s)', registered_agent, service_client.checkConnection.port);
+	log.info('Using host agent (%s) in conductor on service port(%s)', registered_agent, service_client.connectionMonitor.port);
 	
 	registered_happ_hash 			= await registerTestAppInHha(hosted_client);
 	});
