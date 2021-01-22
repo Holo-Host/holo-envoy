@@ -23,7 +23,7 @@
     "url": "https://github.com/Holo-Host/holo-envoy/"
   },
   "dependencies": {
-    "@holo-host/cryptolib": "Holo-Host/cryptolib-js#develop",
+    "@holo-host/cryptolib": "^0.3.0",
     "@holo-host/data-translator": "^0.1.1",
     "@holo-host/mock-conductor": "^0.1.2",
     "@holochain/conductor-api": "^0.0.1-dev.15",
@@ -31,12 +31,11 @@
     "@whi/stdlog": "^0.3.3",
     "concat-stream": "^2.0.0",
     "json-stable-stringify": "^1.0.1",
-    "request": "^2.88.2",
     "rpc-websockets": "^4.6.1",
-    "sprintf-js": "^1.1.2"
+    "request": "^2.88.2"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "file:/home/lisa/Documents/gitrepos/holo/rust-compatible/holo-web-arch/chaperone",
+    "@holo-host/chaperone": "0.3.0",
     "@holochain-open-dev/holochain-run-dna": "^0.3.1",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",

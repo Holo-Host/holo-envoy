@@ -2,7 +2,6 @@ import path from 'path';
 import tmp from 'tmp';
 import fs from 'fs';
 import logger from '@whi/stdlog';
-import { sprintf } from 'sprintf-js';
 import crypto from 'crypto';
 import request from 'request';
 import http from 'http';
@@ -66,10 +65,7 @@ interface EnvoyConfig {
 
 class HoloError extends Error {
 
-  constructor(message, ...params) {
-    if (params.length > 0)
-      message = sprintf(message, ...params);
-
+  constructor(message) {
     // Pass remaining arguments (including vendor specific ones) to parent constructor
     super(message);
 
@@ -557,7 +553,7 @@ class Envoy {
           call_spec.args = null
         }
 
-        // NOTE: ZomeCall Structure = { 
+        // NOTE: ZomeCall Structure = {
         // cell_id,
         // zome_name,
         // fn_name,
@@ -847,7 +843,7 @@ class Envoy {
       }
     } catch (err) {
       log.debug("CallConductor preamble threw error: ", err);
-      throw new HoloError("callConductor preamble threw error: %s", String(err));
+      throw new HoloError(`callConductor preamble threw error: ${String(err)}}`, );
     }
 
     let resp;
@@ -876,7 +872,7 @@ class Envoy {
         if (resp) {
           resp.type = "success";
         } else {
-          // In the case where admin function doesn't return anything (eg: activate_app), 
+          // In the case where admin function doesn't return anything (eg: activate_app),
           // *** but doesn't fail, need to form response obj:
           resp = { type: "success" };
         }
@@ -903,14 +899,14 @@ class Envoy {
         }
         else {
           log.fatal("Failed during Conductor call with RPC Internal Error: %s -> %s", err.message, err.data);
-          throw new HoloError("Unknown -32000 Error: %s", JSON.stringify(err));
+          throw new HoloError(`Unknown -32000 Error: ${JSON.stringify(err)}`);
         }
       } else if (err instanceof Error) {
         log.error("Failed during Conductor call with error: %s", String(err));
         throw new HoloError(String(err));
       } else {
         log.fatal("Failed during Conductor call with unknown error: %s", err);
-        throw new HoloError("Unknown RPC Error: %s", JSON.stringify(err));
+        throw new HoloError(`Unknown RPC Error: ${JSON.stringify(err)}`);
       }
     }
 

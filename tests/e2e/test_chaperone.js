@@ -10,7 +10,9 @@ const puppeteer = require('puppeteer');
 
 const http_servers = require('../setup_http_server.js');
 const setup = require("../setup_envoy.js");
-const { Codec } = require('@holo-host/cryptolib');
+const {
+  Codec
+} = require('@holo-host/cryptolib');
 
 const installedAppIds = yaml.load(fs.readFileSync('app-config.yml'));
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
@@ -23,7 +25,9 @@ async function create_page(url) {
   const page = await browser.newPage();
 
   log.info("Go to: %s", url);
-  await page.goto(url, { "waitUntil": "networkidle0" });
+  await page.goto(url, {
+    "waitUntil": "networkidle0"
+  });
 
   return page;
 }
@@ -33,8 +37,7 @@ class PageTestUtils {
     this.logPageErrors = () => page.on('pageerror', async error => {
       if (error instanceof Error) {
         log.silly(error.message);
-      }
-      else
+      } else
         log.silly(error);
     });
 
@@ -84,7 +87,9 @@ const envoyOpts = {
 }
 
 const getHostAgentKey = async (serviceClient) => {
-  const appInfo = await serviceClient.appInfo({ installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID });
+  const appInfo = await serviceClient.appInfo({
+    installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
+  });
   const agentPubKey = appInfo.cell_data[0][0][1];
   return {
     decoded: agentPubKey,
@@ -93,7 +98,9 @@ const getHostAgentKey = async (serviceClient) => {
 }
 // Register test app in hha  (in real word scenario - will be done when provider registers app in hha):
 const registerTestAppInHha = async (hostedClient) => {
-  const hhaAppInfo = await hostedClient.appInfo({ installed_app_id: HHA_INSTALLED_APP_ID });
+  const hhaAppInfo = await hostedClient.appInfo({
+    installed_app_id: HHA_INSTALLED_APP_ID
+  });
   const hhaCellId = hhaAppInfo.cell_data[0][0];
 
   const happBundle = {
@@ -110,7 +117,9 @@ const registerTestAppInHha = async (hostedClient) => {
 
   let happRegistrationId;
   try {
-    ({ happ_id: happRegistrationId } = await hostedClient.callZome({
+    ({
+      happ_id: happRegistrationId
+    } = await hostedClient.callZome({
       // NOTE: Cell ID content MUST be passed in as a byte buffer not a u8int byte-array
       cell_id: [Buffer.from(hhaCellId[0]), Buffer.from(hhaCellId[1])],
       zome_name: 'hha',
@@ -134,12 +143,12 @@ describe("Server", () => {
   let service_client;
   let registered_agent;
 
-  before(async function () {
+  before(async function() {
     this.timeout(20_000);
 
     function delay(t, val) {
-      return new Promise(function (resolve) {
-        setTimeout(function () {
+      return new Promise(function(resolve) {
+        setTimeout(function() {
           resolve(val);
         }, t);
       });
@@ -184,7 +193,7 @@ describe("Server", () => {
     await setup.stop();
   });
 
-  it("should sign-in and make a zome function call", async function () {
+  it("should sign-in and make a zome function call", async function() {
     this.timeout(300_000);
 
     try {
@@ -200,7 +209,9 @@ describe("Server", () => {
         let serviceloggerCellId;
         try {
           // REMINDER: there is one servicelogger instance per installed hosted app, each with their own installed_app_id
-          const serviceloggerAppInfo = await service_client.appInfo({ installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID });
+          const serviceloggerAppInfo = await service_client.appInfo({
+            installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
+          });
           serviceloggerCellId = serviceloggerAppInfo.cell_data[0][0];
         } catch (error) {
           throw new Error(JSON.stringify(error));
@@ -266,10 +277,10 @@ describe("Server", () => {
         await client.signUp("alice.test.1@holo.host", "Passw0rd!");
         console.log("Finished sign-up for agent: %s", client.agent_id);
         if (client.anonymous === true) {
-          throw new Error ("Client did not sign-in")
+          throw new Error("Client did not sign-in")
         }
         if (client.agent_id !== registered_agent.encoded) {
-          throw new Error (`Unexpected Agent ID: ${client.agent_id}`)
+          throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
 
         // Set logger settings for hosted app (in real word scenario - will be done when host installs app):
