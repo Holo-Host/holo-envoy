@@ -5,12 +5,11 @@ const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
 
-
-function HhaResult(result) {
-  return { result };
+function HhaResult ( result ) {
+    return result;
 }
-function HhaError(result) {
-  return { result };
+function HhaError ( result ) {
+    return result;
 }
 
 async function hha(zome, func, args) {

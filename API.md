@@ -10,16 +10,11 @@ Arguments
 - `<agent_id>`
 
 
-### `holo/agent/identify`
-Endpoint for asking a Host if they are hosting the given Agent ID.
+### `holo/app_info`
+Endpoint for fetching app data, including a list of cell_data and nicknames for each dna in the app.
 
 Arguments
-- `<agent_id>`
-
-Failure modes
-- Host does not have expected installed_app_ids or cells_ids
-- Host does not have the correct chains
-- Host does not have up-to-date chains
+- `<installed_app_id>`
 
 
 ### `holo/call`

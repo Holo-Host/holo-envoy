@@ -46,7 +46,7 @@ async function create_client(agent_id = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1Bdp
   const client = new Chaperone({
     "port": envoy.ws_server.port,
     "agent_id": agent_id,
-    "instance_prefix": hha_hash,
+    "app_id": hha_hash,
     "timeout": timeout,
     "debug": ["debug", "silly"].includes((process.env.LOG_LEVEL || "").toLowerCase()),
     "host": "localhost",

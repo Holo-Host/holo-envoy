@@ -32,9 +32,10 @@
     "concat-stream": "^2.0.0",
     "json-stable-stringify": "^1.0.1",
     "rpc-websockets": "^4.6.1"
+    "request": "^2.88.2",
   },
   "devDependencies": {
-    "@holo-host/chaperone": "Holo-Host/chaperone#develop",
+    "@holo-host/chaperone": "file:/home/lisa/Documents/gitrepos/holo/rust-compatible/holo-web-arch/chaperone",
     "@holochain-open-dev/holochain-run-dna": "^0.3.1",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
