@@ -463,8 +463,6 @@ class Envoy {
 
     // Chaperone AppInfo Call to Envoy Server
     this.ws_server.register("holo/app_info", async ({ installed_app_id }) => {
-      this.request_counter++;
-
       let appInfo
       try {
         log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
@@ -497,8 +495,6 @@ class Envoy {
 
     // Chaperone ZomeCall to Envoy Server
     this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
-      this.request_counter++;
-
       log.silly("Received request: %s", payload.call_spec);
 
       // Example of request package
@@ -599,40 +595,38 @@ class Envoy {
         }
       }
 
-      // - Servicelogger response
-      let host_response;
-
-      const host_metrics = {
-        "cpu": 7
-      };
-
-      const weblog_compat = {
-        source_ip: "100:0:0:0",
-        status_code: 200
-      }
-
-      log.debug("Form service response for signed request (%s): %s", service_signature, JSON.stringify(request, null, 4));
-      host_response = this.logServiceResponse(zomeCall_response, host_metrics, weblog_compat);
-      log.info("Service response by Host: %s", JSON.stringify(host_response, null, 4));
-
-      // Use response_id to act as waiting ID
-      const response_id = host_response.response_hash;
-      log.info("Adding service call ID (%s) to waiting list for client confirmations for agent (%s)", response_id, agent_id);
-      this.addPendingConfirmation(response_id, request, host_response, agent_id);
-
       // - return host response
       let response_message;
       if (holo_error) {
-        // Remove pending log confirmation when fail
-        this.removePendingConfirmation(response_id);
-
         const errorPack = Package.createFromError("HoloError", holo_error);
         log.normal('Returning error: ', errorPack);
 
         response_message = errorPack;
       }
       else {
-        log.normal("Returning host reponse (%s) for request (%s) with signature (%s) as response_id (%s) to chaperone",
+				// - Servicelogger response
+				let host_response;
+
+				const host_metrics = {
+					"cpu": 7
+				};
+
+				const weblog_compat = {
+					source_ip: "100:0:0:0",
+					status_code: 200
+				}
+
+				log.debug("Form service response for signed request (%s): %s", service_signature, JSON.stringify(request, null, 4));
+				host_response = this.logServiceResponse(zomeCall_response, host_metrics, weblog_compat);
+				log.info("Service response by Host: %s", JSON.stringify(host_response, null, 4));
+
+				// Use response_id to act as waiting ID
+				const response_id = host_response.response_hash;
+
+				log.info("Adding service call ID (%s) to waiting list for client confirmations for agent (%s)", response_id, agent_id);
+				this.addPendingConfirmation(response_id, request, host_response, agent_id);
+
+				log.normal("Returning host reponse (%s) for request (%s) with signature (%s) as response_id (%s) to chaperone",
           JSON.stringify(host_response, null, 4), JSON.stringify(request, null, 4), JSON.stringify(service_signature), response_id);
 
         response_message = new Package({ zomeCall_response }, { "type": "success" }, { response_id, host_response });
