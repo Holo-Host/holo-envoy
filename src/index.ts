@@ -1,8 +1,10 @@
 import path from 'path';
+import tmp from 'tmp';
 import fs from 'fs';
 import logger from '@whi/stdlog';
 import { sprintf } from 'sprintf-js';
 import crypto from 'crypto';
+import request from 'request';
 import http from 'http';
 import concat_stream from 'concat-stream';
 import SerializeJSON from 'json-stable-stringify';
@@ -10,6 +12,8 @@ import { Codec } from '@holo-host/cryptolib';
 import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
+
+const requestUrl = request;
 
 const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
@@ -41,13 +45,15 @@ interface CallSpec {
 }
 
 interface AppDna {
-  path: string;
   nick?: string;
+	path: string;
+	src_path: string;
 }
 
 interface HostedAppConfig {
   servicelogger_id: string;
-  dnas: [AppDna];
+	dnas: [AppDna];
+	usingURL: boolean
 }
 
 interface EnvoyConfig {
@@ -85,6 +91,13 @@ class HoloError extends Error {
       "message": this.message,
     };
   }
+}
+
+async function promiseMap (array, fn) {
+  const resolvedArray = await array
+  const promiseArray = resolvedArray.map(fn)
+  const resolved = await Promise.all(promiseArray)
+  return resolved
 }
 
 class Envoy {
@@ -167,7 +180,7 @@ class Envoy {
 
   // --------------------------------------------------------------------------------------------
 
-  // EVNOY WEBSOCKET SERVER
+  // ENVOY WEBSOCKET SERVER
 
   async startWebsocketServer() {
     this.ws_server = new WebSocketServer({
@@ -247,6 +260,8 @@ class Envoy {
 
     // ------------------------------------------------------------------------
 
+	// EXPOSED ENVOY EVENTS
+	
     // Envoy - New Hosted Agent Sign-up Sequence
     this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id]) => {
       log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash)
@@ -312,24 +327,60 @@ class Envoy {
         try {
           log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, installed_app_id);
 
+					const installDna = dna => {
+						const timeout = 5_000;
+						const happFilePath = tmp.tmpNameSync();    
+						const file = fs.createWriteStream(happFilePath);
+						const urlObj = new URL(dna.src_path);
+						urlObj.protocol = "https";
+						const downloadDnaPath = new Promise(resolve => {
+							requestUrl({
+									uri: urlObj.toString()
+							})
+							.pipe(file)
+							.on('finish', () => {
+									console.log(`Downloaded file from ${urlObj.toString()} to ${happFilePath}`);
+									const dnaInfo = { nick: dna.nick, path: happFilePath };
+									resolve(dnaInfo);
+							})
+							.on('error', (error) => {
+								// Delete the file async if error occurs
+								fs.unlink(happFilePath, () => {
+									console.log(`Failed to download file ${urlObj.toString()} for ${dna.nick}`);
+									throw new Error(error.message);
+								});
+							})
+						});
+
+						const timeoutCheck = new Promise((resolve, reject) => {
+							let id = setTimeout(() => {
+								clearTimeout(id);
+								reject('Timed out in '+ timeout + 'ms.')
+							}, timeout)
+						});
+
+						return Promise.race([
+							downloadDnaPath,
+							timeoutCheck
+						]);
+					};
+
           let dnas;
           if (this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
-            dnas = this.opts.hosted_app.dnas;
+						if (this.opts.hosted_app!.usingURL) {
+							const installedDnas = await promiseMap(this.opts.hosted_app.dnas, installDna);
+							log.debug('installedDnas : %s', installedDnas);
+							
+							dnas = installedDnas;
+						} else {
+							dnas = this.opts.hosted_app.dnas;
+						}
           }
 
-          adminResponse = await this.callConductor("master", 'installApp', {
+					adminResponse = await this.callConductor("master", 'installApp', {
             installed_app_id,
             agent_key: buffer_agent_id,
-            dnas: dnas || app.happ_bundle.dnas.map(dna => {
-              let nick;
-              if (!dna.nick) {
-                const dnaFileName = dna.path.split("/");
-                nick = dnaFileName[dnaFileName.length - 1]
-              } else {
-                nick = dna.nick
-              }
-              return { nick, path: dna.path };
-            }),
+            dnas: dnas || await promiseMap(app.happ_bundle.dnas, installDna),
           });
 
           if (adminResponse.type !== "success") {
@@ -401,7 +452,8 @@ class Envoy {
       }
 
       if (failed === true) {
-        // TODO: Rollback cells that were already created << check to see if is already being done in RSM.
+				// TODO: Rollback cells that were already created
+				// ^^ check to see if is already being done in RSM.
         log.error("Failed during sign-up process for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, failure_response);
 
         return failure_response;
@@ -409,8 +461,6 @@ class Envoy {
 
       // - return success
       log.normal("Completed sign-up process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
-      // TODO: Update to match hhdt success message in both envoy and chaperone
-      // return  new Package( true, { "type": "success" });
       return true;
     }, this.opts.NS);
 
@@ -519,7 +569,7 @@ class Envoy {
         const hosted_app_cell_id = call_spec["cell_id"];
 
         zomeCall_response = await this.callConductor("hosted", {
-          // TODO: Determine why we can't just pass directly in the cell_id received back from appInfo call...
+          // QUESTION: why we can't just pass directly in the cell_id received back from appInfo call...
           "cell_id": [Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])],
           "zome_name": call_spec["zome"],
           "fn_name": call_spec["function"],
@@ -846,7 +896,6 @@ class Envoy {
       // -32000 to -32099
       //     Server errorReserved for implementation-defined server-errors.
 
-      // TODO: Return errors to Chaperone in hhdt format:
       if (err.code === -32000) {
         if (err.data.includes("response from service is not success")) {
           log.error("Failed during Conductor call because of a signing request error: %s", err.data);
@@ -949,8 +998,7 @@ class Envoy {
       servicelogger_installed_app_id = this.opts.hosted_app.servicelogger_id;
     } else {
       // NB: There will be a new servicelogger app for each hosted happ (should happen at the time of self-hosted install - prompted in host console.)
-      // TODO: verify this pattern once we have DL for servicelogger install pattern
-      servicelogger_installed_app_id = `${hha_hash}:servicelogger`;
+      servicelogger_installed_app_id = `${hha_hash}::servicelogger`;
     }
 
     log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
@@ -966,7 +1014,8 @@ class Envoy {
     const buffer_host_agent_servicelogger_id = servicelogger_cell_id[1];
 
     /******************** WORMHOLE SIGNING WORK AROUND ********************/
-    // TODO: REMOVE ONCE WORMHOLE IMPLEMENTATION UPDATED
+		// TEMPORARY: signing in via servicelogger
+		// REMOVE THIS BLOCK ONCE WORMHOLE IMPLEMENTATION COMPLETE
 
     let temp_request_signature, temp_response_signature, temp_confirm_signature
     try {

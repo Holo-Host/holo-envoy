@@ -2,7 +2,7 @@
 # Servicelogger App
 - dnas:
   - ./dnas/servicelogger.dna.gz
-  app_name: hosted-app-hha-hash:servicelogger
+  app_name: hosted-app-hha-hash::servicelogger
   app_port: 42222 # service port
 
 # HoloHosting App

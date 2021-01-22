@@ -7,10 +7,10 @@ const log				= logger(path.basename( __filename ), {
 
 
 function HhaResult ( result ) {
-    return { result };
+    return result;
 }
 function HhaError ( result ) {
-    return { result };
+    return result;
 }
 
 async function hha ( zome, func, args ) {

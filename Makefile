@@ -97,42 +97,9 @@ reset-hcc:
 	rm $(HC_LOCAL_STORAGE)/* -rf
 	rm -f dnas/*
 	rm -f conductor-*.toml
-# start-hcc-%:		DNAs holochain -c conductor-$*.toml > conductor.log 2>&1 & tail -f conductor.log
 
 dist/holo_hosting_chaperone.js:
 	ln -s node_modules/@holo-host/chaperone/dist dist
-
-# DNAs:			dnas/happ-store.dna.json dnas/holo-hosting-app.dna.json dnas/holofuel.dna.json dnas/servicelogger.dna.json
-# rm-DNAs:
-# 	rm dnas/*.json
-# update-DNAs:		rm-DNAs DNAs
-
-# dnas/%.dna.json:
-# 	@mkdir -p ./dnas
-# 	@for p in $$buildInputs; do \
-# 	    if [[ "$${p#*-}" == "$*" ]]; then \
-# 		echo "Linking $${p} to $@"; \
-# 		ln -fs $${p}/$*.dna.json $@; \
-# 	    fi \
-# 	done
-
-# check-sim2h:
-	# ps -efH | grep sim2h_server | grep 9000 | grep -v grep
-# restart-sim2h:		stop-sim2h start-sim2h
-# start-sim2h:
-# 	@if [[ $$(ps -efH | grep sim2h_server | grep 9000 | grep -v grep) ]]; then	\
-# 		echo "sim2h is already running on port 9000";				\
-# 	else										\
-# 		echo "Starting sim2h_server on port 9000";				\
-# 		sim2h_server -p 9000 > sim2h.log 2>&1 &					\
-# 	fi
-# stop-sim2h:
-# 	@if [[ $$(ps -efH | grep sim2h_server | grep 9000 | grep -v grep) ]]; then	\
-# 		echo "Stopping sim2h_server...";					\
-# 		killall sim2h_server || true;						\
-# 	else										\
-# 		echo "sim2h is not running on port 9000";				\
-# 	fi
 
 check-conductor:	check-holochain
 check-holochain:
@@ -155,7 +122,6 @@ keystore-%.key:
 	@echo "Agent ID: $$(cat AGENTID)";
 
 # TMP targets
-
 use-local-chaperone:
 	npm uninstall --save @holo-host/chaperone; npm install --save-dev ../chaperone
 use-npm-chaperone:
