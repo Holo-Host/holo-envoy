@@ -11,12 +11,6 @@ with pkgs;
       holochain
       lair-keystore
       python
-
-      # dnaPackages.happ-store
-      # dnaPackages.holo-hosting-app
-      # dnaPackages.hosted-holofuel
-      # # dnaPackages.holofuel
-      # dnaPackages.servicelogger
     ];
 
     nativeBuildInputs = [
