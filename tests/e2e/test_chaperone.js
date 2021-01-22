@@ -174,7 +174,7 @@ describe("Server", () => {
     hosted_client = envoy.hcc_clients.hosted;
     service_client = envoy.hcc_clients.service;
 
-    // NOTE: This is a workaround until wormhole signing is in place. Using the Host Servicelogger Agent Key to call public sign functions for activity log signatures.
+    // TEMPORARY: This is a workaround until wormhole signing is in place. Using the Host Servicelogger Agent Key to call public sign functions for activity log signatures.
     registered_agent = await getHostAgentKey(service_client);
     log.info('Using host agent (%s) in conductor on service port(%s)', registered_agent, service_client.connectionMonitor.port);
 
@@ -191,6 +191,9 @@ describe("Server", () => {
 
     log.info("Stopping Envoy...");
     await setup.stop();
+    
+    log.info("Closing running process...");
+    process.exit(0);
   });
 
   it("should sign-in and make a zome function call", async function() {

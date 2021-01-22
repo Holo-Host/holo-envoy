@@ -90,10 +90,10 @@ class HoloError extends Error {
 }
 
 async function promiseMap (array, fn) {
-  const resolvedArray = await array
-  const promiseArray = resolvedArray.map(fn)
-  const resolved = await Promise.all(promiseArray)
-  return resolved
+  const resolvedArray = await array;
+  const promiseArray = resolvedArray.map(fn);
+  const resolved = await Promise.all(promiseArray);
+  return resolved;
 }
 
 class Envoy {
@@ -103,7 +103,6 @@ class Envoy {
   conductor_opts: any;
   connected: any;
 
-  request_counter: number = 0;
   payload_counter: number = 0;
   pending_confirms: object = {};
   pending_signatures: object = {};
@@ -113,16 +112,16 @@ class Envoy {
 
   static PRODUCT_MODE: number = 0;
   static DEVELOP_MODE: number = 1;
-  static DEFAULT_OPTS = {
-    mode: Envoy.PRODUCT_MODE,
-  }
 
-  constructor(opts: EnvoyConfig = Envoy.DEFAULT_OPTS) {
-    log.silly("Initializing Envoy with input: %s", opts);
+  constructor(opts: EnvoyConfig) {
+    log.silly("Initializing Envoy with input: %s", opts);		
+    const environmentMode = opts.mode || Envoy.PRODUCT_MODE;
     this.opts = Object.assign({}, {
       "port": WS_SERVER_PORT,
       "NS": NAMESPACE,
+      "mode": environmentMode,
     }, opts);
+
     log.normal("Initializing with port (%s) and namespace (%s)", this.opts.port, this.opts.NS);
 
     this.conductor_opts = {
@@ -294,23 +293,6 @@ class Envoy {
       const installed_app_id = `${hha_hash}:${agent_id}`;
 
       log.silly("HHA bundle: %s", app);
-      // Example response
-      // {
-      // 		happ_id: HeaderHash,
-      // 		happ_bundle: {
-      //			hosted_url: String,
-      //			happ_alias: String,
-      //			ui_path: String,
-      //			name: String,
-      //			dnas: [{
-      //				hash: String, // hash of the dna, not a stored dht address
-      //				path: String,
-      //				nick: Option<String>, << make this required in hha!
-      //			}],
-      //		},
-      // 		provider_pubkey: AgentPubKey,
-      // }
-
       log.info("Found %s DNA(s) for the app bundle with HHA ID: %s", app.happ_bundle.dnas.length, hha_hash);
 
       const buffer_agent_id = Codec.AgentId.decodeToHoloHash(agent_id);
@@ -393,7 +375,7 @@ class Envoy {
           }
         }
 
-        // Activate App -  Add the Installed App to a hosted interface.
+        // Activate App - Add the Installed App to a hosted interface.
         try {
           log.info("Activating Installed App (%s)", installed_app_id);
           adminResponse = await this.callConductor("master", 'activateApp', { installed_app_id });
@@ -482,14 +464,6 @@ class Envoy {
       log.normal("Completed AppInfo call for installed_app_id (%s) with response_id (%s)", installed_app_id, response_id);
 
       return new Package(appInfo, { "type": "success" }, { response_id });
-
-      // Example of hhdt generated success package:
-      // ({
-      // 	"type": "success",
-      // 	"metadata": { response_id },
-      // 	"payload": appInfo
-      // })
-
     }, this.opts.NS);
 
 
@@ -547,16 +521,7 @@ class Envoy {
         if (Object.keys(call_spec.args).length <= 0) {
           log.debug('No call_spec.args, converting value to null for zomeCall.');
           call_spec.args = null
-        }
-
-        // NOTE: ZomeCall Structure = {
-        // cell_id,
-        // zome_name,
-        // fn_name,
-        // payload
-        // cap,
-        // provenance
-        // }
+        };
 
         const hosted_app_cell_id = call_spec["cell_id"];
 
@@ -830,7 +795,6 @@ class Envoy {
       else {
         // NOTE: call_spec.payload should be null when the zome function accepts no payload
         const payload_log = (typeof call_spec.args === 'object') ? Object.entries(call_spec.payload).map(([k, v]) => `${k} : ${typeof v}`).join(", ") : call_spec.payload;
-        // NOTE: Updated ZomeCall Structure = { cap: null, cell_id: rootState.appInterface.cellId, zome_name, fn_name, provenance: rootState.agentKey, payload }
         log.debug("\nZome Call spec details - called with cap token (%s), provenance (%s), cell_id(%s), and zome fn call: %s->%s( %s )", () => [
           call_spec.cap, call_spec.provenance, call_spec.cell_id, call_spec.zome_name, call_spec.fn_name, payload_log]);
         args = call_spec;
@@ -941,7 +905,7 @@ class Envoy {
     log.debug("Using argument digest: %s", args_hash);
     const request_payload = {
       "timestamp": [(new Date(payload.timestamp)).getTime(), 0],
-      // NB: Servicelogger is updated to expect the holo host agent ID as only a string
+      // NB: Servicelogger expects the holo host agent ID as a string (wrapped agent hash), instead of the agent holohash buf.
       "host_id": payload.host_id,
       "call_spec": {
         "hha_hash": call_spec["hha_hash"],
@@ -952,7 +916,6 @@ class Envoy {
       },
     };
 
-    // NB: Servicelogger has been updated to expect a wrapped agent hash, instead of the agent holohash buf.
     let request = {
       agent_id: agent_id,
       request: request_payload,
@@ -1084,7 +1047,6 @@ class Envoy {
 
 }
 
-
 async function httpRequestStream(req): Promise<string> {
   return new Promise((f, r) => {
     req.pipe(concat_stream(async (buffer) => {
@@ -1096,7 +1058,6 @@ async function httpRequestStream(req): Promise<string> {
     }));
   });
 }
-
 
 export {
   Envoy
