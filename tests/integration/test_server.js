@@ -24,7 +24,7 @@ describe("Server", () => {
   let client;
 
   before(async function() {
-    this.timeout(40 _000);
+    this.timeout(40_000);
 
     function delay(t, val) {
       return new Promise(function(resolve) {
@@ -49,7 +49,7 @@ describe("Server", () => {
     client = await setup.client();
   });
   after(async function() {
-    this.timeout(60 _000);
+    this.timeout(60_000);
 
     log.info("Closing client...");
     client && await client.close();
@@ -130,7 +130,7 @@ describe("Server", () => {
   });
 
   it.skip("should sign-up on this Host", async function() {
-    this.timeout(5 _000);
+    this.timeout(5_000);
     try {
       await client.signUp("someone@example.com", "Passw0rd!");
 
@@ -149,7 +149,7 @@ describe("Server", () => {
   });
 
   it.skip("should fail capability signing of zome-call because wormhole is closed", async function() {
-    this.timeout(30 _000);
+    this.timeout(30_000);
 
     let failed = false;
     const fail_client = await setup.client();
@@ -179,7 +179,7 @@ describe("Server", () => {
   });
 
   it.skip("should process signed-in request and respond", async function() {
-    this.timeout(60 _000);
+    this.timeout(60_000);
     try {
       await client.signIn("someone@example.com", "Passw0rd!");
       const agent_id = client.agent_id;
@@ -203,10 +203,10 @@ describe("Server", () => {
   }
 
   it("should have no pending confirmations", async function() {
-    this.timeout(5 _000);
+    this.timeout(5_000);
     try {
       // Give confirmation request some time to finish
-      await delay(2 _000);
+      await delay(2_000);
 
       expect(envoy.pending_confirms).to.be.empty;
       expect(client.pending_confirms).to.be.empty;

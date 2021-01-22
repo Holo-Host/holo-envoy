@@ -144,7 +144,7 @@ describe("Server", () => {
   let registered_agent;
 
   before(async function() {
-    this.timeout(20 _000);
+    this.timeout(20_000);
 
     function delay(t, val) {
       return new Promise(function(resolve) {
@@ -194,7 +194,7 @@ describe("Server", () => {
   });
 
   it("should sign-in and make a zome function call", async function() {
-    this.timeout(300 _000);
+    this.timeout(300_000);
 
     try {
       let response;
@@ -273,7 +273,7 @@ describe("Server", () => {
         });
         client.skip_assign_host = true;
 
-        await client.ready(200 _000);
+        await client.ready(200_000);
         await client.signUp("alice.test.1@holo.host", "Passw0rd!");
         console.log("Finished sign-up for agent: %s", client.agent_id);
         if (client.anonymous === true) {
