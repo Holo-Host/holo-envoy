@@ -22,6 +22,7 @@ function extract_sanitized_lines(buf) {
     .split("\n");
 }
 
+// NOTICE: This fn is not updated to work with RSM
 async function start_conductor() {
   if (holochain === undefined) {
     const cmd = "holochain";
@@ -119,24 +120,7 @@ async function stop_conductor(timeout) {
   await process_killed(holochain, timeout);
 }
 
-async function force_stop() {
-  try {
-    status = ChildProcess.exec('killall holochain', (error, stdout, stderr) => {
-      if (error) {
-        console.error(`exec error: ${error}`);
-        process.exit(true);
-      }
-      log.silly('Conductor Successfully Closed');
-    });
-  } catch (error) {
-    console.error(`error: ${error}`);
-    process.exit(true);
-  }
-}
-
-
 module.exports = {
   "start": start_conductor,
   "stop": stop_conductor,
-  "forceStop": force_stop,
 };

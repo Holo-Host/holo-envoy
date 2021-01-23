@@ -315,60 +315,8 @@ describe("Server", () => {
     }
   });
 
-  // it.skip("should sign-up on this Host", async () => {
-  // 	try {
-  // 	    await client.signUp( "alice.test.1@holo.host", "Passw0rd!" );
-
-  // 	    expect( client.anonymous	).to.be.false;
-  // 	    expect( client.agent_id	).to.equal registered_agent.encoded);
-  // 	} finally {
-  // 	}
-  // });
-
-  // it.skip("should sign-out", async () => {
-  // 	try {
-  // 	    await client.signOut();
-
-  // 	    expect( client.anonymous	).to.be.true;
-  // 	    expect( client.agent_id	).to.not.equal registered_agent.encoded);
-  // 	} finally {
-  // 	}
-  // });
-
-  // it.skip("should process signed-in request and respond", async function () {
-  // 	this.timeout(5_000);
-  // 	try {
-  // 	    await client.signIn( "alice.test.1@holo.host", "Passw0rd!" );
-  // 	    const agent_id		= client.agent_id;
-
-  // 	    expect( agent_id		).to.equal registered_agent.encoded);
-
-  // 	    const response		= await client.callZomeFunction("elemental-chat", "chat", "list_channels", channel_args );
-  // 	    log.debug("Response: %s", response );
-
-  // 	    expect( response			).to.be.an("object");
-  // 	    expect( Object.keys(response[0])	).to.have.members([ "channel", "info", "latest_chunk"  ]);
-  // 	} finally {
-  // 	}
-  // });
-
-  // function delay(t, val) {
-  // 	return new Promise(function(resolve) {
-  // 	    setTimeout(function() {
-  // 		resolve(val);
-  // 	    }, t);
-  // 	});
-  // }
-
-  // it("should have no pending confirmations", async function () {
-  // 	this.timeout(5_000);
-  // 	try {
-  // 	    // Give confirmation request some time to finish
-  // 	    await delay( 2_000 );
-
-  // 	    expect( envoy.pending_confirms	).to.be.empty;
-  // 	    expect( client.pending_confirms	).to.be.empty;
-  // 	} finally {
-  // 	}
-  // });
+  it("should sign-up on this Host");
+  it("should sign-out");
+  it("should process signed-in request and respond");
+  it("should have no pending confirmations");
 });

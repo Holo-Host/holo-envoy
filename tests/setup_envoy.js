@@ -36,22 +36,29 @@ async function stop_envoy() {
   await envoy.close();
 }
 
-async function create_client(agent_id = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq",
+async function create_client(port = envoy.ws_server.port,
+  mode = Chaperone.DEVELOP,
+  agent_id = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq",
   hha_hash = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo",
   timeout = 50000) {
 
   // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
-  const host_agent_id = 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // fs.readFileSync('./AGENTID', 'utf8').trim();    log.info("Host Agent ID: %s", host_agent_id );
+  const host_agent_id = 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // log.info("Host Agent ID: %s", host_agent_id );
 
   const client = new Chaperone({
-    "port": envoy.ws_server.port,
-    "agent_id": agent_id,
-    "app_id": hha_hash,
+    "mode": mode,
+    "comb": false,
     "timeout": timeout,
     "debug": ["debug", "silly"].includes((process.env.LOG_LEVEL || "").toLowerCase()),
-    "host": "localhost",
-    "comb": false,
-    host_agent_id,
+    "connection": {
+      "host": "localhost",
+      "port": port,
+      "secure": false,
+      "path": "/"
+    },
+    "agent_id": agent_id,
+    "app_id": hha_hash,
+    "host_agent_id": host_agent_id,
   });
 
   await client.ready(timeout);

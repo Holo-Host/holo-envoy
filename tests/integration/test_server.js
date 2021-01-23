@@ -14,7 +14,6 @@ const {
 const expect = require('chai').expect;
 const fetch = require('node-fetch');
 
-const conductor = require("../setup_conductor.js");
 const setup = require("../setup_envoy.js");
 
 describe("Server", () => {
@@ -34,10 +33,7 @@ describe("Server", () => {
       });
     }
 
-    // TODO: Replace after update dev env setup
-    // log.info("Starting conductor");
-    // await conductor.start();
-    log.info("Waiting for Conductor to spin up");
+	log.info("Waiting for Conductor to spin up");
     await delay(8000);
 
     envoy = await setup.start();
@@ -56,10 +52,9 @@ describe("Server", () => {
 
     log.info("Stopping Envoy...");
     await setup.stop();
-
-    // TODO: Replace after update dev env setup
-    // log.info("Stopping Conductor...");
-    // await conductor.stop( 60_000 );
+	
+    log.info("Closing running process...");
+    process.exit(0);
   });
 
   const channel_args = {
