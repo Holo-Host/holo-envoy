@@ -15,6 +15,15 @@ docs/index.html:	build/index.js
 .PRECIOUS:	keystore-%.key
 .PHONY:		src build docs docs-watch build-watch
 
+dnas:
+	mkdir -p ./dnas
+dnas/holo-hosting-app.dna.gz:	dnas
+	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.0.1-alpha3/holo-hosting-app.dna.gz' -o $@
+dnas/servicelogger.dna.gz:	dnas
+	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.0.1-alpha3/servicelogger.dna.gz' -o $@
+dnas/elemental-chat.dna.gz:	dnas
+	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.0.1-alpha9/elemental-chat.dna.gz' -o $@
+
 build:			node_modules build/index.js
 docs:			node_modules docs/index.html
 DNAs:			dnas/elemental-chat.dna.gz dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz
@@ -23,15 +32,15 @@ MOCHA_OPTS		=
 
 test:			build
 	make test-unit;
-	make reset-hcc; make test-integration
-	make reset-hcc; make test-e2e
+	make test-integration;
+	make test-e2e
 test-nix:		build
 	make test-unit;
-	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make reset-hcc; make test-integration
+	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make test-integration
 test-debug:		build
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
-	make reset-hcc; make test-integration-debug
-	make reset-hcc; make test-e2e-debug2
+	make test-integration-debug
+	make test-e2e-debug2
 
 test-unit:		build
 	npx mocha $(MOCHA_OPTS) ./tests/unit/
@@ -92,11 +101,6 @@ HC_LOCAL_STORAGE	= $(shell pwd)/holochain-conductor/storage
 .PHONY:		start-hcc-%
 conductor.log:
 	touch $@
-
-reset-hcc:
-	rm $(HC_LOCAL_STORAGE)/* -rf
-	rm -f dnas/*
-	rm -f conductor-*.toml
 
 dist/holo_hosting_chaperone.js:
 	ln -s node_modules/@holo-host/chaperone/dist dist

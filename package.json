@@ -15,7 +15,10 @@
   },
   "author": "Holo Ltd.",
   "contributors": [
-    "Matthew Brisebois <matthew.brisebois@holo.host>"
+    "Matthew Brisebois <matthew.brisebois@holo.host>",
+    "Robbie Carlton <robbie.carlton@holo.host>",
+    "Joel Ulahanna <joel.ulahanna@holo.host>",
+    "Lisa Jetton <lisa.jetton@holo.host>"
   ],
   "license": "ISC",
   "repository": {
@@ -25,7 +28,7 @@
   "dependencies": {
     "@holo-host/cryptolib": "^0.3.0",
     "@holo-host/data-translator": "^0.1.1",
-    "@holo-host/mock-conductor": "^0.1.2",
+    "@holo-host/mock-conductor": "0.2.0",
     "@holochain/conductor-api": "^0.0.1-dev.15",
     "@msgpack/msgpack": "^2.3.0",
     "@whi/stdlog": "^0.3.3",

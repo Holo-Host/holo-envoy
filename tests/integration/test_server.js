@@ -33,7 +33,7 @@ describe("Server", () => {
       });
     }
 
-	log.info("Waiting for Conductor to spin up");
+	  log.info("Waiting for Conductor to spin up");
     await delay(8000);
 
     envoy = await setup.start();
@@ -42,7 +42,9 @@ describe("Server", () => {
     log.info("Waiting for Conductor connections...");
     await envoy.connected;
 
-    client = await setup.client();
+    client = await setup.client({
+      agent_id: "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq"
+    });
   });
   after(async function() {
     this.timeout(60_000);

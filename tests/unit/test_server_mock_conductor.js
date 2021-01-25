@@ -124,11 +124,13 @@ const envoyOpts = {
     } finally {}
   });
 
-  it.only("should sign-up on this Host", async () => {
+  it("should sign-up on this Host", async () => {
     const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
     client = await setup.client({
       agent_id: agentId
     });
+    client.skip_assign_host = true;
+
     try {
       const hhaData = {
         cell_id: MOCK_CELL_ID,
@@ -182,9 +184,6 @@ const envoyOpts = {
       expect(client.agent_id).to.not.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
     } finally {}
   });
-
-  //  QUESTION: do we want to combine the prior two tests into one instead?
-  it.skip("should process signed-in request and respond");
 
   it.skip("should complete wormhole request", async () => {
     client = await setup.client();
