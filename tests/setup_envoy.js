@@ -14,6 +14,7 @@ const {
 const {
   Chaperone
 } = require("./setup_chaperone.js");
+const { config } = require('fetch-mock');
 
 
 let envoy;
@@ -36,33 +37,39 @@ async function stop_envoy() {
   await envoy.close();
 }
 
-async function create_client(port = envoy.ws_server.port,
-  mode = Chaperone.DEVELOP,
-  agent_id = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq",
-  hha_hash = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo",
-  timeout = 50000) {
-
+async function create_client({ mode, port, hha_hash, agent_id, web_user_legend, timeout }) {
   // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
   const host_agent_id = 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k' // log.info("Host Agent ID: %s", host_agent_id );
 
-  const client = new Chaperone({
-    "mode": mode,
+  const rawConfig = {
+    "mode": mode || Chaperone.DEVELOP,
     "comb": false,
-    "timeout": timeout,
+    "timeout": timeout || 50000,
     "debug": ["debug", "silly"].includes((process.env.LOG_LEVEL || "").toLowerCase()),
     "connection": {
       "host": "localhost",
-      "port": port,
+      "port": port || envoy.ws_server.port,
       "secure": false,
-      "path": "/"
+      "path": "/hosting/"
     },
-    "agent_id": agent_id,
-    "app_id": hha_hash,
+    "app_id": hha_hash || "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo",
     "host_agent_id": host_agent_id,
-  });
+  };
 
+  // note: web_user_legend and agent_id should not be provided simultaneously as opts
+  let completeConfig;
+  if (web_user_legend) {
+    completeConfig = Object.assign({}, {
+      "web_user_legend": web_user_legend
+    }, rawConfig);
+  } else if (agent_id) {
+    completeConfig = Object.assign({}, {
+      "agent_id": agent_id
+    }, rawConfig);
+  };
+
+  const client = new Chaperone(completeConfig);
   await client.ready(timeout);
-
   return client;
 }
 

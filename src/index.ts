@@ -317,14 +317,14 @@ class Envoy {
 							})
 							.pipe(file)
 							.on('finish', () => {
-									console.log(`Downloaded file from ${urlObj.toString()} to ${happFilePath}`);
+									log.debug(`Downloaded file from ${urlObj.toString()} to ${happFilePath}`);
 									const dnaInfo = { nick: dna.nick, path: happFilePath };
 									resolve(dnaInfo);
 							})
 							.on('error', (error) => {
 								// Delete the file async if error occurs
 								fs.unlink(happFilePath, () => {
-									console.log(`Failed to download file ${urlObj.toString()} for ${dna.nick}`);
+									log.debug(`Failed to download file ${urlObj.toString()} for ${dna.nick}`);
 									throw new Error(error.message);
 								});
 							})
@@ -344,7 +344,7 @@ class Envoy {
 					};
 
           let dnas;
-          if (this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
+          if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
 						if (this.opts.hosted_app!.usingURL) {
 							const installedDnas = await promiseMap(this.opts.hosted_app.dnas, installDna);
 							log.debug('installedDnas : %s', installedDnas);
@@ -468,7 +468,7 @@ class Envoy {
 
 
     // Chaperone ZomeCall to Envoy Server
-    this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
+    this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {      
       log.silly("Received request: %s", payload.call_spec);
 
       // Example of request package
@@ -868,7 +868,7 @@ class Envoy {
       }
     }
 
-    log.normal("\nConductor call returned successful response: typeof '%s'", typeof resp);
+    log.normal("Conductor call returned successful '%s' response: %s ", typeof resp, resp);
     return resp;
   }
 
@@ -947,7 +947,8 @@ class Envoy {
     const hha_hash = client_request.request.call_spec.hha_hash;
 
     let servicelogger_installed_app_id;
-    if (this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
+
+    if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
       servicelogger_installed_app_id = this.opts.hosted_app.servicelogger_id;
     } else {
       // NB: There will be a new servicelogger app for each hosted happ (should happen at the time of self-hosted install - prompted in host console.)
