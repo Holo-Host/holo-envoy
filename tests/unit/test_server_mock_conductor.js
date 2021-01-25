@@ -124,7 +124,7 @@ const envoyOpts = {
     } finally {}
   });
 
-  it("should sign-up on this Host", async () => {
+  it.only("should sign-up on this Host", async () => {
     const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
     client = await setup.client({
       agent_id: agentId
