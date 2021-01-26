@@ -43,13 +43,13 @@ test-debug:		build
 	make test-e2e-debug2
 
 test-unit:		build
-	npx mocha $(MOCHA_OPTS) ./tests/unit/
+	npm run test-unit
 test-unit-debug:	build
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
 
 test-integration:	build DNAs
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
-	npx mocha $(MOCHA_OPTS) ./tests/integration/
+	npm run test-integration
 	killall holochain
 test-integration-debug:	build DNAs
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
@@ -57,15 +57,15 @@ test-integration-debug:	build DNAs
 	killall holochain
 
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
-	npx holochain-run-dna -c ./app-config.yml -a 4444 &
-	npx mocha $(MOCHA_OPTS) ./tests/e2e
+	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
+	npm run test-e2e
 	killall holochain
 test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
 	killall holochain
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
-	npx holochain-run-dna -c ./app-config.yml -a 4444 &
+	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
 	killall holochain
 
