@@ -30,12 +30,6 @@ jobs:
         mkdir -p ~/.config/nix/
         cp ./tests/nix.conf ~/.config/nix/
     - name: Prepare Nix environment
-      run: nix-shell --run echo
-    - name: check holochain version
-      run: nix-shell --command "holochain -V"
-    - name: Entring nix-shell
-      run: nix-shell
-    - name: check holochain version
-      run: holochain -V
+      run: nix-shell --command "lair-keystore --version"
     - name: Running envoy tests
-      run: make test
+      run: nix-shell --run 'make test'
