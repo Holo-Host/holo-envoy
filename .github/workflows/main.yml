@@ -30,6 +30,6 @@ jobs:
         mkdir -p ~/.config/nix/
         cp ./tests/nix.conf ~/.config/nix/
     - name: Prepare Nix environment
-      run: nix-shell --command "lair-keystore --version"
+      run: nix-shell --command "echo"
     - name: Running envoy tests debug
-      run: nix-shell --run 'make test-e2e-debug2'
+      run: nix-shell --run 'make test'

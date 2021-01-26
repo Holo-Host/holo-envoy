@@ -16,8 +16,8 @@ const {
 
 const installedAppIds = yaml.load(fs.readFileSync('app-config.yml'));
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
-const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[1].app_name;
-const HHA_INSTALLED_APP_ID = installedAppIds[2].app_name;
+const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
+const HHA_INSTALLED_APP_ID = installedAppIds[1].app_name;
 
 let browser;
 
