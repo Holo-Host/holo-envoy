@@ -6,9 +6,12 @@ jobs:
       ignore:
         - gh-pages
     docker:
-      - image: nixos/nix
+      - image: ubuntu-2004:202010-01
     steps:
       - checkout
+      - run:
+        name: Installing nix-shell
+        command: make ci-setup
       - run: |
           nix-shell \
             --option substituters 'https://cache.holo.host https://cache.nixos.org' \

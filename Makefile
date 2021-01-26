@@ -132,3 +132,9 @@ use-npm-chaperone:
 	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone
 use-npm-chaperone-%:
 	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone@$*
+
+ci-setup:
+	sudo mkdir -p /nix
+	sudo chown ubuntu /nix
+	curl https://nixos.org/nix/install | sh
+	echo "source ~/.nix-profile/etc/profile.d/nix.sh" >> ~/.circlerc
