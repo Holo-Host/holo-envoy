@@ -7,7 +7,6 @@ jobs:
         - gh-pages
     docker:
       - image: nixos/nix
-    working_directory: ~/holo-envoy
     steps:
       - checkout
       - run: |
