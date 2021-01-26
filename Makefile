@@ -65,7 +65,7 @@ test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
 	killall holochain
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
-	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
+	npx holochain-run-dna -c ./app-config.yml -a 4444 &
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
 	killall holochain
 
