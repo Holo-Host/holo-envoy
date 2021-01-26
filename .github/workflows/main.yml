@@ -35,5 +35,7 @@ jobs:
       run: nix-shell --command "holochain -V"
     - name: Entring nix-shell
       run: nix-shell
+    - name: check holochain version
+      run: holochain -V
     - name: Running envoy tests
       run: make test
