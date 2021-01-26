@@ -29,6 +29,5 @@ jobs:
         set -xe
         mkdir -p ~/.config/nix/
         cp ./tests/nix.conf ~/.config/nix/
-    - name: Prepare Nix environment
-      run: nix-shell --run echo
-    - run: nix-shell --command "make test"
+    - name: Running envoy tests
+      run: nix-shell --run 'make test'
