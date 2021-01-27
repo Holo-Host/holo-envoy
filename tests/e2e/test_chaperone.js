@@ -191,9 +191,6 @@ describe("Server", () => {
 
     log.info("Stopping Envoy...");
     await setup.stop();
-
-    log.info("Closing running process...");
-    process.exit(0);
   });
 
   it("should sign-in and make a zome function call", async function() {

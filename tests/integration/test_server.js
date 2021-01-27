@@ -54,9 +54,6 @@ describe("Server", () => {
 
     log.info("Stopping Envoy...");
     await setup.stop();
-
-    log.info("Closing running process...");
-    process.exit(0);
   });
 
   const channel_args = {

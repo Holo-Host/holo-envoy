@@ -48,26 +48,26 @@ test-unit-debug:	build
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
 
 test-integration:	build DNAs
+	killall holochain &
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
 	npm run test-integration
-	killall holochain
 test-integration-debug:	build DNAs
+	killall holochain &
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
-	killall holochain
 
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
+	killall holochain &
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
 	npm run test-e2e
-	killall holochain
 test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
+	killall holochain &
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
-	killall holochain
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
+	killall holochain &
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
-	killall holochain
 
 docs-watch:
 build-watch:
