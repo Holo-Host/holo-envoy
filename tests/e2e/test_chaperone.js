@@ -155,7 +155,7 @@ describe("Server", () => {
     }
 
     log.info("Waiting for Conductor to spin up");
-    await delay(8000);
+    await delay(10000);
 
     log.info("Starting Envoy");
     envoy = await setup.start(envoyOpts);
@@ -191,9 +191,6 @@ describe("Server", () => {
 
     log.info("Stopping Envoy...");
     await setup.stop();
-    
-    log.info("Closing running process...");
-    process.exit(0);
   });
 
   it("should sign-in and make a zome function call", async function() {

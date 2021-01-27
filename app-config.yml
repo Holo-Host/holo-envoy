@@ -11,7 +11,7 @@
 # NB: Make sure the hha app_name matches the harded HHA_INSTALLED_APP_ID value in index.ts
   app_name: holo-hosting-app
   app_port: 42233 # internal port
- 
+
 # Hosted App
 - dnas:
   - ./dnas/elemental-chat.dna.gz
