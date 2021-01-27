@@ -1,235 +1,252 @@
-const path				= require('path');
-const log				= require('@whi/stdlog')(path.basename( __filename ), {
-    level: process.env.LOG_LEVEL || 'fatal',
+const path = require('path');
+const log = require('@whi/stdlog')(path.basename(__filename), {
+  level: process.env.LOG_LEVEL || 'fatal',
 });
 
-const expect				= require('chai').expect;
-const fetch				= require('node-fetch');
-const why				= require('why-is-node-running');
+const expect = require('chai').expect;
+const fetch = require('node-fetch');
+const why = require('why-is-node-running');
 
-const setup				= require("../setup_envoy.js");
-const Conductor				= require("../mock_conductor.js");
-const { ZomeAPIResult }			= Conductor;
+const setup = require("../setup_envoy.js");
+const MockConductor = require('@holo-host/mock-conductor');
+const {
+  ZomeAPIResult
+} = MockConductor;
 
 describe("Server with mock Conductor", () => {
+  const MASTER_PORT = 4444;
+  const SERVICE_PORT = 42222;
+  const INTERNAL_PORT = 42233;
+  const HOSTED_PORT = 42244;
+  const INTERNAL_INSTALLED_APP_ID = "holo-hosting-app"
+  // Note: The value used for the hosted installed_app_ids
+  // ** must match the hha_hash pased to the chaperone server (in setup_envoy.js)
+  const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
+  const SERVICE_INSTALLED_APP_ID = `${HOSTED_INSTALLED_APP_ID}::servicelogger`
+  const DNA_ALIAS = "dna_alias";
+  const MOCK_CELL_ID = [Buffer.from("dnaHash"), Buffer.from("agentPubkey")];
+  const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
 
-    let envoy;
-    let server;
-    // let wormhole;
-    let conductor;
-    let client;
+  let envoy;
+  let server;
+  let conductor;
+  // let wormhole;
+  let client;
 
-    before(async () => {
-	conductor			= new Conductor();
-	envoy				= await setup.start();
-	server				= envoy.ws_server;
-	// wormhole			= envoy.wormhole;
 
-	log.info("Waiting for Conductor connections...");
-	await envoy.connected;
+const envoy_mode_map = {
+  production: 0,
+  develop: 1,
+}
 
-	client				= await setup.client();
-    });
-    after(async () => {
-	log.info("Closing client...");
-	await client.close();
-	
-	log.info("Stopping Envoy...");
-	await setup.stop();
+const envoyOpts = {
+  mode: envoy_mode_map.develop,
+  hosted_port_number: 0,
+  hosted_app: {
+    // servicelogger_id: SERVICE_INSTALLED_APP_ID,
+    dnas: [{
+      nick: 'test-hha',
+			path: './dnas/elemental-chat.dna.gz',
+		}],
+		usingURL: false
+  }
+}
 
-	log.info("Stopping Conductor...");
-	await conductor.stop();
+  before("Start mock conductor with envoy and client", async () => {
+    adminConductor = new MockConductor(MASTER_PORT);
+    serviceConductor = new MockConductor(SERVICE_PORT);
+    internalConductor = new MockConductor(INTERNAL_PORT);
+    hostedConductor = new MockConductor(HOSTED_PORT);
 
-	// setTimeout( why, 1000 );
-    });
-    
-    it("should process request and respond", async () => {
-	try {
-	    conductor.general.once("call", async function ( data ) {
-		const keys		= Object.keys( data );
+    envoy = await setup.start(envoyOpts);
+    server = envoy.ws_server;
+    // wormhole			= envoy.wormhole;
 
-		expect( keys.length		).to.equal( 4 );
-		expect( data["instance_id"]	).to.equal("QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL::holofuel");
-		expect( data["zome"]		).to.equal("transactions");
-		expect( data["function"]	).to.equal("list_pending");
-		expect( data["args"]		).to.be.an("object");
+    log.info("Waiting for Conductor connections...");
+    await envoy.connected;
+  });
+  beforeEach('Set-up installed_app_ids for test', async () => {
+    internalConductor.once(MockConductor.APP_INFO_TYPE, {installed_app_id: INTERNAL_INSTALLED_APP_ID}, { cell_data: MOCK_CELL_DATA })
+    hostedConductor.once(MockConductor.APP_INFO_TYPE, {installed_app_id: HOSTED_INSTALLED_APP_ID}, { cell_data: MOCK_CELL_DATA })
+    serviceConductor.once(MockConductor.APP_INFO_TYPE, {installed_app_id: SERVICE_INSTALLED_APP_ID}, { cell_data: MOCK_CELL_DATA })
+  });
+  afterEach("Close client", async () => {
+    log.info("Closing client...");
+    await client.close();
+  });
+  after("Close mock conductor with envoy", async () => {
+    log.info("Stopping Envoy...");
+    await setup.stop();
 
-		return ZomeAPIResult([]);
-	    });
+    log.info("Stopping Conductor...");
+    await adminConductor.close();
+    await serviceConductor.close();
+    await internalConductor.close();
+    await hostedConductor.close();
+  });
 
-	    const response		= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
-	    log.debug("Response: %s", response );
-
-	    expect( response.Ok		).to.deep.equal( [] );
-	} finally {
-	}
-    });
-
-    it("should fail wormhole request because Agent is anonymous", async () => {
-	try {
-
-	    let failed			= false;
-	    conductor.general.once("call", async function ( data ) {
-		await conductor.wormholeRequest( client.agent_id, {
-		    "some": "entry",
-		    "foo": "bar",
-		});
-
-		return ZomeAPIResult(true);
-	    });
-
-	    try {
-		await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
-	    } catch ( err ) {
-		failed			= true;
-		expect( err.name	).to.include("HoloError");
-		expect( err.message	).to.include("not signed-in");
-	    }
-
-	    expect( failed		).to.be.true;
-	} finally {
-	}
-    });
-
-    it("should fail to sign-up because conductor disconnected");
-    it("should fail to sign-up because admin/agent/add returned error");
-    it("should fail to sign-up because HHA returned error");
-    it("should fail to sign-up because Happ Store returned error");
-    it("should fail to sign-up because admin/instance/add returned error");
-    it("should fail to sign-up because admin/interface/add_instance returned error");
-    it("should fail to sign-up because admin/instance/start returned error");
-
-    it("should sign-up on this Host", async () => {
-	try {
-	    await client.signUp( "someone@example.com", "Passw0rd!" );
-
-	    expect( client.anonymous	).to.be.false;
-	    expect( client.agent_id	).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
-	} finally {
-	}
+  it("should process request and respond", async () => {
+    client = await setup.client({
+      web_user_legend : {
+        "alice.test.1@holo.host": "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq",
+      }
     });
 
-    it("should sign-out", async () => {
-	try {
-	    await client.signOut();
+    try {
+      const callZomeData = {
+        cell_id: MOCK_CELL_ID,
+        zome_name: "zome",
+        fn_name: "zome_fn",
+        args: {
+          zomeFnArgs: "String Input"
+        }
+      };
+      const expected_response = "Hello World";
+      hostedConductor.once(MockConductor.ZOME_CALL_TYPE, callZomeData, expected_response);
 
-	    expect( client.anonymous	).to.be.true;
-	    expect( client.agent_id	).to.not.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
-	} finally {
-	}
+      const servicelogData = {
+        cell_id: MOCK_CELL_ID,
+        zome_name: "service",
+        fn_name: "log_activity",
+        args: {
+          zomeFnArgs: "Activity Log"
+        }
+      };
+      const activity_log_response = 'Activity Log Success Hash';
+      serviceConductor.once(MockConductor.ZOME_CALL_TYPE, servicelogData, activity_log_response);
+
+      const response = await client.callZomeFunction("dna_alias", "zome", "zome_fn", {
+        zomeFnArgs: "String Input"
+      });
+
+      log.debug("Response: %s", response);
+      expect(response).to.equal("Hello World");
+    } finally {}
+  });
+
+  it("should sign-up on this Host", async () => {
+    const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
+    client = await setup.client({
+      agent_id: agentId
     });
+    client.skip_assign_host = true;
 
-    it("should fail to sign-in because this host doesn't know this Agent", async () => {
-	try {
-	    let failed			= false;
-	    try {
-		await client.signIn( "someone@example.com", "" );
-	    } catch ( err ) {
-		failed			= true;
+    try {
+      const hhaData = {
+        cell_id: MOCK_CELL_ID,
+        zome_name: "hha",
+        fn_name: "get_happ",
+        args: {
+          zomeFnArgs: "happ bundle info"
+        }
+      };
+      const happ_bundle_details_response = {
+        happ_id: Buffer.from('HeaderHash'),
+        happ_bundle: {
+          hosted_url: 'http://holofuel.holohost.net',
+          happ_alias: 'holofuel-console',
+          ui_path: 'path/to/compressed/ui/file',
+          name: 'HoloFuel Console',
+          dnas: [{
+            hash: 'uhCkk...',
+            path: '/path/to/compressed/dna/file',
+            nick: 'holofuel'
+          }],
+        },
+        provider_pubkey: Buffer.from('AgentPubKey'),
+      };
+      internalConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_details_response);
 
-		expect( err.name	).to.include("HoloError");
-		expect( err.message	).to.include("cannot identify");
-	    }
+      const appInfo = {
+        installed_app_id: HOSTED_INSTALLED_APP_ID,
+        agent_key: Buffer.from(agentId),
+        dnas: envoyOpts.hosted_app.dnas,
+      }
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, { type: "success" });
+      adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, { type: "success" });
+      adminConductor.once(MockConductor.ATTACH_APP_INTERFACE_TYPE, { port: 0 }, { type: "success" });
 
-	    expect( failed		).to.be.true;
-	} finally {
-	}
+      await client.signUp("alice.test.1@holo.host", "Passw0rd!");
+
+      expect(client.anonymous).to.be.false;
+      expect(client.agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+    } finally {}
+  });
+
+  it("should sign-out", async () => {
+    client = await setup.client({
+      agent_id: "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq"
     });
-    it("should fail to sign-in because admin/agent/list returned error");
+    try {
+      await client.signOut();
 
-    it("should process signed-in request and respond", async () => {
-	try {
-	    await client.signIn( "someone@example.com", "Passw0rd!" );
-	    const agent_id		= client.agent_id;
+      expect(client.anonymous).to.be.true;
+      expect(client.agent_id).to.not.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
+    } finally {}
+  });
 
-	    expect( agent_id		).to.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
-	    
-	    conductor.general.once("call", async function ( data ) {
-		const keys		= Object.keys( data );
+  it.skip("should complete wormhole request", async () => {
+    client = await setup.client();
+    try {
+      conductor.general.once("call", async function(data) {
+        const signature = await conductor.wormholeRequest(client.agent_id, "UW1ZVWo1NnJyakFTOHVRQXpkTlFoUHJ3WHhFeUJ4ZkFxdktwZ1g5bnBpOGZOeA==");
 
-		expect( keys.length		).to.equal( 4 );
-		expect( data["instance_id"]	).to.equal(`QmV1NgkXFwromLvyAmASN7MbgLtgUaEYkozHPGUxcHAbSL::${agent_id}-holofuel`);
-		expect( data["zome"]		).to.equal("transactions");
-		expect( data["function"]	).to.equal("list_pending");
-		expect( data["args"]		).to.be.an("object");
+        expect(signature).to.equal("w/lyO2IipA0sSdGtbg+5pACLoafOkdPRXXuiELis51HVthfhzdP2JZeIDQkwssMccC67mHjOuYsALe5DPQjKDw==");
 
-		return ZomeAPIResult([]);
-	    });
+        return ZomeAPIResult(true);
+      });
 
-	    const response		= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
-	    log.debug("Response: %s", response );
+      const response = await client.callZomeFunction("elemental-chat", "chat", "list_channels", {
+        category: "General"
+      });
+      log.debug("Response: %s", response);
 
-	    expect( response.Ok		).to.deep.equal( [] );
-	} finally {
-	}
-    });
-    
-    it("should complete wormhole request", async () => {
-	try {
-	    conductor.general.once("call", async function ( data ) {
-		const signature		= await conductor.wormholeRequest( client.agent_id, "UW1ZVWo1NnJyakFTOHVRQXpkTlFoUHJ3WHhFeUJ4ZkFxdktwZ1g5bnBpOGZOeA==" );
+      expect(response).to.be.true;
+    } finally {}
+  });
 
-		expect( signature	).to.equal("w/lyO2IipA0sSdGtbg+5pACLoafOkdPRXXuiELis51HVthfhzdP2JZeIDQkwssMccC67mHjOuYsALe5DPQjKDw==");
+  it.skip("should fail wormhole request because Agent is anonymous", async () => {
+    client = await setup.client();
+    try {
 
-		return ZomeAPIResult(true);
-	    });
+      let failed = false;
+      conductor.general.once("call", async function(data) {
+        await conductor.wormholeRequest(client.agent_id, {
+          "some": "entry",
+          "foo": "bar",
+        });
 
-	    const response		= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
-	    log.debug("Response: %s", response );
+        return ZomeAPIResult(true);
+      });
 
-	    expect( response.Ok		).to.be.true;
-	} finally {
-	}
-    });
+      try {
+        await client.callZomeFunction("elemental-chat", "chat", "list_channels", {
+          category: "General"
+        });
+      } catch (err) {
+        failed = true;
+        expect(err.name).to.include("HoloError");
+        expect(err.message).to.include("not signed-in");
+      }
 
-    it("should handle obscure error from Conductor", async () => {
-	try {
-	    Conductor.send_serialization_error	= true;
-	    // conductor.general.once("call", async function ( data ) {
-	    // 	return true;
-	    // });
+      expect(failed).to.be.true;
+    } finally {}
+  });
 
-	    let failed				= false;
-	    try {
-		failed				= true;
-		const response			= await client.callZomeFunction( "holofuel", "transactions", "list_pending" );
-		log.debug("Response: %s", response );
-	    } catch ( err )  {
-		expect( err.message	).to.have.string("servicelogger.log_request threw");
-	    }
+  it("should have no pending confirmations", async () => {
+    try {
+      expect(envoy.pending_confirms).to.be.empty;
+    } finally {}
+  });
 
-	    expect( failed		).to.be.true;
-	} finally {
-	}
-    });
-
-    it("should have no pending confirmations", async () => {
-	try {
-	    expect( envoy.pending_confirms	).to.be.empty;
-	} finally {
-	}
-    });
-
-    it("should disconnect Envoy's websocket clients", async () => {
-	try {
-	    await conductor.stop();
-
-	    log.silly("Issuing zome call while conductor stoped");
-	    const request		= client.callZomeFunction( "holofuel", "transactions", "list_pending" );
-
-	    log.silly("Restart conductor");
-	    conductor			= new Conductor();
-	    conductor.general.once("call", async function ( data ) {
-		return ZomeAPIResult(true);
-	    });
-
-	    log.silly("Await zome call response");
-	    const response		= await request;
-	    log.debug("Response: %s", response );
-
-	    expect( response.Ok		).to.be.true;
-	} finally {
-	}
-    });
-    
+  it("should fail to sign-up because conductor disconnected");
+  it("should fail to sign-up because admin/agent/add returned an error");
+  it("should fail to sign-up because HHA returned an error");
+  it("should fail to sign-up because Happ Store returned an error");
+  it("should fail to sign-up because adminInterface call, `installApp`, returned an error");
+  it("should fail to sign-up because adminInterface call, `activateApp`, returned an error");
+  it("should fail to sign-up because adminInterface call, `attachAppInterface`, returned an error");
+  it("should fail to sign-in because this host doesn't know this Agent");
+  it("should handle obscure error from Conductor");
+  it("should disconnect Envoy's websocket clients on conductor disconnect");
 });

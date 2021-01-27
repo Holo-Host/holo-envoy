@@ -2,7 +2,7 @@
 # RPC WebSocket API
 
 ### `holo/agent/signup`
-Request Envoy to set up new hApp instances for this Agent.  We should have a way to verify that this
+Request Envoy to set up new installed app for this Agent.  We should have a way to verify that this
 Agent is actually unregisterd for the given hApp.
 
 Arguments
@@ -10,16 +10,11 @@ Arguments
 - `<agent_id>`
 
 
-### `holo/agent/identify`
-Endpoint for asking a Host if they are hosting the given Agent ID.
+### `holo/app_info`
+Endpoint for fetching app data, including a list of cell_data and nicknames for each dna in the app.
 
 Arguments
-- `<agent_id>`
-
-Failure modes
-- Host does not have expected instances
-- Host does not have the correct chains
-- Host does not have up-to-date chains
+- `<installed_app_id>`
 
 
 ### `holo/call`
@@ -37,7 +32,7 @@ Arguments
           "call_spec": {
               "hha_hash"     : string,
               "dna_alias"    : string,
-              "instance_id"  : string,
+              "cell_id"      : string,
               "zome"         : string,
               "function"     : string,
               "args"         : array

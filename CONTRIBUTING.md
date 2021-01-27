@@ -73,7 +73,7 @@ make test-e2e
 
 ### Outgoing Connections
 
-- **Admin (Admin Server)**	- used for creating new hosted Agents and their instances
+- **Admin (Admin Server)**	- used for creating new hosted Agents and their installed-apps
 - **Internal (Conductor)**	- used for service logger traffic
 - **Public (Conductor)**	- used for hosted agent traffic
 
@@ -81,8 +81,8 @@ make test-e2e
 ## Concepts
 
 ### Anonymous Agent
-These are ephemeral Agent identities that can connect to any Host running an anonymous instance of a
-hApp's DNA(s).  When an anonymous connection is made, Envoy does not need to do anything special for
+These are ephemeral Agent identities that can connect to any Host running an anonymous installed-app (which runs the cells
+attached to the anonymous id for this happ).  When an anonymous connection is made, Envoy does not need to do anything special for
 that Agent.
 
 ### Signed-in Agent
@@ -94,11 +94,11 @@ The Agent is connecting to this Host for the first time and has never used this 
 
 *Process*
 - register this Agent as a Hosted Agent in Conductor
-- start instances for each of the hApp's DNAs
+- start cells for each of the hApp's DNAs
 - and continue to sign-in process...
     
 #### Sign-in
-The Agent has used this hApp before and expects this Host to have their instances running
+The Agent has used this hApp before and expects this Host to have their installed-happs running
 
 *Process*
 - Register Agent's wormhole endpoint in RPC events
