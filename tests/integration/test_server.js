@@ -34,7 +34,7 @@ describe("Server", () => {
     }
 
 	  log.info("Waiting for Conductor to spin up");
-    await delay(15000);
+    await delay(10000);
 
     envoy = await setup.start();
     server = envoy.ws_server;
