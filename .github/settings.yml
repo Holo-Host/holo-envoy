@@ -8,7 +8,7 @@ repository:
   has_wiki: false
   default_branch: develop
   allow_merge_commit: true
-  allow_squash_merge: true
+  allow_squash_merge: false
   allow_rebase_merge: false
 
 collaborators: []
