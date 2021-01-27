@@ -743,11 +743,8 @@ class Envoy {
   validHoloHashPrefix(holoHashStrPrefix) {
     switch (holoHashStrPrefix) {
       case "uhCAk": // agent
-        return true;
       case "uhCkk": // header
-        return true;
       case "uhCEk": // entry
-        return true;
       case "uhC0k": // dna
         return true;
       default:
