@@ -68,6 +68,7 @@ const envoy_mode_map = {
   develop: 1,
 }
 
+// Note: All envoyOpts.dnas will be registered via admin interfaice with the paths provided here
 const envoyOpts = {
   mode: envoy_mode_map.develop,
   hosted_port_number: 0,
@@ -76,13 +77,11 @@ const envoyOpts = {
     dnas: [{
       nick: 'test-hha',
 			path: './dnas/elemental-chat.dna.gz',
-			src_path: 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.0.1-alpha3/holo-hosting-app.dna.gz'
 		},
 		{
       nick: 'test-elemental-chat',
-      src_path: 'https://github.com/holochain/elemental-chat/releases/download/v0.0.1-alpha9/elemental-chat.dna.gz',
+      path: './dnas/elemental-chat.dna.gz',
 		}],
-		usingURL: true
   }
 }
 
@@ -96,7 +95,7 @@ const getHostAgentKey = async (serviceClient) => {
     encoded: Codec.AgentId.encode(agentPubKey)
   }
 }
-// Register test app in hha  (in real word scenario - will be done when provider registers app in hha):
+// Register test app in hha (in real word scenario - will be done when provider registers app in hha):
 const registerTestAppInHha = async (hostedClient) => {
   const hhaAppInfo = await hostedClient.appInfo({
     installed_app_id: HHA_INSTALLED_APP_ID

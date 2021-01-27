@@ -1,5 +1,4 @@
 import path from 'path';
-import tmp from 'tmp';
 import fs from 'fs';
 import logger from '@whi/stdlog';
 import crypto from 'crypto';
@@ -259,41 +258,29 @@ class Envoy {
 	
     // Envoy - New Hosted Agent Sign-up Sequence
     this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id]) => {
-      log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash)
-
+      log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);      
       const failure_response = (new HoloError("Failed to create a new hosted agent")).toJSON();
-      let resp;
 
-      log.info("Retrieve the holo-hosting-app cell id using the Installed App Id: '%s'", HHA_INSTALLED_APP_ID);
-      const appInfo = await this.callConductor("internal", { installed_app_id: HHA_INSTALLED_APP_ID });
+      const anonymous_installed_app_id = hha_hash;
+      const registered_installed_app_id = `${hha_hash}:${agent_id}`;
+
+      log.info("Retrieve the hosted app cell_data using the anonymous installed_app_id: '%s'", anonymous_installed_app_id);
+      const appInfo = await this.callConductor("hosted", { installed_app_id: anonymous_installed_app_id });
 
       if (!appInfo) {
-        log.error("Failed during HHA AppInfo lookup: %s", appInfo);
+        log.error("Failed during hosted app's AppInfo call: %s", appInfo);
         return failure_response;
       }
 
-      const hha_cell_id = appInfo.cell_data[0][0];
-      const buffer_host_agent_hha_id = hha_cell_id[1];
+      // const hha_cell_id = appInfo.cell_data[0][0];
+      // const buffer_host_agent_hha_id = hha_cell_id[1];
+      // const dnaMap = appInfo.cell_data.map(([cell_id, dna_alias]) => ({[dna_alias]: cell_id[0]	}));
+      // const dnaDictionary = dnaMap.reduce((accumulator, current, {}) => ({  ...accumulator, ...current[0] }));
 
-      log.info("Look-up Hosted App's HHA record using ID '%s'", hha_hash);
-      resp = await this.callConductor("internal", {
-        "cell_id": hha_cell_id,
-        "zome_name": "hha",
-        "fn_name": "get_happ",
-        "payload": hha_hash,
-        "cap": null,
-        "provenance": buffer_host_agent_hha_id,
-      });
+      console.log('NUMBER OF DNAs in the hosted happ: ', appInfo.cell_data.length)
 
-      if (!resp) {
-        log.error("Failed during App Details lookup in HHA: %s", resp);
-        return failure_response;
-      }
-      const app = resp;
-      const installed_app_id = `${hha_hash}:${agent_id}`;
-
-      log.silly("HHA bundle: %s", app);
-      log.info("Found %s DNA(s) for the app bundle with HHA ID: %s", app.happ_bundle.dnas.length, hha_hash);
+      log.silly("Hosted App Cell Data: %s", appInfo.cell_data);
+      log.info("Found %s DNA(s) for the app bundle with HHA ID: %s", appInfo.cell_data.length, hha_hash);
 
       const buffer_agent_id = Codec.AgentId.decodeToHoloHash(agent_id);
       log.info("Encoded Agent ID (%s) into buffer form: %s", agent_id, buffer_agent_id);
@@ -303,72 +290,49 @@ class Envoy {
         let adminResponse;
         // - Install App - This admin function creates cells for each dna with associated nick, under the hood.
         try {
-          log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, installed_app_id);
-
-					const installDna = dna => {
-						const timeout = 5_000;
-						const happFilePath = tmp.tmpNameSync();    
-						const file = fs.createWriteStream(happFilePath);
-						const urlObj = new URL(dna.src_path);
-						urlObj.protocol = "https";
-						const downloadDnaPath = new Promise(resolve => {
-							requestUrl({
-									uri: urlObj.toString()
-							})
-							.pipe(file)
-							.on('finish', () => {
-									log.debug(`Downloaded file from ${urlObj.toString()} to ${happFilePath}`);
-									const dnaInfo = { nick: dna.nick, path: happFilePath };
-									resolve(dnaInfo);
-							})
-							.on('error', (error) => {
-								// Delete the file async if error occurs
-								fs.unlink(happFilePath, () => {
-									log.debug(`Failed to download file ${urlObj.toString()} for ${dna.nick}`);
-									throw new Error(error.message);
-								});
-							})
-						});
-
-						const timeoutCheck = new Promise((resolve, reject) => {
-							let id = setTimeout(() => {
-								clearTimeout(id);
-								reject('Timed out in '+ timeout + 'ms.')
-							}, timeout)
-						});
-
-						return Promise.race([
-							downloadDnaPath,
-							timeoutCheck
-						]);
-					};
+          log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, registered_installed_app_id);
 
           let dnas;
+          // note: if providing dnas in tests, they will first need to be registered via admin conductor
           if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
-						if (this.opts.hosted_app!.usingURL) {
-							const installedDnas = await promiseMap(this.opts.hosted_app.dnas, installDna);
-							log.debug('installedDnas : %s', installedDnas);
-							
-							dnas = installedDnas;
-						} else {
-							dnas = this.opts.hosted_app.dnas;
-						}
+            const adminRegisterDna = dna => {
+              const timeout = 5_000;
+              const registerDna = this.callConductor("master", 'registerDna', {
+                source: { path: dna.path }
+              });
+              const timeoutCheck = new Promise((resolve, reject) => {
+                let id = setTimeout(() => {
+                  clearTimeout(id);
+                  reject('Timed out in '+ timeout + 'ms.')
+                }, timeout)
+              });
+              return Promise.race([
+                registerDna,
+                timeoutCheck
+              ]);
+            };
+
+            const dnasWithHash = await promiseMap(this.opts.hosted_app.dnas, adminRegisterDna);
+            log.debug('dnasWithHash : %s', dnasWithHash);
+            dnas = dnasWithHash;
           }
 
+          console.log('>>>>>>>>>> \nDNAS ', dnas);
+
 					adminResponse = await this.callConductor("master", 'installApp', {
-            installed_app_id,
+            registered_installed_app_id,
             agent_key: buffer_agent_id,
-            dnas: dnas || await promiseMap(app.happ_bundle.dnas, installDna),
+            dnas: dnas || appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0] }))
           });
 
           if (adminResponse.type !== "success") {
             log.error("Conductor 'installApp' returned non-success response: %s", adminResponse);
             failed = true
-            throw (new HoloError(`Failed to complete 'installApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
+            throw (new HoloError(`Failed to complete 'installApp' for installed_app_id'${registered_installed_app_id}'.`)).toJSON();
           }
         } catch (err) {
           if (err.message.toLowerCase().includes("duplicate cell")) {
-            log.warn("Cell (%s) already exists in Conductor", installed_app_id);
+            log.warn("Cell (%s) already exists in Conductor", registered_installed_app_id);
           } else {
             log.error("Failed during 'installApp': %s", String(err));
             throw err;
@@ -377,17 +341,17 @@ class Envoy {
 
         // Activate App - Add the Installed App to a hosted interface.
         try {
-          log.info("Activating Installed App (%s)", installed_app_id);
-          adminResponse = await this.callConductor("master", 'activateApp', { installed_app_id });
+          log.info("Activating Installed App (%s)", registered_installed_app_id);
+          adminResponse = await this.callConductor("master", 'activateApp', { registered_installed_app_id });
 
           if (adminResponse.type !== "success") {
             log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse);
             failed = true
-            throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
+            throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${registered_installed_app_id}'.`)).toJSON();
           }
         } catch (err) {
           if (err.message.toLowerCase().includes("already in interface"))
-            log.warn("Cannot Activate App: Installed App ID (%s) is already added to hosted interface", installed_app_id);
+            log.warn("Cannot Activate App: Installed App ID (%s) is already added to hosted interface", registered_installed_app_id);
           else {
             log.error("Failed during 'activateApp': %s", String(err));
             throw err;
@@ -406,18 +370,18 @@ class Envoy {
             hosted_port = this.conductor_opts.interfaces.hosted_port;
           }
 
-          log.info("Starting installed-app (%s) on port (%s)", installed_app_id, hosted_port);
+          log.info("Starting installed-app (%s) on port (%s)", registered_installed_app_id, hosted_port);
 
           adminResponse = await this.callConductor("master", 'attachAppInterface', { port: hosted_port });
 
           if (adminResponse.type !== "success") {
             log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse);
             failed = true
-            throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id'${installed_app_id}'.`)).toJSON();
+            throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id'${registered_installed_app_id}'.`)).toJSON();
           }
         } catch (err) {
           if (err.message.toLowerCase().includes("already active"))
-            log.warn("Cannot Start App: Intalled-app (%s) is already started", installed_app_id);
+            log.warn("Cannot Start App: Intalled-app (%s) is already started", registered_installed_app_id);
           else {
             log.error("Failed during 'attachAppInterface': %s", String(err));
             throw err;

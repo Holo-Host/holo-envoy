@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "@holo-host/chaperone": "0.3.0",
-    "@holochain-open-dev/holochain-run-dna": "^0.3.1",
+    "@holochain-open-dev/holochain-run-dna": "file:/home/lisa/Documents/gitrepos/holochain/holochain-new/community-projects/run-dna-forks/jetttech-fork-holochain-run-dna/holochain-run-dna",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
     "chai": "^4.2.0",
