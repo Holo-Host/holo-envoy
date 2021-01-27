@@ -43,14 +43,14 @@ test-debug:		build
 	make test-e2e-debug2
 
 test-unit:		build
-	npm run test-unit
+	npx mocha $(MOCHA_OPTS) ./tests/unit/
 test-unit-debug:	build
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
 
 test-integration:	build DNAs
 	killall holochain &
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
-	npm run test-integration
+	npx mocha $(MOCHA_OPTS) ./tests/integration/
 test-integration-debug:	build DNAs
 	killall holochain &
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
@@ -59,7 +59,7 @@ test-integration-debug:	build DNAs
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
 	killall holochain &
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
-	npm run test-e2e
+	npx mocha $(MOCHA_OPTS) ./tests/e2e
 test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
 	killall holochain &
 	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
