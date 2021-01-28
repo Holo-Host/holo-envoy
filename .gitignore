@@ -13,3 +13,4 @@ conductor.log
 sim2h.log
 holochain-conductor/storage
 holochain-conductor.log
+tests/tmp
