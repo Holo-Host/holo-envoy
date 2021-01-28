@@ -13,6 +13,7 @@ const {
 
 
 async function init(lair_socket, shim_socket, signing_handler) {
+  log.normal('init wormhole');
   let connections = [];
 
   const shim = net.createServer(async function(conductor_stream) {
@@ -58,7 +59,7 @@ async function init(lair_socket, shim_socket, signing_handler) {
 
   return {
     stop() {
-      log.debug("Stopping wormhole");
+      log.normal("Stopping wormhole");
       connections.map(conns => {
         conns.lair.destroy();
         conns.conductor.destroy();
