@@ -396,7 +396,6 @@ class Envoy {
       const response_id = response_hash;
 
       log.normal("Completed AppInfo call for installed_app_id (%s) with response_id (%s)", installed_app_id, response_id);
-      console.log("--------->", appInfo);
 
       return new Package(appInfo, { "type": "success" }, { response_id });
     }, this.opts.NS);

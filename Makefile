@@ -14,15 +14,16 @@ docs/index.html:	build/index.js
 
 .PRECIOUS:	keystore-%.key
 .PHONY:		src build docs docs-watch build-watch
+kill-holochain:
 
 dnas:
 	mkdir -p ./dnas
 dnas/holo-hosting-app.dna.gz:	dnas
-	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.0.1-alpha3/holo-hosting-app.dna.gz' -o $@
+	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.0.1-alpha7/holo-hosting-app.dna.gz' -o $@
 dnas/servicelogger.dna.gz:	dnas
-	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.0.1-alpha3/servicelogger.dna.gz' -o $@
+	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.0.1-alpha5/servicelogger.dna.gz' -o $@
 dnas/elemental-chat.dna.gz:	dnas
-	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.0.1-alpha9/elemental-chat.dna.gz' -o $@
+	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.0.1-alpha18/elemental-chat.dna.gz' -o $@
 
 build:			node_modules build/index.js
 docs:			node_modules docs/index.html
@@ -33,7 +34,9 @@ MOCHA_OPTS		=
 test:			build
 	make test-unit;
 	make test-integration;
-	make test-e2e
+	make test-e2e;
+	npm run stop-conductor
+
 test-nix:		build
 	make test-unit;
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make test-integration
@@ -47,31 +50,26 @@ test-unit:		build
 test-unit-debug:	build
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
 
-test-integration:	build DNAs
-	killall holochain &
-	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
-	npx mocha $(MOCHA_OPTS) ./tests/integration/
-test-integration-debug:	build DNAs
-	killall holochain &
-	npx holochain-run-dna -c ./app-config.yml -a 4444 &> holochain-conductor.log &
-	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
-
-e2e-conductor:
+conductor:
 	mkdir -p ./tests/tmp
 	rm -rf ./tests/tmp/*
 	npx holochain-run-dna -c ./app-config.yml -a 4444 -r ./tests/tmp &> holochain-conductor.log &
 
+test-integration:	build DNAs
+	npm run stop-conductor &&	make conductor
+	npx mocha $(MOCHA_OPTS) ./tests/integration/
+test-integration-debug:	build DNAs
+	npm run stop-conductor &&	make conductor
+	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
+
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
-	killall holochain &
-	make e2e-conductor
+	npm run stop-conductor && make conductor
 	npx mocha $(MOCHA_OPTS) ./tests/e2e
 test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
-	killall holochain &
-	make e2e-conductor
+	npm run stop-conductor &&	make conductor
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
-	killall holochain &
-	make e2e-conductor
+	npm run stop-conductor && make conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
 
 docs-watch:
@@ -113,14 +111,8 @@ dist/holo_hosting_chaperone.js:
 check-conductor:	check-holochain
 check-holochain:
 	ps -efH | grep holochain | grep -E "conductor-[0-9]+.toml"
-stop-conductor:		stop-holochain
-stop-holochain:
-	@if [[ $$(ps -efH | grep holochain | grep -E "conductor-[0-9]+.toml") ]]; then	\
-		echo "Stopping holochain conductor...";					\
-		killall holochain || true;						\
-	else										\
-		echo "holochain conductor is not running";				\
-	fi
+stop-conductor:
+	npm run stop-conductor
 
 keystore-%.key:
 	@echo "Creating Holochain key for Agent $*: keystore-$*.key";
