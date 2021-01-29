@@ -71,7 +71,7 @@ const envoy_mode_map = {
 // Note: All envoyOpts.dnas will be registered via admin interfaice with the paths provided here
 const envoyOpts = {
   mode: envoy_mode_map.develop,
-  hosted_port_number: 0,
+  app_port_number: 0,
   hosted_app: {
     servicelogger_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID,
     // TODO: Why do we need this?
@@ -86,8 +86,8 @@ const envoyOpts = {
   }
 }
 
-const getHostAgentKey = async (serviceClient) => {
-  const appInfo = await serviceClient.appInfo({
+const getHostAgentKey = async (appClient) => {
+  const appInfo = await appClient.appInfo({
     installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
   });
   const agentPubKey = appInfo.cell_data[0][0][1];
@@ -96,14 +96,13 @@ const getHostAgentKey = async (serviceClient) => {
     encoded: Codec.AgentId.encode(agentPubKey)
   }
 }
-const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo" //await registerTestAppInHha(hosted_client);
+const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
 
 describe("Server", () => {
   let envoy;
   let server;
   let http_ctrls, http_url;
-  let hosted_client;
-  let service_client;
+  let app_client;
   let registered_agent;
 
   before(async function() {
@@ -134,12 +133,11 @@ describe("Server", () => {
     log.debug("Setup config: %s", http_ctrls.ports);
     http_url = `http://localhost:${http_ctrls.ports.chaperone}`;
 
-    hosted_client = envoy.hcc_clients.hosted;
-    service_client = envoy.hcc_clients.service;
+    app_client = envoy.hcc_clients.app;
 
     // TEMPORARY: This is a workaround until wormhole signing is in place. Using the Host Servicelogger Agent Key to call public sign functions for activity log signatures.
-    registered_agent = await getHostAgentKey(service_client);
-    log.info('Using host agent (%s) in conductor on service port(%s)', registered_agent, service_client.connectionMonitor.port);
+    registered_agent = await getHostAgentKey(app_client);
+    log.info('Using host agent (%s) in conductor on service port(%s)', registered_agent, app_client.connectionMonitor.port);
 
   });
 
@@ -171,7 +169,7 @@ describe("Server", () => {
         let serviceloggerCellId;
         try {
           // REMINDER: there is one servicelogger instance per installed hosted app, each with their own installed_app_id
-          const serviceloggerAppInfo = await service_client.appInfo({
+          const serviceloggerAppInfo = await app_client.appInfo({
             installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
           });
           serviceloggerCellId = serviceloggerAppInfo.cell_data[0][0];
@@ -195,7 +193,7 @@ describe("Server", () => {
         console.log("setting: ", settings);
         let logger_settings;
         try {
-          logger_settings = await service_client.callZome({
+          logger_settings = await app_client.callZome({
             // Note: Cell ID content MUST BE passed in as a Byte Buffer, not a u8int Byte Array
             cell_id: [Buffer.from(servicelogger_cell_id[0]), Buffer.from(servicelogger_cell_id[1])],
             zome_name: 'service',

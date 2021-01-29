@@ -17,9 +17,6 @@ const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
 
-// NB: The hha installed app id must match the id provided in the hpos config when installing hha as an internal host app
-const HHA_INSTALLED_APP_ID = 'holo-hosting-app';
-
 const sha256 = (buf) => crypto.createHash('sha256').update(Buffer.from(buf)).digest();
 const digest = (data) => Codec.Digest.encode(sha256(typeof data === "string" ? data : SerializeJSON(data)));
 
@@ -59,7 +56,7 @@ interface EnvoyConfig {
   port?: number;
   NS?: string;
   hosted_app?: HostedAppConfig;
-  hosted_port_number?: number;
+  app_port_number?: number;
 }
 
 class HoloError extends Error {
@@ -125,10 +122,8 @@ class Envoy {
 
     this.conductor_opts = {
       "interfaces": {
-        "master_port": 4444, // conductor admin interface (adminPort)
-        "service_port": 42222, // servicelogger (happPort)
-        "internal_port": 42233, //  self-hosted (happPort)
-        "hosted_port": 42244,  // hosted (happPort)
+        "admin_port": 4444,
+        "app_port": 42233,
       },
     };
 
@@ -140,10 +135,8 @@ class Envoy {
   async connections() {
     try {
       const ifaces = this.conductor_opts.interfaces;
-      this.hcc_clients.master = await HcAdminWebSocket.init(`ws://localhost:${ifaces.master_port}`);
-      this.hcc_clients.service = await HcAppWebSocket.init(`ws://localhost:${ifaces.service_port}`);
-      this.hcc_clients.internal = await HcAppWebSocket.init(`ws://localhost:${ifaces.internal_port}`);
-      this.hcc_clients.hosted = await HcAppWebSocket.init(`ws://localhost:${ifaces.hosted_port}`);
+      this.hcc_clients.admin = await HcAdminWebSocket.init(`ws://localhost:${ifaces.admin_port}`);
+      this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`);
     } catch (err) {
       console.error(err);
     }
@@ -266,7 +259,7 @@ class Envoy {
       const hosted_instance_app_id = `${hha_hash}:${agent_id}`;
 
       log.info("Retrieve the hosted app cell_data using the anonymous installed_app_id: '%s'", anonymous_installed_app_id);
-      const appInfo = await this.callConductor("hosted", { installed_app_id: anonymous_installed_app_id });
+      const appInfo = await this.callConductor("app", { installed_app_id: anonymous_installed_app_id });
 
       if (!appInfo) {
         log.error("Failed during hosted app's AppInfo call: %s", appInfo);
@@ -289,7 +282,7 @@ class Envoy {
         try {
           log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, hosted_instance_app_id);
           let a = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0] }))
-  				adminResponse = await this.callConductor("master", 'installApp', {
+  				adminResponse = await this.callConductor("admin", 'installApp', {
             installed_app_id: hosted_instance_app_id,
             agent_key: buffer_agent_id,
             dnas: appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0] }))
@@ -312,7 +305,7 @@ class Envoy {
         // Activate App - Add the Installed App to a hosted interface.
         try {
           log.info("Activating Installed App (%s)", hosted_instance_app_id);
-          adminResponse = await this.callConductor("master", 'activateApp', { installed_app_id: hosted_instance_app_id });
+          adminResponse = await this.callConductor("admin", 'activateApp', { installed_app_id: hosted_instance_app_id });
 
           if (adminResponse.type !== "success") {
             log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse);
@@ -330,19 +323,19 @@ class Envoy {
 
         // Attach App to Interface - Connect app to hosted interface and start app (ie: spin up all cells within app bundle)
         try {
-          let hosted_port
+          let app_port
 
-          if ((this.opts.hosted_port_number === 0 || this.opts.hosted_port_number) && this.opts.mode === Envoy.DEVELOP_MODE) {
-            log.info("Defaulting to port provided in opts config.  Attaching App to port (%s)", this.opts.hosted_port_number);
+          if ((this.opts.app_port_number === 0 || this.opts.app_port_number) && this.opts.mode === Envoy.DEVELOP_MODE) {
+            log.info("Defaulting to port provided in opts config.  Attaching App to port (%s)", this.opts.app_port_number);
             // NOTICE: MAKE SURE THIS PORT IS SET TO THE WS PORT EXPECTED IN THE UI
-            hosted_port = this.opts.hosted_port_number;
+            app_port = this.opts.app_port_number;
           } else {
-            hosted_port = this.conductor_opts.interfaces.hosted_port;
+            app_port = this.conductor_opts.interfaces.app_port;
           }
 
-          log.info("Starting installed-app (%s) on port (%s)", hosted_instance_app_id, hosted_port);
+          log.info("Starting installed-app (%s) on port (%s)", hosted_instance_app_id, app_port);
 
-          adminResponse = await this.callConductor("master", 'attachAppInterface', { port: hosted_port });
+          adminResponse = await this.callConductor("admin", 'attachAppInterface', { port: app_port });
 
           if (adminResponse.type !== "success") {
             log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse);
@@ -382,7 +375,7 @@ class Envoy {
       let appInfo
       try {
         log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
-        appInfo = await this.callConductor("hosted", { installed_app_id });
+        appInfo = await this.callConductor("app", { installed_app_id });
         if (!appInfo) {
           log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo);
           throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
@@ -459,7 +452,7 @@ class Envoy {
 
         const hosted_app_cell_id = call_spec["cell_id"];
 
-        zomeCall_response = await this.callConductor("hosted", {
+        zomeCall_response = await this.callConductor("app", {
           // QUESTION: why we can't just pass directly in the cell_id received back from appInfo call...
           "cell_id": [Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])],
           "zome_name": call_spec["zome"],
@@ -888,7 +881,7 @@ class Envoy {
     }
 
     log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
-    const appInfo = await this.callConductor("service", { installed_app_id: servicelogger_installed_app_id });
+    const appInfo = await this.callConductor("app", { installed_app_id: servicelogger_installed_app_id });
 
     if (!appInfo) {
       log.error("Failed during Servicelogger AppInfo lookup: %s", appInfo);
@@ -905,7 +898,7 @@ class Envoy {
 
     let temp_request_signature, temp_response_signature, temp_confirm_signature
     try {
-      temp_request_signature = await this.callConductor("service", {
+      temp_request_signature = await this.callConductor("app", {
         "cell_id": servicelogger_cell_id,
         "zome_name": "service",
         "fn_name": "sign_request",
@@ -919,7 +912,7 @@ class Envoy {
     }
 
     try {
-      temp_response_signature = await this.callConductor("service", {
+      temp_response_signature = await this.callConductor("app", {
         "cell_id": servicelogger_cell_id,
         "zome_name": "service",
         "fn_name": "sign_response",
@@ -933,7 +926,7 @@ class Envoy {
     }
 
     try {
-      temp_confirm_signature = await this.callConductor("service", {
+      temp_confirm_signature = await this.callConductor("app", {
         "cell_id": servicelogger_cell_id,
         "zome_name": "service",
         "fn_name": "sign_confirmation",
@@ -952,7 +945,7 @@ class Envoy {
     /******************** **************************** ********************/
 
     log.silly("Recording service confirmation with payload: activity: { request: %s, response: %s, confimation: %s }", client_request, host_response, confirmation);
-    const resp = await this.callConductor("service", {
+    const resp = await this.callConductor("app", {
       "cell_id": servicelogger_cell_id,
       "zome_name": "service",
       "fn_name": "log_activity",
