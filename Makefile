@@ -58,6 +58,7 @@ test-integration-debug:	build DNAs
 
 e2e-conductor:
 	mkdir -p ./tests/tmp
+	rm -rf ./tests/tmp/*
 	npx holochain-run-dna -c ./app-config.yml -a 4444 -r ./tests/tmp &> holochain-conductor.log &
 
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
