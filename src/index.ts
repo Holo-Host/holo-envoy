@@ -255,11 +255,11 @@ class Envoy {
 
       const failure_response = (new HoloError("Failed to create a new hosted agent")).toJSON();
 
-      const anonymous_installed_app_id = hha_hash;
-      const hosted_instance_app_id = `${hha_hash}:${agent_id}`;
+      const anonymous_instance_app_id = hha_hash;
+      const hosted_agent_instance_app_id = `${hha_hash}:${agent_id}`;
 
-      log.info("Retrieve the hosted app cell_data using the anonymous installed_app_id: '%s'", anonymous_installed_app_id);
-      const appInfo = await this.callConductor("app", { installed_app_id: anonymous_installed_app_id });
+      log.info("Retrieve the hosted app cell_data using the anonymous installed_app_id: '%s'", anonymous_instance_app_id);
+      const appInfo = await this.callConductor("app", { installed_app_id: anonymous_instance_app_id });
 
       if (!appInfo) {
         log.error("Failed during hosted app's AppInfo call: %s", appInfo);
@@ -280,7 +280,7 @@ class Envoy {
         let adminResponse;
         // - Install App - This admin function creates cells for each dna with associated nick, under the hood.
         try {
-          log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, hosted_instance_app_id);
+          log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, hosted_agent_instance_app_id);
           let dnas;
 
           if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
@@ -292,7 +292,7 @@ class Envoy {
 					}
 
           adminResponse = await this.callConductor("admin", 'installApp', {
-            installed_app_id: hosted_instance_app_id,
+            installed_app_id: hosted_agent_instance_app_id,
             agent_key: buffer_agent_id,
             dnas
           });
@@ -300,11 +300,11 @@ class Envoy {
           if (adminResponse.type !== "success") {
             log.error("Conductor 'installApp' returned non-success response: %s", adminResponse);
             failed = true
-            throw (new HoloError(`Failed to complete 'installApp' for installed_app_id'${hosted_instance_app_id}'.`)).toJSON();
+            throw (new HoloError(`Failed to complete 'installApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
           }
         } catch (err) {
           if (err.message.toLowerCase().includes("duplicate cell")) {
-            log.warn("Cell (%s) already exists in Conductor", hosted_instance_app_id);
+            log.warn("Cell (%s) already exists in Conductor", hosted_agent_instance_app_id);
           } else {
             log.error("Failed during 'installApp': %s", String(err));
             throw err;
@@ -313,17 +313,17 @@ class Envoy {
 
         // Activate App - Add the Installed App to a hosted interface.
         try {
-          log.info("Activating Installed App (%s)", hosted_instance_app_id);
-          adminResponse = await this.callConductor("admin", 'activateApp', { installed_app_id: hosted_instance_app_id });
+          log.info("Activating Installed App (%s)", hosted_agent_instance_app_id);
+          adminResponse = await this.callConductor("admin", 'activateApp', { installed_app_id: hosted_agent_instance_app_id });
 
           if (adminResponse.type !== "success") {
             log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse);
             failed = true
-            throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${hosted_instance_app_id}'.`)).toJSON();
+            throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
           }
         } catch (err) {
           if (err.message.toLowerCase().includes("already in interface"))
-            log.warn("Cannot Activate App: Installed App ID (%s) is already added to hosted interface", hosted_instance_app_id);
+            log.warn("Cannot Activate App: Installed App ID (%s) is already added to hosted interface", hosted_agent_instance_app_id);
           else {
             log.error("Failed during 'activateApp': %s", String(err));
             throw err;
@@ -342,18 +342,18 @@ class Envoy {
             app_port = this.conductor_opts.interfaces.app_port;
           }
 
-          log.info("Starting installed-app (%s) on port (%s)", hosted_instance_app_id, app_port);
+          log.info("Starting installed-app (%s) on port (%s)", hosted_agent_instance_app_id, app_port);
 
           adminResponse = await this.callConductor("admin", 'attachAppInterface', { port: app_port });
 
           if (adminResponse.type !== "success") {
             log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse);
             failed = true
-            throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id '${hosted_instance_app_id}'.`)).toJSON();
+            throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id '${hosted_agent_instance_app_id}'.`)).toJSON();
           }
         } catch (err) {
           if (err.message.toLowerCase().includes("already active"))
-            log.warn("Cannot Start App: Intalled-app (%s) is already started", hosted_instance_app_id);
+            log.warn("Cannot Start App: Intalled-app (%s) is already started", hosted_agent_instance_app_id);
           else {
             log.error("Failed during 'attachAppInterface': %s", String(err));
             throw err;
