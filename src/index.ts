@@ -281,10 +281,20 @@ class Envoy {
         // - Install App - This admin function creates cells for each dna with associated nick, under the hood.
         try {
           log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, hosted_instance_app_id);
+          let dnas;
+
+          if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
+            dnas = this.opts.hosted_app.dnas;
+					} else {
+            const installedDnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0] }));
+            log.debug('installedDnas : %s', installedDnas);
+            dnas = installedDnas;
+					}
+
           adminResponse = await this.callConductor("admin", 'installApp', {
             installed_app_id: hosted_instance_app_id,
             agent_key: buffer_agent_id,
-            dnas: appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0] }))
+            dnas
           });
 
           if (adminResponse.type !== "success") {

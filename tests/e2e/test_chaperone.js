@@ -72,18 +72,6 @@ const envoy_mode_map = {
 const envoyOpts = {
   mode: envoy_mode_map.develop,
   app_port_number: 0,
-  hosted_app: {
-    servicelogger_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID,
-    // TODO: Why do we need this?
-    dnas: [{
-      nick: 'test-hha',
-			path: './dnas/elemental-chat.dna.gz',
-		},
-		{
-      nick: 'test-elemental-chat',
-      path: './dnas/elemental-chat.dna.gz',
-		}],
-  }
 }
 
 const getHostAgentKey = async (appClient) => {
