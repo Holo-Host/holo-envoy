@@ -116,54 +116,54 @@ const envoyOpts = {
     } finally {}
   });
 
-  // it("should sign-up on this Host", async () => {
-  //   const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
-  //   client = await setup.client({
-  //     agent_id: agentId
-  //   });
-  //   client.skip_assign_host = true;
-  //
-  //   try {
-  //     const hhaData = {
-  //       cell_id: MOCK_CELL_ID,
-  //       zome_name: "hha",
-  //       fn_name: "get_happ",
-  //       args: {
-  //         zomeFnArgs: "happ bundle info"
-  //       }
-  //     };
-  //     const happ_bundle_details_response = {
-  //       happ_id: Buffer.from('HeaderHash'),
-  //       happ_bundle: {
-  //         hosted_url: 'http://holofuel.holohost.net',
-  //         happ_alias: 'holofuel-console',
-  //         ui_path: 'path/to/compressed/ui/file',
-  //         name: 'HoloFuel Console',
-  //         dnas: [{
-  //           hash: 'uhCkk...',
-  //           path: '/path/to/compressed/dna/file',
-  //           nick: 'holofuel'
-  //         }],
-  //       },
-  //       provider_pubkey: Buffer.from('AgentPubKey'),
-  //     };
-  //     appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_details_response);
-  //
-  //     const appInfo = {
-  //       installed_app_id: HOSTED_INSTALLED_APP_ID,
-  //       agent_key: Buffer.from(agentId),
-  //       dnas: envoyOpts.hosted_app.dnas,
-  //     }
-  //     adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, { type: "success" });
-  //     adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, { type: "success" });
-  //     adminConductor.once(MockConductor.ATTACH_APP_INTERFACE_TYPE, { port: 0 }, { type: "success" });
-  //
-  //     await client.signUp("alice.test.1@holo.host", "Passw0rd!");
-  //
-  //     expect(client.anonymous).to.be.false;
-  //     expect(client.agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
-  //   } finally {}
-  // });
+  it("should sign-up on this Host", async () => {
+    const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
+    client = await setup.client({
+      agent_id: agentId
+    });
+    client.skip_assign_host = true;
+
+    try {
+      const hhaData = {
+        cell_id: MOCK_CELL_ID,
+        zome_name: "hha",
+        fn_name: "get_happ",
+        args: {
+          zomeFnArgs: "happ bundle info"
+        }
+      };
+      const happ_bundle_details_response = {
+        happ_id: Buffer.from('HeaderHash'),
+        happ_bundle: {
+          hosted_url: 'http://holofuel.holohost.net',
+          happ_alias: 'holofuel-console',
+          ui_path: 'path/to/compressed/ui/file',
+          name: 'HoloFuel Console',
+          dnas: [{
+            hash: 'uhCkk...',
+            path: '/path/to/compressed/dna/file',
+            nick: 'holofuel'
+          }],
+        },
+        provider_pubkey: Buffer.from('AgentPubKey'),
+      };
+      appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_details_response);
+
+      const appInfo = {
+        installed_app_id: HOSTED_INSTALLED_APP_ID,
+        agent_key: Buffer.from(agentId),
+        dnas: envoyOpts.hosted_app.dnas,
+      }
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, { type: "success" });
+      adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, { type: "success" });
+      adminConductor.once(MockConductor.ATTACH_APP_INTERFACE_TYPE, { port: 0 }, { type: "success" });
+
+      await client.signUp("alice.test.1@holo.host", "Passw0rd!");
+
+      expect(client.anonymous).to.be.false;
+      expect(client.agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+    } finally {}
+  });
 
   it("should sign-out", async () => {
     client = await setup.client({
