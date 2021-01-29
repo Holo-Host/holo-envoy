@@ -190,7 +190,6 @@ describe("Server", () => {
           price_bandwidth: 1,
           max_time_before_invoice: [604800, 0]
         }
-        console.log("setting: ", settings);
         let logger_settings;
         try {
           logger_settings = await app_client.callZome({
