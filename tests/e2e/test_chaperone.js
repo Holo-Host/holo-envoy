@@ -246,9 +246,9 @@ describe("Server", () => {
         }
 
         try {
-          // Note: the cell_id is `elemental-chat.dna.gz` because holochain-run-dna is setting a default nick
-          // Ideally we would have a nick like elemental-chat or chat
-          return client.callZomeFunction(`elemental-chat.dna.gz`, "chat", "agent_stats", {});
+          // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
+          // Ideally we would have a nick like test or chat or elemental-chat
+          return client.callZomeFunction(`test.dna.gz`, "test", "returns_obj", {});
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
@@ -256,7 +256,8 @@ describe("Server", () => {
       }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH);
 
       log.info("Completed evaluation: %s", response);
-      expect(Object.keys(response)).to.have.members(["agents", "active"]);
+      expect(Object.keys(response)).to.have.members(["value"]);
+      expect(response.value).to.equal("This is the returned value");
     } finally {
 
     }

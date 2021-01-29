@@ -22,12 +22,12 @@ dnas/holo-hosting-app.dna.gz:	dnas
 	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.0.1-alpha7/holo-hosting-app.dna.gz' -o $@
 dnas/servicelogger.dna.gz:	dnas
 	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.0.1-alpha5/servicelogger.dna.gz' -o $@
-dnas/elemental-chat.dna.gz:	dnas
-	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.0.1-alpha18/elemental-chat.dna.gz' -o $@
+dnas/test.dna.gz:	dnas
+	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.0.2/test.dna.gz' -o $@
 
 build:			node_modules build/index.js
 docs:			node_modules docs/index.html
-DNAs:			dnas/elemental-chat.dna.gz dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz
+DNAs:			dnas/test.dna.gz dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz
 
 MOCHA_OPTS		=
 

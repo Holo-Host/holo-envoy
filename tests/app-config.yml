@@ -1,4 +1,3 @@
-
 # Servicelogger App
 - dnas:
   - ./dnas/servicelogger.dna.gz
@@ -14,6 +13,6 @@
 
 # Hosted App with happ_id: uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo
 - dnas:
-  - ./dnas/elemental-chat.dna.gz
+  - ./dnas/test.dna.gz
   app_name: uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo
   app_port: 42233 # hosted port
