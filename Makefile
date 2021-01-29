@@ -53,7 +53,7 @@ test-unit-debug:	build
 conductor:
 	mkdir -p ./tests/tmp
 	rm -rf ./tests/tmp/*
-	npx holochain-run-dna -c ./app-config.yml -a 4444 -r ./tests/tmp &> holochain-conductor.log &
+	npx holochain-run-dna -c ./tests/app-config.yml -a 4444 -r ./tests/tmp &> holochain-conductor.log &
 
 test-integration:	build DNAs
 	npm run stop-conductor &&	make conductor
