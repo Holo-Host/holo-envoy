@@ -14,10 +14,8 @@ const {
 } = MockConductor;
 
 describe("Server with mock Conductor", () => {
-  const MASTER_PORT = 4444;
-  const SERVICE_PORT = 42222;
-  const INTERNAL_PORT = 42233;
-  const HOSTED_PORT = 42244;
+  const ADMIN_PORT = 4444;
+  const APP_PORT = 42233;
   const INTERNAL_INSTALLED_APP_ID = "holo-hosting-app"
   // Note: The value used for the hosted installed_app_ids
   // ** must match the hha_hash pased to the chaperone server (in setup_envoy.js)
@@ -41,7 +39,7 @@ const envoy_mode_map = {
 
 const envoyOpts = {
   mode: envoy_mode_map.develop,
-  hosted_port_number: 0,
+  app_port_number: 0,
   hosted_app: {
     // servicelogger_id: SERVICE_INSTALLED_APP_ID,
     dnas: [{
@@ -53,10 +51,8 @@ const envoyOpts = {
 }
 
   before("Start mock conductor with envoy and client", async () => {
-    adminConductor = new MockConductor(MASTER_PORT);
-    serviceConductor = new MockConductor(SERVICE_PORT);
-    internalConductor = new MockConductor(INTERNAL_PORT);
-    hostedConductor = new MockConductor(HOSTED_PORT);
+    adminConductor = new MockConductor(ADMIN_PORT);
+    appConductor = new MockConductor(APP_PORT);
 
     envoy = await setup.start(envoyOpts);
     server = envoy.ws_server;
@@ -66,9 +62,7 @@ const envoyOpts = {
     await envoy.connected;
   });
   beforeEach('Set-up installed_app_ids for test', async () => {
-    internalConductor.once(MockConductor.APP_INFO_TYPE, {installed_app_id: INTERNAL_INSTALLED_APP_ID}, { cell_data: MOCK_CELL_DATA })
-    hostedConductor.once(MockConductor.APP_INFO_TYPE, {installed_app_id: HOSTED_INSTALLED_APP_ID}, { cell_data: MOCK_CELL_DATA })
-    serviceConductor.once(MockConductor.APP_INFO_TYPE, {installed_app_id: SERVICE_INSTALLED_APP_ID}, { cell_data: MOCK_CELL_DATA })
+    appConductor.any({ cell_data: MOCK_CELL_DATA })
   });
   afterEach("Close client", async () => {
     log.info("Closing client...");
@@ -80,9 +74,7 @@ const envoyOpts = {
 
     log.info("Stopping Conductor...");
     await adminConductor.close();
-    await serviceConductor.close();
-    await internalConductor.close();
-    await hostedConductor.close();
+    await appConductor.close();
   });
 
   it("should process request and respond", async () => {
@@ -102,7 +94,7 @@ const envoyOpts = {
         }
       };
       const expected_response = "Hello World";
-      hostedConductor.once(MockConductor.ZOME_CALL_TYPE, callZomeData, expected_response);
+      appConductor.once(MockConductor.ZOME_CALL_TYPE, callZomeData, expected_response);
 
       const servicelogData = {
         cell_id: MOCK_CELL_ID,
@@ -113,7 +105,7 @@ const envoyOpts = {
         }
       };
       const activity_log_response = 'Activity Log Success Hash';
-      serviceConductor.once(MockConductor.ZOME_CALL_TYPE, servicelogData, activity_log_response);
+      appConductor.once(MockConductor.ZOME_CALL_TYPE, servicelogData, activity_log_response);
 
       const response = await client.callZomeFunction("dna_alias", "zome", "zome_fn", {
         zomeFnArgs: "String Input"
@@ -155,7 +147,7 @@ const envoyOpts = {
         },
         provider_pubkey: Buffer.from('AgentPubKey'),
       };
-      internalConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_details_response);
+      appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_details_response);
 
       const appInfo = {
         installed_app_id: HOSTED_INSTALLED_APP_ID,

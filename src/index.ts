@@ -1,5 +1,4 @@
 import path from 'path';
-import tmp from 'tmp';
 import fs from 'fs';
 import logger from '@whi/stdlog';
 import crypto from 'crypto';
@@ -17,9 +16,6 @@ const requestUrl = request;
 const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
-
-// NB: The hha installed app id must match the id provided in the hpos config when installing hha as an internal host app
-const HHA_INSTALLED_APP_ID = 'holo-hosting-app';
 
 const sha256 = (buf) => crypto.createHash('sha256').update(Buffer.from(buf)).digest();
 const digest = (data) => Codec.Digest.encode(sha256(typeof data === "string" ? data : SerializeJSON(data)));
@@ -60,7 +56,7 @@ interface EnvoyConfig {
   port?: number;
   NS?: string;
   hosted_app?: HostedAppConfig;
-  hosted_port_number?: number;
+  app_port_number?: number;
 }
 
 class HoloError extends Error {
@@ -114,7 +110,7 @@ class Envoy {
   static DEVELOP_MODE: number = 1;
 
   constructor(opts: EnvoyConfig) {
-    log.silly("Initializing Envoy with input: %s", opts);		
+    log.silly("Initializing Envoy with input: %s", opts);
     const environmentMode = opts.mode || Envoy.PRODUCT_MODE;
     this.opts = Object.assign({}, {
       "port": WS_SERVER_PORT,
@@ -126,10 +122,8 @@ class Envoy {
 
     this.conductor_opts = {
       "interfaces": {
-        "master_port": 4444, // conductor admin interface (adminPort)
-        "service_port": 42222, // servicelogger (happPort)
-        "internal_port": 42233, //  self-hosted (happPort)
-        "hosted_port": 42244,  // hosted (happPort)
+        "admin_port": 4444,
+        "app_port": 42233,
       },
     };
 
@@ -141,10 +135,8 @@ class Envoy {
   async connections() {
     try {
       const ifaces = this.conductor_opts.interfaces;
-      this.hcc_clients.master = await HcAdminWebSocket.init(`ws://localhost:${ifaces.master_port}`);
-      this.hcc_clients.service = await HcAppWebSocket.init(`ws://localhost:${ifaces.service_port}`);
-      this.hcc_clients.internal = await HcAppWebSocket.init(`ws://localhost:${ifaces.internal_port}`);
-      this.hcc_clients.hosted = await HcAppWebSocket.init(`ws://localhost:${ifaces.hosted_port}`);
+      this.hcc_clients.admin = await HcAdminWebSocket.init(`ws://localhost:${ifaces.admin_port}`);
+      this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`);
     } catch (err) {
       console.error(err);
     }
@@ -256,44 +248,29 @@ class Envoy {
     // ------------------------------------------------------------------------
 
 	// EXPOSED ENVOY EVENTS
-	
+
     // Envoy - New Hosted Agent Sign-up Sequence
     this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id]) => {
-      log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash)
+      log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);
 
       const failure_response = (new HoloError("Failed to create a new hosted agent")).toJSON();
-      let resp;
 
-      log.info("Retrieve the holo-hosting-app cell id using the Installed App Id: '%s'", HHA_INSTALLED_APP_ID);
-      const appInfo = await this.callConductor("internal", { installed_app_id: HHA_INSTALLED_APP_ID });
+      const anonymous_instance_app_id = hha_hash;
+      const hosted_agent_instance_app_id = `${hha_hash}:${agent_id}`;
+
+      log.info("Retrieve the hosted app cell_data using the anonymous installed_app_id: '%s'", anonymous_instance_app_id);
+      const appInfo = await this.callConductor("app", { installed_app_id: anonymous_instance_app_id });
 
       if (!appInfo) {
-        log.error("Failed during HHA AppInfo lookup: %s", appInfo);
+        log.error("Failed during hosted app's AppInfo call: %s", appInfo);
         return failure_response;
       }
 
-      const hha_cell_id = appInfo.cell_data[0][0];
-      const buffer_host_agent_hha_id = hha_cell_id[1];
+      log.silly('NUMBER OF DNAs in the hosted happ: ', appInfo.cell_data.length)
+      log.silly('AppInfo on sign-up: ', appInfo)
 
-      log.info("Look-up Hosted App's HHA record using ID '%s'", hha_hash);
-      resp = await this.callConductor("internal", {
-        "cell_id": hha_cell_id,
-        "zome_name": "hha",
-        "fn_name": "get_happ",
-        "payload": hha_hash,
-        "cap": null,
-        "provenance": buffer_host_agent_hha_id,
-      });
-
-      if (!resp) {
-        log.error("Failed during App Details lookup in HHA: %s", resp);
-        return failure_response;
-      }
-      const app = resp;
-      const installed_app_id = `${hha_hash}:${agent_id}`;
-
-      log.silly("HHA bundle: %s", app);
-      log.info("Found %s DNA(s) for the app bundle with HHA ID: %s", app.happ_bundle.dnas.length, hha_hash);
+      log.silly("Hosted App Cell Data: %s", appInfo.cell_data);
+      log.info("Found %s DNA(s) for the app bundle with HHA ID: %s", appInfo.cell_data.length, hha_hash);
 
       const buffer_agent_id = Codec.AgentId.decodeToHoloHash(agent_id);
       log.info("Encoded Agent ID (%s) into buffer form: %s", agent_id, buffer_agent_id);
@@ -303,72 +280,31 @@ class Envoy {
         let adminResponse;
         // - Install App - This admin function creates cells for each dna with associated nick, under the hood.
         try {
-          log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, installed_app_id);
-
-					const installDna = dna => {
-						const timeout = 5_000;
-						const happFilePath = tmp.tmpNameSync();    
-						const file = fs.createWriteStream(happFilePath);
-						const urlObj = new URL(dna.src_path);
-						urlObj.protocol = "https";
-						const downloadDnaPath = new Promise(resolve => {
-							requestUrl({
-									uri: urlObj.toString()
-							})
-							.pipe(file)
-							.on('finish', () => {
-									log.debug(`Downloaded file from ${urlObj.toString()} to ${happFilePath}`);
-									const dnaInfo = { nick: dna.nick, path: happFilePath };
-									resolve(dnaInfo);
-							})
-							.on('error', (error) => {
-								// Delete the file async if error occurs
-								fs.unlink(happFilePath, () => {
-									log.debug(`Failed to download file ${urlObj.toString()} for ${dna.nick}`);
-									throw new Error(error.message);
-								});
-							})
-						});
-
-						const timeoutCheck = new Promise((resolve, reject) => {
-							let id = setTimeout(() => {
-								clearTimeout(id);
-								reject('Timed out in '+ timeout + 'ms.')
-							}, timeout)
-						});
-
-						return Promise.race([
-							downloadDnaPath,
-							timeoutCheck
-						]);
-					};
-
+          log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, hosted_agent_instance_app_id);
           let dnas;
-          if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
-						if (this.opts.hosted_app!.usingURL) {
-							const installedDnas = await promiseMap(this.opts.hosted_app.dnas, installDna);
-							log.debug('installedDnas : %s', installedDnas);
-							
-							dnas = installedDnas;
-						} else {
-							dnas = this.opts.hosted_app.dnas;
-						}
-          }
 
-					adminResponse = await this.callConductor("master", 'installApp', {
-            installed_app_id,
+          if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
+            dnas = this.opts.hosted_app.dnas;
+					} else {
+            const installedDnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0] }));
+            log.debug('installedDnas : %s', installedDnas);
+            dnas = installedDnas;
+					}
+
+          adminResponse = await this.callConductor("admin", 'installApp', {
+            installed_app_id: hosted_agent_instance_app_id,
             agent_key: buffer_agent_id,
-            dnas: dnas || await promiseMap(app.happ_bundle.dnas, installDna),
+            dnas
           });
 
           if (adminResponse.type !== "success") {
             log.error("Conductor 'installApp' returned non-success response: %s", adminResponse);
             failed = true
-            throw (new HoloError(`Failed to complete 'installApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
+            throw (new HoloError(`Failed to complete 'installApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
           }
         } catch (err) {
           if (err.message.toLowerCase().includes("duplicate cell")) {
-            log.warn("Cell (%s) already exists in Conductor", installed_app_id);
+            log.warn("Cell (%s) already exists in Conductor", hosted_agent_instance_app_id);
           } else {
             log.error("Failed during 'installApp': %s", String(err));
             throw err;
@@ -377,17 +313,17 @@ class Envoy {
 
         // Activate App - Add the Installed App to a hosted interface.
         try {
-          log.info("Activating Installed App (%s)", installed_app_id);
-          adminResponse = await this.callConductor("master", 'activateApp', { installed_app_id });
+          log.info("Activating Installed App (%s)", hosted_agent_instance_app_id);
+          adminResponse = await this.callConductor("admin", 'activateApp', { installed_app_id: hosted_agent_instance_app_id });
 
           if (adminResponse.type !== "success") {
             log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse);
             failed = true
-            throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`)).toJSON();
+            throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
           }
         } catch (err) {
           if (err.message.toLowerCase().includes("already in interface"))
-            log.warn("Cannot Activate App: Installed App ID (%s) is already added to hosted interface", installed_app_id);
+            log.warn("Cannot Activate App: Installed App ID (%s) is already added to hosted interface", hosted_agent_instance_app_id);
           else {
             log.error("Failed during 'activateApp': %s", String(err));
             throw err;
@@ -396,28 +332,28 @@ class Envoy {
 
         // Attach App to Interface - Connect app to hosted interface and start app (ie: spin up all cells within app bundle)
         try {
-          let hosted_port
+          let app_port
 
-          if ((this.opts.hosted_port_number === 0 || this.opts.hosted_port_number) && this.opts.mode === Envoy.DEVELOP_MODE) {
-            log.info("Defaulting to port provided in opts config.  Attaching App to port (%s)", this.opts.hosted_port_number);
+          if ((this.opts.app_port_number === 0 || this.opts.app_port_number) && this.opts.mode === Envoy.DEVELOP_MODE) {
+            log.info("Defaulting to port provided in opts config.  Attaching App to port (%s)", this.opts.app_port_number);
             // NOTICE: MAKE SURE THIS PORT IS SET TO THE WS PORT EXPECTED IN THE UI
-            hosted_port = this.opts.hosted_port_number;
+            app_port = this.opts.app_port_number;
           } else {
-            hosted_port = this.conductor_opts.interfaces.hosted_port;
+            app_port = this.conductor_opts.interfaces.app_port;
           }
 
-          log.info("Starting installed-app (%s) on port (%s)", installed_app_id, hosted_port);
+          log.info("Starting installed-app (%s) on port (%s)", hosted_agent_instance_app_id, app_port);
 
-          adminResponse = await this.callConductor("master", 'attachAppInterface', { port: hosted_port });
+          adminResponse = await this.callConductor("admin", 'attachAppInterface', { port: app_port });
 
           if (adminResponse.type !== "success") {
             log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse);
             failed = true
-            throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id'${installed_app_id}'.`)).toJSON();
+            throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id '${hosted_agent_instance_app_id}'.`)).toJSON();
           }
         } catch (err) {
           if (err.message.toLowerCase().includes("already active"))
-            log.warn("Cannot Start App: Intalled-app (%s) is already started", installed_app_id);
+            log.warn("Cannot Start App: Intalled-app (%s) is already started", hosted_agent_instance_app_id);
           else {
             log.error("Failed during 'attachAppInterface': %s", String(err));
             throw err;
@@ -448,7 +384,7 @@ class Envoy {
       let appInfo
       try {
         log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
-        appInfo = await this.callConductor("hosted", { installed_app_id });
+        appInfo = await this.callConductor("app", { installed_app_id });
         if (!appInfo) {
           log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo);
           throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
@@ -468,7 +404,7 @@ class Envoy {
 
 
     // Chaperone ZomeCall to Envoy Server
-    this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {      
+    this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
       log.silly("Received request: %s", payload.call_spec);
 
       // Example of request package
@@ -525,7 +461,7 @@ class Envoy {
 
         const hosted_app_cell_id = call_spec["cell_id"];
 
-        zomeCall_response = await this.callConductor("hosted", {
+        zomeCall_response = await this.callConductor("app", {
           // QUESTION: why we can't just pass directly in the cell_id received back from appInfo call...
           "cell_id": [Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])],
           "zome_name": call_spec["zome"],
@@ -573,7 +509,8 @@ class Envoy {
 				let host_response;
 
 				const host_metrics = {
-					"cpu": 7
+					"cpu": 1,
+          "bandwidth": 1
 				};
 
 				const weblog_compat = {
@@ -953,7 +890,7 @@ class Envoy {
     }
 
     log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
-    const appInfo = await this.callConductor("service", { installed_app_id: servicelogger_installed_app_id });
+    const appInfo = await this.callConductor("app", { installed_app_id: servicelogger_installed_app_id });
 
     if (!appInfo) {
       log.error("Failed during Servicelogger AppInfo lookup: %s", appInfo);
@@ -970,7 +907,7 @@ class Envoy {
 
     let temp_request_signature, temp_response_signature, temp_confirm_signature
     try {
-      temp_request_signature = await this.callConductor("service", {
+      temp_request_signature = await this.callConductor("app", {
         "cell_id": servicelogger_cell_id,
         "zome_name": "service",
         "fn_name": "sign_request",
@@ -984,7 +921,7 @@ class Envoy {
     }
 
     try {
-      temp_response_signature = await this.callConductor("service", {
+      temp_response_signature = await this.callConductor("app", {
         "cell_id": servicelogger_cell_id,
         "zome_name": "service",
         "fn_name": "sign_response",
@@ -998,7 +935,7 @@ class Envoy {
     }
 
     try {
-      temp_confirm_signature = await this.callConductor("service", {
+      temp_confirm_signature = await this.callConductor("app", {
         "cell_id": servicelogger_cell_id,
         "zome_name": "service",
         "fn_name": "sign_confirmation",
@@ -1017,7 +954,7 @@ class Envoy {
     /******************** **************************** ********************/
 
     log.silly("Recording service confirmation with payload: activity: { request: %s, response: %s, confimation: %s }", client_request, host_response, confirmation);
-    const resp = await this.callConductor("service", {
+    const resp = await this.callConductor("app", {
       "cell_id": servicelogger_cell_id,
       "zome_name": "service",
       "fn_name": "log_activity",

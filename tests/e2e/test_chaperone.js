@@ -14,7 +14,7 @@ const {
   Codec
 } = require('@holo-host/cryptolib');
 
-const installedAppIds = yaml.load(fs.readFileSync('app-config.yml'));
+const installedAppIds = yaml.load(fs.readFileSync('./tests/app-config.yml'));
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
 const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
 const HHA_INSTALLED_APP_ID = installedAppIds[1].app_name;
@@ -68,26 +68,14 @@ const envoy_mode_map = {
   develop: 1,
 }
 
+// Note: All envoyOpts.dnas will be registered via admin interfaice with the paths provided here
 const envoyOpts = {
   mode: envoy_mode_map.develop,
-  hosted_port_number: 0,
-  hosted_app: {
-    servicelogger_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID,
-    dnas: [{
-      nick: 'test-hha',
-			path: './dnas/elemental-chat.dna.gz',
-			src_path: 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.0.1-alpha3/holo-hosting-app.dna.gz'
-		},
-		{
-      nick: 'test-elemental-chat',
-      src_path: 'https://github.com/holochain/elemental-chat/releases/download/v0.0.1-alpha9/elemental-chat.dna.gz',
-		}],
-		usingURL: true
-  }
+  app_port_number: 0,
 }
 
-const getHostAgentKey = async (serviceClient) => {
-  const appInfo = await serviceClient.appInfo({
+const getHostAgentKey = async (appClient) => {
+  const appInfo = await appClient.appInfo({
     installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
   });
   const agentPubKey = appInfo.cell_data[0][0][1];
@@ -96,51 +84,13 @@ const getHostAgentKey = async (serviceClient) => {
     encoded: Codec.AgentId.encode(agentPubKey)
   }
 }
-// Register test app in hha  (in real word scenario - will be done when provider registers app in hha):
-const registerTestAppInHha = async (hostedClient) => {
-  const hhaAppInfo = await hostedClient.appInfo({
-    installed_app_id: HHA_INSTALLED_APP_ID
-  });
-  const hhaCellId = hhaAppInfo.cell_data[0][0];
-
-  const happBundle = {
-    hosted_url: "https://testapp.com",
-    happ_alias: "test-app",
-    ui_path: "/path/to/test_app_ui.zip",
-    name: "Test App Hosted On Web",
-    dnas: [{
-      hash: "hC0k...",
-      path: envoyOpts.hosted_app.dnas[0].path,
-      nick: envoyOpts.hosted_app.dnas[0].nick,
-    }]
-  };
-
-  let happRegistrationId;
-  try {
-    ({
-      happ_id: happRegistrationId
-    } = await hostedClient.callZome({
-      // NOTE: Cell ID content MUST be passed in as a byte buffer not a u8int byte-array
-      cell_id: [Buffer.from(hhaCellId[0]), Buffer.from(hhaCellId[1])],
-      zome_name: 'hha',
-      fn_name: 'register_happ',
-      payload: happBundle,
-      cap: null,
-      provenance: Buffer.from(hhaCellId[1])
-    }));
-  } catch (error) {
-    throw new Error(JSON.stringify(error));
-  }
-
-  return Codec.HoloHash.encode('header', happRegistrationId);
-}
+const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
 
 describe("Server", () => {
   let envoy;
   let server;
   let http_ctrls, http_url;
-  let hosted_client;
-  let service_client;
+  let app_client;
   let registered_agent;
 
   before(async function() {
@@ -171,14 +121,12 @@ describe("Server", () => {
     log.debug("Setup config: %s", http_ctrls.ports);
     http_url = `http://localhost:${http_ctrls.ports.chaperone}`;
 
-    hosted_client = envoy.hcc_clients.hosted;
-    service_client = envoy.hcc_clients.service;
+    app_client = envoy.hcc_clients.app;
 
     // TEMPORARY: This is a workaround until wormhole signing is in place. Using the Host Servicelogger Agent Key to call public sign functions for activity log signatures.
-    registered_agent = await getHostAgentKey(service_client);
-    log.info('Using host agent (%s) in conductor on service port(%s)', registered_agent, service_client.connectionMonitor.port);
+    registered_agent = await getHostAgentKey(app_client);
+    log.info('Using host agent (%s) in conductor on service port(%s)', registered_agent, app_client.connectionMonitor.port);
 
-    registered_happ_hash = await registerTestAppInHha(hosted_client);
   });
 
   after(async () => {
@@ -209,7 +157,7 @@ describe("Server", () => {
         let serviceloggerCellId;
         try {
           // REMINDER: there is one servicelogger instance per installed hosted app, each with their own installed_app_id
-          const serviceloggerAppInfo = await service_client.appInfo({
+          const serviceloggerAppInfo = await app_client.appInfo({
             installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
           });
           serviceloggerCellId = serviceloggerAppInfo.cell_data[0][0];
@@ -223,15 +171,16 @@ describe("Server", () => {
       await page.exposeFunction('setupServiceLoggerSettings', async (servicelogger_cell_id) => {
         const settings = {
           // Note: for the purposes of simplifying the test, the host is also the provider
-          provider_pubkey: Buffer.from(servicelogger_cell_id[1]),
+          provider_pubkey: Codec.AgentId.encode(servicelogger_cell_id[1]),
           max_fuel_before_invoice: 3,
-          price_per_unit: 1,
+          price_compute: 1,
+          price_storage: 1,
+          price_bandwidth: 1,
           max_time_before_invoice: [604800, 0]
         }
-
         let logger_settings;
         try {
-          logger_settings = await service_client.callZome({
+          logger_settings = await app_client.callZome({
             // Note: Cell ID content MUST BE passed in as a Byte Buffer, not a u8int Byte Array
             cell_id: [Buffer.from(servicelogger_cell_id[0]), Buffer.from(servicelogger_cell_id[1])],
             zome_name: 'service',
@@ -297,16 +246,18 @@ describe("Server", () => {
         }
 
         try {
-          return client.callZomeFunction('test-hha', "hha", "get_happ", client.hha_hash);
+          // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
+          // Ideally we would have a nick like test or chat or elemental-chat
+          return client.callZomeFunction(`test.dna.gz`, "test", "returns_obj", {});
         } catch (err) {
-          console.log(err.stack);
           console.log(typeof err.stack, err.stack.toString());
           throw err
         }
-      }, host_agent_id, registered_agent, registered_happ_hash);
+      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH);
 
       log.info("Completed evaluation: %s", response);
-      expect(Object.keys(response)).to.have.members(["happ_id", "happ_bundle", "provider_pubkey"]);
+      expect(Object.keys(response)).to.have.members(["value"]);
+      expect(response.value).to.equal("This is the returned value");
     } finally {
 
     }
