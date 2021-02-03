@@ -3,7 +3,7 @@
 with pkgs;
 
 {
-  holo-envoy = stdenv.mkDerivation rec {
+  holo-envoy = mkYarnPackage rec {
     name = "holo-envoy";
     src = gitignoreSource ./.;
 
@@ -19,14 +19,11 @@ with pkgs;
       ps
     ];
 
-    preConfigure = ''
-      cp -r ${npmToNix { inherit src; }} node_modules
-      chmod -R +w node_modules
-      patchShebangs node_modules
-    '';
+    packageJSON = "${src}/package.json";
+    yarnLock = "${src}/yarn.lock";
 
     buildPhase = ''
-      npm run build
+      yarn build
     '';
 
     installPhase = ''
@@ -38,11 +35,6 @@ with pkgs;
 
     fixupPhase = ''
       patchShebangs $out
-    '';
-
-    checkPhase = ''
-      make test-nix
-      make stop-sim2h
     '';
 
     doCheck = true;
