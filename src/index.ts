@@ -136,7 +136,7 @@ class Envoy {
     try {
       const ifaces = this.conductor_opts.interfaces;
       this.hcc_clients.admin = await HcAdminWebSocket.init(`ws://localhost:${ifaces.admin_port}`);
-      this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`);
+      this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`, signalHandler);
     } catch (err) {
       console.error(err);
     }
@@ -992,6 +992,10 @@ async function httpRequestStream(req): Promise<string> {
       }
     }));
   });
+}
+
+async function signalHandler(signal) {
+    console.log(signal);
 }
 
 export {

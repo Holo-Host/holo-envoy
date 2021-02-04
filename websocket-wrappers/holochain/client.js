@@ -45,9 +45,9 @@ class HcAppWebSocket extends AppWebsocket {
     this.connectionMonitor = new ConnectionMonitor(client, connect, 'Holochain-WireMessage', HOLOCHAIN_WS_CLIENT_OPTS);
   };
 
-  static async init(url) {
+  static async init(url, signalHandler) {
     const connect = super.connect;
-    const appWsClient = await super.connect(url);
+    const appWsClient = await super.connect(url, signalHandler);
     return new HcAppWebSocket(appWsClient.client, connect);
   }
 
