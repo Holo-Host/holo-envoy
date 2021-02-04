@@ -25,7 +25,7 @@ dnas/servicelogger.dna.gz:	dnas
 dnas/test.dna.gz:	dnas
 	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.0.2/test.dna.gz' -o $@
 
-build:			node_modules build/index.js
+build:			build/index.js
 docs:			node_modules docs/index.html
 DNAs:			dnas/test.dna.gz dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz
 

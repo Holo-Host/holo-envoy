@@ -12,7 +12,7 @@ const {
 
 
 
-async function init(lair_socket, shim_socket, signing_handler) {
+async function init(lair_socket, shim_socket, signing_handler, that) {
   log.normal('init wormhole');
   let connections = [];
 
@@ -37,11 +37,9 @@ async function init(lair_socket, shim_socket, signing_handler) {
       if (header.wire_type_id === structs.Ed25519.SignByPublicKey.Request.WIRE_TYPE) {
         log.normal("Intercepted sign by public key");
         const request = header.wire_type_class.from(await header.payload());
-
         const pubkey = request.get(0);
         const message = request.get(1);
-
-        const signature = await signing_handler(pubkey, message);
+        const signature = await signing_handler(pubkey, message, that);
 
         if (signature !== null) {
           let response = new structs.Ed25519.SignByPublicKey.Response(signature);
