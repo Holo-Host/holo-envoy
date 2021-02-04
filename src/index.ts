@@ -137,8 +137,6 @@ class Envoy {
 
     this.connections();
     this.startWebsocketServer();
-    // TODO : remoce the old server
-    // this.startHTTPServer();
     this.startWormhole();
   }
 
@@ -419,9 +417,7 @@ class Envoy {
 
     // Chaperone ZomeCall to Envoy Server
     this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
-      console.log("holo/call ??????????????????");
-
-      log.silly("Received request: %s", payload.call_spec);
+        log.silly("Received request: %s", payload.call_spec);
 
       // Example of request package
       //

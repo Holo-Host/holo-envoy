@@ -39,7 +39,7 @@
     "rpc-websockets": "^7.4.8"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "file://home/zo-el/Documents/GitRepo/Holochain/Holo/chaperone",
+    "@holo-host/chaperone": "git://github.com/Holo-Host/chaperone.git#2021-02-04/wormhole",
     "@holochain-open-dev/holochain-run-dna": "^0.3.1",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",

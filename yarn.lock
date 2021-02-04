@@ -32,8 +32,9 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@holo-host/chaperone@file:../chaperone":
+"@holo-host/chaperone@git://github.com/Holo-Host/chaperone.git#2021-02-04/wormhole":
   version "0.3.0"
+  resolved "git://github.com/Holo-Host/chaperone.git#787af0a0914b36560dd80e570574a65dee416b69"
   dependencies:
     "@holo-host/comb" "^0.1.5"
     "@holo-host/cryptolib" "^0.3.0"
