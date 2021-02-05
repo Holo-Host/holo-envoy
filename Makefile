@@ -1,13 +1,13 @@
 SHELL		= bash
 
 package-lock.json: package.json
-	npm install
+	yarn install
 	touch $@
 node_modules: package-lock.json
-	npm install
+	yarn install
 
 build/index.js:		src/*.ts
-	npm run build
+	yarn run build
 docs/index.html:	build/index.js
 	npx jsdoc --verbose -c ./docs/.jsdoc.json --private --destination ./docs build/index.js
 
@@ -35,7 +35,7 @@ test:			build
 	make test-unit;
 	make test-integration;
 	make test-e2e;
-	npm run stop-conductor
+	yarn run stop-conductor
 
 test-nix:		build
 	make test-unit;
@@ -56,20 +56,20 @@ conductor:
 	npx holochain-run-dna -c ./tests/app-config.yml -a 4444 -r ./tests/tmp &> holochain-conductor.log &
 
 test-integration:	build DNAs
-	npm run stop-conductor &&	make conductor
+	yarn run stop-conductor &&	make conductor
 	npx mocha $(MOCHA_OPTS) ./tests/integration/
 test-integration-debug:	build DNAs
-	npm run stop-conductor &&	make conductor
+	yarn run stop-conductor &&	make conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
 
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
-	npm run stop-conductor && make conductor
+	yarn run stop-conductor && make conductor
 	npx mocha $(MOCHA_OPTS) ./tests/e2e
 test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
-	npm run stop-conductor &&	make conductor
+	yarn run stop-conductor &&	make conductor
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
-	npm run stop-conductor && make conductor
+	yarn run stop-conductor && make conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
 
 docs-watch:
@@ -112,7 +112,7 @@ check-conductor:	check-holochain
 check-holochain:
 	ps -efH | grep holochain | grep -E "conductor-[0-9]+.toml"
 stop-conductor:
-	npm run stop-conductor
+	yarn run stop-conductor
 
 keystore-%.key:
 	@echo "Creating Holochain key for Agent $*: keystore-$*.key";
@@ -124,8 +124,8 @@ keystore-%.key:
 
 # TMP targets
 use-local-chaperone:
-	npm uninstall --save @holo-host/chaperone; npm install --save-dev ../chaperone
-use-npm-chaperone:
-	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone
-use-npm-chaperone-%:
-	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone@$*
+	yarn uninstall --save @holo-host/chaperone; yarn install --save-dev ../chaperone
+use-yarn-chaperone:
+	yarn uninstall --save @holo-host/chaperone; yarn install --save-dev @holo-host/chaperone
+use-yarn-chaperone-%:
+	yarn uninstall --save @holo-host/chaperone; yarn install --save-dev @holo-host/chaperone@$*
