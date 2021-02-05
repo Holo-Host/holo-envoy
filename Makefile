@@ -3,7 +3,7 @@ SHELL		= bash
 package-lock.json: package.json
 	yarn install
 	touch $@
-node_modules: package-lock.json
+node_modules: yarn.lock
 	yarn install
 
 build/index.js:		src/*.ts

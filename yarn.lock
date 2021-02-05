@@ -12,9 +12,9 @@
     keypather "^1.10.2"
 
 "@babel/parser@^7.9.4":
-  version "7.12.14"
-  resolved "https://registry.yarnpkg.com/@babel/parser/-/parser-7.12.14.tgz#4adb7c5eef1d437ef965ad1569cd826db8c11dc9"
-  integrity sha512-xcfxDq3OrBnDsA/Z8eK5/2iPcLD8qbOaSSfOw4RA6jp4i7e6dEQ7+wTwxItEwzcXPQcsry5nZk96gmVPKletjQ==
+  version "7.12.15"
+  resolved "https://registry.yarnpkg.com/@babel/parser/-/parser-7.12.15.tgz#2b20de7f0b4b332d9b119dd9c33409c538b8aacf"
+  integrity sha512-AQBOU2Z9kWwSZMd6lNjCX0GUgFonL1wAM1db8L8PMk9UDaGsRCArBkU4Sc+UCM3AE4hjbXx+h58Lb3QT4oRmrA==
 
 "@babel/runtime@^7.11.2", "@babel/runtime@^7.4.5":
   version "7.12.13"
@@ -147,14 +147,14 @@
   integrity sha1-nKUs2jY/aZxpRmwqbM2q2RPqenM=
 
 "@types/node@*":
-  version "14.14.22"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-14.14.22.tgz#0d29f382472c4ccf3bd96ff0ce47daf5b7b84b18"
-  integrity sha512-g+f/qj/cNcqKkc3tFqlXOYjrmZA+jNBiDzbP3kH+B+otKFqAdPgVTGP1IeKRdMml/aE69as5S4FqtxAbl+LaMw==
+  version "14.14.25"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-14.14.25.tgz#15967a7b577ff81383f9b888aa6705d43fbbae93"
+  integrity sha512-EPpXLOVqDvisVxtlbvzfyqSsFeQxltFbluZNRndIb8tr9KiBnYNLzrc1N3pyKUCww2RNrfHDViqDWWE1LCJQtQ==
 
 "@types/node@^12.11.1":
-  version "12.19.15"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.19.15.tgz#0de7e978fb43db62da369db18ea088a63673c182"
-  integrity sha512-lowukE3GUI+VSYSu6VcBXl14d61Rp5hA1D+61r16qnwC0lYNSqdxcvRh0pswejorHfS+HgwBasM8jLXz0/aOsw==
+  version "12.19.16"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.19.16.tgz#15753af35cbef636182d8d8ca55b37c8583cecb3"
+  integrity sha512-7xHmXm/QJ7cbK2laF+YYD7gb5MggHIIQwqyjin3bpEGiSuvScMQ5JZZXPvRipi1MwckTQbJZROMns/JxdnIL1Q==
 
 "@types/ws@^7.2.4":
   version "7.4.0"
@@ -426,9 +426,9 @@ catharsis@^0.8.11:
     lodash "^4.17.14"
 
 chai@^4.2.0:
-  version "4.2.0"
-  resolved "https://registry.yarnpkg.com/chai/-/chai-4.2.0.tgz#760aa72cf20e3795e84b12877ce0e83737aa29e5"
-  integrity sha512-XQU3bhBukrOsQCuwZndwGcCVQHyZi53fQ6Ys1Fym7E4olpIqqZZhhoFJoaKVvV17lWQoXYwgWN2nF5crA8J2jw==
+  version "4.3.0"
+  resolved "https://registry.yarnpkg.com/chai/-/chai-4.3.0.tgz#5523a5faf7f819c8a92480d70a8cccbadacfc25f"
+  integrity sha512-/BFd2J30EcOwmdOgXvVsmM48l0Br0nmZPlO0uOW4XKh6kpsUumRXBgPV+IlaqFaqr9cYbeoZAM1Npx0i4A+aiA==
   dependencies:
     assertion-error "^1.1.0"
     check-error "^1.0.2"
