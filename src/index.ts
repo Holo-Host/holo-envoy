@@ -378,8 +378,8 @@ class Envoy {
       }
 
       if (failed === true) {
-				// Should rollback cells that were already created
-				// ^^ check to see if is already being done in RSM.
+        // Should rollback cells that were already created
+        // ^^ check to see if is already being done in RSM.
         log.error("Failed during sign-up process for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, failure_response);
 
         return failure_response;
