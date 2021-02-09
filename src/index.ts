@@ -250,7 +250,7 @@ class Envoy {
 	// EXPOSED ENVOY EVENTS
 
     // Envoy - New Hosted Agent Sign-up Sequence
-    this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id]) => {
+    this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id, membrane_proof]) => {
       log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);
 
       const failure_response = (new HoloError("Failed to create a new hosted agent")).toJSON();
@@ -286,9 +286,16 @@ class Envoy {
           if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
             dnas = this.opts.hosted_app.dnas;
 					} else {
-            const installedDnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0] }));
+            const installedDnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0]}));
+
+            if (membrane_proof) {
+              log.normal("App includes membrane_proof: %s", membrane_proof);
+              dnas = { ...installedDnas, membrane_proof }
+            } else {
+              dnas = installedDnas;
+            }
+
             log.debug('installedDnas : %s', installedDnas);
-            dnas = installedDnas;
 					}
 
           adminResponse = await this.callConductor("admin", 'installApp', {
