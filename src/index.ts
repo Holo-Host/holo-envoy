@@ -105,6 +105,7 @@ class Envoy {
   anonymous_agents: any = {};
 
   hcc_clients: any = {};
+  dna2hha: any = {};
 
   static PRODUCT_MODE: number = 0;
   static DEVELOP_MODE: number = 1;
@@ -136,7 +137,7 @@ class Envoy {
     try {
       const ifaces = this.conductor_opts.interfaces;
       this.hcc_clients.admin = await HcAdminWebSocket.init(`ws://localhost:${ifaces.admin_port}`);
-      this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`, signalHandler);
+      this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`, this.signalHandler);
     } catch (err) {
       console.error(err);
     }
@@ -198,6 +199,17 @@ class Envoy {
         log.debug("Adding Agent (%s) to anonymous list with HHA ID %s", agent_id, hha_hash);
         this.anonymous_agents[agent_id] = hha_hash;
       }
+
+      // Signal is a message initiated in conductor which is sent to UI. In case to be able to route signals
+      // to appropriate agents UIs we need to be able to identify connection based on agent_id and hha_hash.
+
+      // make sure dna2hha entry exists for given hha
+      this.recordHha(hha_hash);
+      let signal_id = this.createSignalId(agent_id, hha_hash);
+
+      // create namespace with signal_id and subscribe this client to this namespace
+      // TODO: Am I subscribing this connection only to this namespace?
+      this.ws_server.event('signal', signal_id);
 
       socket.on("close", async () => {
         log.normal("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
@@ -366,7 +378,7 @@ class Envoy {
       }
 
       if (failed === true) {
-				// TODO: Rollback cells that were already created
+				// Should rollback cells that were already created
 				// ^^ check to see if is already being done in RSM.
         log.error("Failed during sign-up process for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, failure_response);
 
@@ -980,6 +992,60 @@ class Envoy {
     }
   }
 
+
+  // --------------------------------------------------------------------------------------------
+
+  // Functions handling translation of dna_hash to hha_hash
+
+  async recordHha(hha_hash) {
+    // dna2hha is add-only
+    if (!this.hhaExists(hha_hash)) {
+      log.info("Retrieve the hosted app cell_data using the anonymous installed_app_id: '%s'", hha_hash);
+
+      const appInfo = await this.callConductor("app", { installed_app_id: hha_hash });
+
+      if (!appInfo) {
+        throw new Error(`No app found with installed_app_id: ${hha_hash}`);
+      }
+
+      // TODO: I am operating under the assumption that each dna_hash can be only in one app (identified by hha_hash)
+      // Does this need to change?
+      appInfo.cell_data.forEach(cell => {
+        this.dna2hha[cell[0][0]] = hha_hash;
+      });
+    }
+  }
+
+  hhaExists(hha_hash) {
+    return (Object.values(this.dna2hha).includes(hha_hash));
+  }
+
+  async signalHandler(signal) {
+    let cell_id = signal.data.cellId;
+    log.debug("Received signal for cellId (%s)", cell_id);
+
+    // translate CellId->signalId
+    let signal_id = this.cellId2signalId(cell_id);
+
+    log.debug(`Emitting 'signal' to namespace ${signal_id}:`);
+    log.debug(signal);
+    let ns = this.ws_server.of(signal_id);
+    ns.emit('signal', signal)
+  }
+
+  cellId2signalId(cell_id) {
+    // CellId is of a format `agent_id:dna_hash`
+    let cell_arr = cell_id.split(":");
+    if (cell_arr.length != 2) {
+      throw new Error(`Wrong cell id: ${cell_id}`);
+    }
+    let hha_hash = this.dna2hha[cell_arr[1]];
+    return this.createSignalId(cell_arr[0],hha_hash);
+  }
+
+  createSignalId(agent_id, hha_hash) {
+    return `signal:${agent_id}:${hha_hash}`;
+  }
 }
 
 async function httpRequestStream(req): Promise<string> {
@@ -992,10 +1058,6 @@ async function httpRequestStream(req): Promise<string> {
       }
     }));
   });
-}
-
-async function signalHandler(signal) {
-    console.log(signal);
 }
 
 export {
