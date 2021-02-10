@@ -205,11 +205,10 @@ class Envoy {
 
       // make sure dna2hha entry exists for given hha
       this.recordHha(hha_hash);
-      let signal_id = this.createSignalId(agent_id, hha_hash);
+      let event_id = this.createEventId(agent_id, hha_hash);
 
-      // create namespace with signal_id and subscribe this client to this namespace
-      // TODO: Am I subscribing this connection only to this namespace?
-      this.ws_server.event('signal', signal_id);
+      // create event with unique id so that chaperone can subscribe to it
+      this.ws_server.event(event_id);
 
       socket.on("close", async () => {
         log.normal("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
@@ -1024,26 +1023,25 @@ class Envoy {
     let cell_id = signal.data.cellId;
     log.debug("Received signal for cellId (%s)", cell_id);
 
-    // translate CellId->signalId
-    let signal_id = this.cellId2signalId(cell_id);
+    // translate CellId->eventId
+    let event_id = this.cellId2eventId(cell_id);
 
-    log.debug(`Emitting 'signal' to namespace ${signal_id}:`);
+    log.debug(`Emitting 'signal' to event ${event_id}:`);
     log.debug(signal);
-    let ns = this.ws_server.of(signal_id);
-    ns.emit('signal', signal)
+    this.ws_server.emit(event_id, signal)
   }
 
-  cellId2signalId(cell_id) {
+  cellId2eventId(cell_id) {
     // CellId is of a format `agent_id:dna_hash`
     let cell_arr = cell_id.split(":");
     if (cell_arr.length != 2) {
       throw new Error(`Wrong cell id: ${cell_id}`);
     }
     let hha_hash = this.dna2hha[cell_arr[1]];
-    return this.createSignalId(cell_arr[0],hha_hash);
+    return this.createEventId(cell_arr[0],hha_hash);
   }
 
-  createSignalId(agent_id, hha_hash) {
+  createEventId(agent_id, hha_hash) {
     return `signal:${agent_id}:${hha_hash}`;
   }
 }
