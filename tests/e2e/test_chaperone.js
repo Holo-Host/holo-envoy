@@ -2,20 +2,16 @@ const path = require('path');
 const log = require('@whi/stdlog')(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
-
 const fs = require('fs');
 const yaml = require('js-yaml');
 const expect = require('chai').expect;
 const puppeteer = require('puppeteer');
-
 const http_servers = require('../setup_http_server.js');
 const setup = require("../setup_envoy.js");
 const setup_conductor = require("../setup_conductor.js");
-const {
-  Codec
-} = require('@holo-host/cryptolib');
-
+const { Codec } = require('@holo-host/cryptolib');
 const installedAppIds = yaml.load(fs.readFileSync('./tests/app-config.yml'));
+
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
 const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
 const HHA_INSTALLED_APP_ID = installedAppIds[1].app_name;
