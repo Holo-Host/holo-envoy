@@ -4,7 +4,7 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 });
 const fs = require('fs');
 const yaml = require('js-yaml');
-const { delay } = require('../utils.js');
+const { delay, resetTmp } = require('../utils.js');
 const expect = require('chai').expect;
 const {
   structs,
@@ -51,6 +51,7 @@ describe("Wormhole tests", () => {
   after(async () => {
     await wormhole.stop();
     await setup_conductor.stop_conductor();
+    await resetTmp();
   });
 
   it("test wormhole signing for zome call", async () => {

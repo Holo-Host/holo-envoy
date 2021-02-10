@@ -41,14 +41,14 @@ test-nix:		build
 	make test-unit;
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make test-integration
 test-debug:		build
-	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
+	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make test-integration-debug
 	make test-e2e-debug2
 
 test-unit:		build
-	npx mocha $(MOCHA_OPTS) ./tests/unit/
+	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 test-unit-debug:	build
-	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
+	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 
 lair:
 	mkdir -p ./tests/tmp
@@ -65,20 +65,20 @@ stop-conductor:
 
 test-integration:	build DNAs
 	yarn run stop-conductor &&	make conductor
-	npx mocha $(MOCHA_OPTS) ./tests/integration/
+	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
 test-integration-debug:	build DNAs
 	yarn run stop-conductor &&	make conductor
-	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
+	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
 
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
 	yarn run stop-conductor
-	npx mocha $(MOCHA_OPTS) ./tests/e2e
+	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e
 test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
 	yarn run stop-conductor
-	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
+	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
 	yarn run stop-conductor
-	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
+	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
 
 docs-watch:
 build-watch:

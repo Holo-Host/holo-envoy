@@ -11,7 +11,7 @@ const setup = require("../setup_envoy.js");
 const setup_conductor = require("../setup_conductor.js");
 const { Codec } = require('@holo-host/cryptolib');
 const installedAppIds = yaml.load(fs.readFileSync('./tests/app-config.yml'));
-
+const { resetTmp } = require("../utils")
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
 const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
 const HHA_INSTALLED_APP_ID = installedAppIds[1].app_name;
@@ -129,14 +129,14 @@ describe("Server", () => {
     log.debug("Close browser...");
     await browser.close();
 
-    log.debug("Shutting down holochain...");
-    await setup_conductor.stop_conductor();
 
     log.debug("Close HTTP server...");
     await http_ctrls.close();
 
     log.info("Stopping Envoy...");
     await setup.stop();
+
+    await resetTmp();
   });
 
   it("should sign-in and make a zome function call", async function() {
