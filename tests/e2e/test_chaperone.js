@@ -129,6 +129,9 @@ describe("Server", () => {
     log.debug("Close browser...");
     await browser.close();
 
+    log.debug("Shutting down holochain...");
+    await setup_conductor.stop_conductor();
+
     log.debug("Close HTTP server...");
     await http_ctrls.close();
 
@@ -241,7 +244,7 @@ describe("Server", () => {
         try {
           // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
           // Ideally we would have a nick like test or chat or elemental-chat
-          return client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", {'value': "test-input"});
+          return client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", {'value': "This is the returned value"});
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err

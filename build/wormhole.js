@@ -41,8 +41,6 @@ async function init(lair_socket, shim_socket, signing_handler) {
         const signature = await signing_handler(pubkey, message);
 
         if (signature !== null) {
-          console.log("1 Signature returned to wormhole: ", signature );
-          console.log("2 Signature returned to wormhole: ",Codec.Signature.decode(signature) );
           let response = new structs.Ed25519.SignByPublicKey.Response(Codec.Signature.decode(signature));
           conductor_stream.write(response.toMessage(header.id));
           continue;

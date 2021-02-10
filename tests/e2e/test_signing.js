@@ -10,7 +10,7 @@ const {
   structs,
   ...lair
 } = require('@holochain/lair-client');
-
+const msgpack = require('@msgpack/msgpack');
 const {
   AppWebsocket
 } = require('@holochain/conductor-api');
@@ -67,13 +67,13 @@ describe("Wormhole tests", () => {
   });
 
 });
+
 const sign = (keys, data) => {
-    const text = JSON.stringify(data);
-    // msg_bytes = (new TextEncoder()).encode(text);
-    const sig_bytes = keys.sign(text);
-    // const signature = Codec.Signature.encode(sig_bytes);
-    return sig_bytes
+  let msg_bytes = msgpack.encode(data)
+  const sig_bytes = keys.sign(msg_bytes);
+  return sig_bytes
 }
+
 async function getPayload(keys) {
   let request_payload = {
     call_spec: {
@@ -83,7 +83,6 @@ async function getPayload(keys) {
       dna_alias: "element-chat",
       hha_hash: "uhCkkmrkoAHPVf_eufG7eC5fm6QKrW5pPMoktvG5LOC0SnJ4vV1Uv"
     },
-    // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
     host_id: "d5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k",
     timestamp: [162303,0]
   }
