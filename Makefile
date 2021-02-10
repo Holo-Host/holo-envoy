@@ -1,13 +1,13 @@
 SHELL		= bash
 
-package-lock.json: package.json
-	npm install
+yarn.lock: package.json
+	yarn install
 	touch $@
-node_modules: package-lock.json
-	npm install
+node_modules: yarn.lock
+	yarn install
 
 build/index.js:		src/*.ts
-	npm run build
+	yarn run build
 docs/index.html:	build/index.js
 	npx jsdoc --verbose -c ./docs/.jsdoc.json --private --destination ./docs build/index.js
 
@@ -25,7 +25,7 @@ dnas/servicelogger.dna.gz:	dnas
 dnas/test.dna.gz:	dnas
 	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.0.2/test.dna.gz' -o $@
 
-build:		node_modules	build/index.js
+build:		node_modules build/index.js
 docs:			node_modules docs/index.html
 DNAs:			dnas/test.dna.gz dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz
 
@@ -35,7 +35,7 @@ test:			build
 	make test-unit;
 	make test-integration;
 	make test-e2e;
-	npm run stop-conductor
+	yarn run stop-conductor
 
 test-nix:		build
 	make test-unit;
@@ -50,26 +50,34 @@ test-unit:		build
 test-unit-debug:	build
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
 
-conductor:
+lair:
 	mkdir -p ./tests/tmp
 	rm -rf ./tests/tmp/*
-	npx holochain-run-dna -c ./tests/app-config.yml -a 4444 -r ./tests/tmp &> holochain-conductor.log &
+	mkdir -p ./tests/tmp/shim
+	RUST_LOG=trace lair-keystore --lair-dir tests/tmp/keystore &> hc-lair.log &
+stop-lair:
+	killall lair-keystore
+
+conductor:
+	RUST_LOG=debug npx holochain-run-dna -c ./tests/app-config.yml -a 4444 -r ./tests/tmp -k shim &> hc-conductor.log &
+stop-conductor:
+	yarn run stop-conductor
 
 test-integration:	build DNAs
-	npm run stop-conductor &&	make conductor
+	yarn run stop-conductor &&	make conductor
 	npx mocha $(MOCHA_OPTS) ./tests/integration/
 test-integration-debug:	build DNAs
-	npm run stop-conductor &&	make conductor
+	yarn run stop-conductor &&	make conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
 
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
-	npm run stop-conductor && make conductor
+	yarn run stop-conductor
 	npx mocha $(MOCHA_OPTS) ./tests/e2e
 test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
-	npm run stop-conductor &&	make conductor
+	yarn run stop-conductor
 	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
-	npm run stop-conductor && make conductor
+	yarn run stop-conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
 
 docs-watch:
@@ -111,8 +119,6 @@ dist/holo_hosting_chaperone.js:
 check-conductor:	check-holochain
 check-holochain:
 	ps -efH | grep holochain | grep -E "conductor-[0-9]+.toml"
-stop-conductor:
-	npm run stop-conductor
 
 keystore-%.key:
 	@echo "Creating Holochain key for Agent $*: keystore-$*.key";
@@ -124,8 +130,8 @@ keystore-%.key:
 
 # TMP targets
 use-local-chaperone:
-	npm uninstall --save @holo-host/chaperone; npm install --save-dev ../chaperone
-use-npm-chaperone:
-	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone
-use-npm-chaperone-%:
-	npm uninstall --save @holo-host/chaperone; npm install --save-dev @holo-host/chaperone@$*
+	yarn uninstall --save @holo-host/chaperone; yarn install --save-dev ../chaperone
+use-yarn-chaperone:
+	yarn uninstall --save @holo-host/chaperone; yarn install --save-dev @holo-host/chaperone
+use-yarn-chaperone-%:
+	yarn uninstall --save @holo-host/chaperone; yarn install --save-dev @holo-host/chaperone@$*

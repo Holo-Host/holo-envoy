@@ -16,7 +16,7 @@ const {
 } = require("../../build/wormhole.js");
 
 const LAIR_SOCKET = path.resolve(__dirname, '../tmp/keystore/socket');
-const CONDUCTOR_SOCKET = 8888;
+const CONDUCTOR_SOCKET = path.resolve(__dirname, '../tmp/keystore/shim-socket');
 
 describe("Wormhole tests", () => {
   let wormhole;

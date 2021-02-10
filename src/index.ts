@@ -11,11 +11,6 @@ import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
 import { init as wormholeInit } from "../build/wormhole.js";
-const {
-  structs,
-  ...lair
-} = require('@holochain/lair-client');
-
 
 const requestUrl = request;
 
@@ -23,12 +18,15 @@ const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
 
-const sha256 = (buf) => crypto.createHash('sha256').update(Buffer.from(buf)).digest();
-const digest = (data) => Codec.Digest.encode(sha256(typeof data === "string" ? data : SerializeJSON(data)));
+const digest = (payload) => {
+  const serialized_args = typeof payload === "string" ? payload : SerializeJSON(payload);
+  const args_digest = Buffer.from(serialized_args);
+  return Codec.Digest.encode(args_digest);
+}
 
 const WS_SERVER_PORT = 4656; // holo
-const WH_SERVER_PORT = 9676; // worm
-// TODO: This is temporary
+// TODO: This is temporary just ment for testing...
+const WH_SERVER_PORT = path.resolve(__dirname, '../tests/tmp/shim/socket');
 const LAIR_SOCKET = path.resolve(__dirname, '../tests/tmp/keystore/socket');
 const RPC_CLIENT_OPTS = {
   "reconnect_interval": 1000,
@@ -141,7 +139,7 @@ class Envoy {
   }
 
   async startWormhole() {
-    this.wormhole = await wormholeInit(LAIR_SOCKET, WH_SERVER_PORT, this.signingRequest, this);
+    this.wormhole = await wormholeInit(LAIR_SOCKET, WH_SERVER_PORT, this.signingRequest.bind(this));
   }
 
   async connections() {
@@ -150,7 +148,7 @@ class Envoy {
       this.hcc_clients.admin = await HcAdminWebSocket.init(`ws://localhost:${ifaces.admin_port}`);
       this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`);
     } catch (err) {
-      console.error(err);
+      console.error(`Error while trying to set hcc_clients: ${err}`);
     }
 
     Object.keys(this.hcc_clients).map(k => {
@@ -592,30 +590,32 @@ class Envoy {
 
   // --------------------------------------------------------------------------------------------
   // WORMHOLE Signing function
-  signingRequest(agent: Buffer, payload: string, that: any, timeout = 5_000) {
-    const payload_id = that.payload_counter++;
+  signingRequest(agent: Buffer, payload: string, timeout = 5_000) {
+    console.log("Wormhole Signing Requested...");
+    const payload_id = this.payload_counter++;
     const agent_id = Codec.AgentId.encode(agent);
     log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, payload);
-
-    return new Promise((f, r) => {
-      const event = `${agent_id}/wormhole/request`;
-      if (that.ws_server.eventList(that.opts.NS).includes(event) === false) {
-        log.warn("Trying to get signature from unknown Agent (%s)", agent_id);
-        if (Object.keys(that.anonymous_agents).includes(agent_id))
-          throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
-        else
-          throw new Error(`Agent ${agent_id} is not registered.  Something must have broke?`);
+    const event = `${agent_id}/wormhole/request`;
+    if (this.ws_server.eventList(this.opts.NS).includes(event) === false) {
+      log.warn("Trying to get signature from unknown Agent (%s)", agent_id);
+      if (Object.keys(this.anonymous_agents).includes(agent_id))
+        throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
+      else {
+        console.error(`Agent ${agent_id} is not registered.  It must be a host call`);
+        // Returning null will let the shim redirect to the local lair instance
+        return null
       }
-
+    }
+    return new Promise((f, r) => {
       let toid = setTimeout(() => {
         log.error("Failed during signing request #%s with timeout (%sms)", payload_id, timeout);
         r("Failed to get signature from Chaperone")
       }, timeout);
 
       log.info("Adding signature request #%s to pending signatures", payload_id);
-      that.pending_signatures[payload_id] = [payload, f, r, toid];
+      this.pending_signatures[payload_id] = [payload, f, r, toid];
 
-      that.ws_server.emit(event, [payload_id, payload]);
+      this.ws_server.emit(event, [payload_id, payload]);
       log.normal("Sent signing request #%s to Agent (%s)", payload_id, agent_id);
     });
   }
@@ -663,6 +663,10 @@ class Envoy {
     log.normal("Received request to call Conductor using client '%s' with call spec of type '%s'", client, typeof call_spec);
     let interfaceMethod, methodName, callAgent;
     try {
+      // HACK: Since the envoy starts before the conductor this.hcc_clients will not be set
+      // So the first time callConductor is called we make a connection
+      if (Object.keys(this.hcc_clients).length === 0)
+        await this.connections()
       if (typeof client === "string")
         client = this.hcc_clients[client];
 
@@ -797,6 +801,9 @@ class Envoy {
     log.normal("Processing service logger request (%s)", signature);
 
     const call_spec = payload.call_spec;
+    console.log(">>>>>>", call_spec["args"]);
+    console.log(">>>>>>", typeof call_spec["args"]);
+
     const args_hash = digest(call_spec["args"]);
 
     log.debug("Using argument digest: %s", args_hash);
@@ -863,11 +870,22 @@ class Envoy {
     const servicelogger_cell_id = appInfo.cell_data[0][0];
     const buffer_host_agent_servicelogger_id = servicelogger_cell_id[1];
 
+    console.log("Testing client_request: ", client_request);
+    console.log("Testing host_response: ", host_response);
+    console.log("Testing confirmation: ", confirmation);
+    // TODO: I do not think we need to decode it here because the wasm layer does that for us.
+    client_request["request_signature"] = Codec.Signature.decode(client_request["request_signature"])
+    host_response["signed_response_hash"] = Codec.Signature.decode(host_response["signed_response_hash"])
+    confirmation["confirmation_signature"] = Codec.Signature.decode(confirmation["confirmation_signature"])
+
     const payload = {
       "request": client_request,
       "response": host_response,
       "confirmation": confirmation,
     }
+
+    console.log("Testing Payload: ", payload);
+
     log.silly("Recording service confirmation with payload: activity: { request: %s, response: %s, confimation: %s }", client_request, host_response, confirmation);
     const resp = await this.callConductor("app", {
       "cell_id": servicelogger_cell_id,
