@@ -2,19 +2,16 @@ const path = require('path');
 const log = require('@whi/stdlog')(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
-
 const fs = require('fs');
 const yaml = require('js-yaml');
 const expect = require('chai').expect;
 const puppeteer = require('puppeteer');
-
 const http_servers = require('../setup_http_server.js');
 const setup = require("../setup_envoy.js");
-const {
-  Codec
-} = require('@holo-host/cryptolib');
-
+const setup_conductor = require("../setup_conductor.js");
+const { Codec } = require('@holo-host/cryptolib');
 const installedAppIds = yaml.load(fs.readFileSync('./tests/app-config.yml'));
+const { resetTmp, delay } = require("../utils")
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
 const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
 const HHA_INSTALLED_APP_ID = installedAppIds[1].app_name;
@@ -90,26 +87,23 @@ describe("Server", () => {
   let envoy;
   let server;
   let http_ctrls, http_url;
-  let app_client;
   let registered_agent;
 
   before(async function() {
-    this.timeout(20_000);
+    this.timeout(100_000);
 
-    function delay(t, val) {
-      return new Promise(function(resolve) {
-        setTimeout(function() {
-          resolve(val);
-        }, t);
-      });
-    }
-
-    log.info("Waiting for Conductor to spin up");
+    log.info("Waiting for Lair to spin up");
+    setup_conductor.start_lair()
     await delay(10000);
 
     log.info("Starting Envoy");
+    // Note: envoy will try to connect to the conductor but the conductor is not started so it needs to retry
     envoy = await setup.start(envoyOpts);
     server = envoy.ws_server;
+
+    log.info("Waiting for Conductor to spin up");
+    setup_conductor.start_conductor()
+    await delay(10000);
 
     log.info("Waiting to connect to Conductor");
     await envoy.connected;
@@ -120,13 +114,6 @@ describe("Server", () => {
     browser = await puppeteer.launch();
     log.debug("Setup config: %s", http_ctrls.ports);
     http_url = `http://localhost:${http_ctrls.ports.chaperone}`;
-
-    app_client = envoy.hcc_clients.app;
-
-    // TEMPORARY: This is a workaround until wormhole signing is in place. Using the Host Servicelogger Agent Key to call public sign functions for activity log signatures.
-    registered_agent = await getHostAgentKey(app_client);
-    log.info('Using host agent (%s) in conductor on service port(%s)', registered_agent, app_client.connectionMonitor.port);
-
   });
 
   after(async () => {
@@ -134,11 +121,16 @@ describe("Server", () => {
     log.debug("Close browser...");
     await browser.close();
 
+    log.debug("Stop holochain...");
+    await setup_conductor.stop_conductor();
+
     log.debug("Close HTTP server...");
     await http_ctrls.close();
 
     log.info("Stopping Envoy...");
     await setup.stop();
+
+    await resetTmp();
   });
 
   it("should sign-in and make a zome function call", async function() {
@@ -157,7 +149,7 @@ describe("Server", () => {
         let serviceloggerCellId;
         try {
           // REMINDER: there is one servicelogger instance per installed hosted app, each with their own installed_app_id
-          const serviceloggerAppInfo = await app_client.appInfo({
+          const serviceloggerAppInfo = await envoy.hcc_clients.app.appInfo({
             installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
           });
           serviceloggerCellId = serviceloggerAppInfo.cell_data[0][0];
@@ -180,7 +172,7 @@ describe("Server", () => {
         }
         let logger_settings;
         try {
-          logger_settings = await app_client.callZome({
+          logger_settings = await envoy.hcc_clients.app.callZome({
             // Note: Cell ID content MUST BE passed in as a Byte Buffer, not a u8int Byte Array
             cell_id: [Buffer.from(servicelogger_cell_id[0]), Buffer.from(servicelogger_cell_id[1])],
             zome_name: 'service',
@@ -205,9 +197,7 @@ describe("Server", () => {
 
         const client = new Chaperone({
           "mode": Chaperone.DEVELOP,
-          "web_user_legend": {
-            "alice.test.1@holo.host": registered_agent.encoded,
-          },
+          "web_user_legend": {},
           "connection": {
             "ssl": false,
             "host": "localhost",
@@ -228,7 +218,7 @@ describe("Server", () => {
         if (client.anonymous === true) {
           throw new Error("Client did not sign-in")
         }
-        if (client.agent_id !== registered_agent.encoded) {
+        if (client.agent_id !== "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY") {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
 
@@ -248,7 +238,7 @@ describe("Server", () => {
         try {
           // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
           // Ideally we would have a nick like test or chat or elemental-chat
-          return client.callZomeFunction(`test.dna.gz`, "test", "returns_obj", {});
+          return client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", {'value': "This is the returned value"});
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err

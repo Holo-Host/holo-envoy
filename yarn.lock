@@ -32,15 +32,15 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@holo-host/chaperone@0.3.0":
-  version "0.3.0"
-  resolved "https://registry.yarnpkg.com/@holo-host/chaperone/-/chaperone-0.3.0.tgz#ca07a1ceb41a9156375ccc9cd9071055e6e6e1e9"
-  integrity sha512-bWoQEyjwxGnfy2QXa3zRv6s0BQAF5ZUBzU98HW6fcVftwTQxUB2r/Mn331dR4BqAkjikHE0ob2vwOnScityahw==
+"@holo-host/chaperone@*1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@holo-host/chaperone/-/chaperone-1.0.0.tgz#31a3ef71b72ef22c3bfe5dc98ac7f4a1d64a4291"
+  integrity sha512-Rb31DdoHgjTlxtQxWokYo3woI9yUCMhwVZvbf7viHyhNoGHJJZzzqA1yyShwf41B5HzROCZiAc5hpPCqQcNDqA==
   dependencies:
-    "@holo-host/comb" "^0.1.5"
+    "@holo-host/comb" "^0.2.0"
     "@holo-host/cryptolib" "^0.3.0"
     "@holo-host/data-translator" "^0.1.1"
-    "@holo-host/mock-conductor" "^0.1.1"
+    "@holo-host/mock-conductor" "^0.3.0"
     "@whi/http_utils" "^0.1.0"
     "@whi/printf" "^1.0.0"
     "@whi/stdlog" "^0.3.1"
@@ -48,11 +48,12 @@
     json-stable-stringify "^1.0.1"
     rpc-websockets "^4.6.1"
     sprintf-js "^1.1.2"
+    tiny-msgpack "^1.0.2"
 
-"@holo-host/comb@^0.1.5":
-  version "0.1.6"
-  resolved "https://registry.yarnpkg.com/@holo-host/comb/-/comb-0.1.6.tgz#2604c04343f67b9546901dd777e4bbadcf3d5d0c"
-  integrity sha512-QejQMpROdOZ8Fdqp9+CujVUxwgVfLHx8zsuJaWPhZDBYqtB2cUDAhjn8UKfSmQSRiOJDsPCZ810N/kXNFNePCg==
+"@holo-host/comb@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@holo-host/comb/-/comb-0.2.0.tgz#5b6ae502a20fe37ec3e2b05dd2ac3913fd2dce84"
+  integrity sha512-b0JhOvAh/4KEDRDA2BmlJc8zaykRvbu/UM56fHVHdpaXNbVMAk4SY5ER9+xTVDMSu2NpSj27P/70SrtFryAHEQ==
   dependencies:
     postmate "^1.5.1"
 
@@ -81,10 +82,10 @@
     lodash "^4.17.20"
     ws "^7.4.0"
 
-"@holo-host/mock-conductor@^0.1.1":
-  version "0.1.2"
-  resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.1.2.tgz#df8788b4f67b1583dc3edeb18cba906eb7fcfc16"
-  integrity sha512-vfjxhWWLayKuXJmJLf6lpPTKUDAZGvGKoat+lLqIeGDivZEuQpNYGDChYKCYcZr54WRBmqV8STZjHTzBzxQK9w==
+"@holo-host/mock-conductor@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.3.0.tgz#921dc80def329f19537f69528ae2e899dd64996e"
+  integrity sha512-ZjeRuLsKNiUvGYpsTC3USiNfT77mrl4PGGZAjAAgUC/z3z1gP00FAK+BanvffSRlHYE4zRtqLnhiGy0gLsVJYQ==
   dependencies:
     "@msgpack/msgpack" "^2.3.0"
     lodash "^4.17.20"
@@ -95,30 +96,19 @@
   resolved "https://registry.yarnpkg.com/@holo-host/wasm-key-manager/-/wasm-key-manager-1.0.0.tgz#32e5365ddc4518a01c17d2aba09d11bf3a042429"
   integrity sha512-GTfeQ2iYvYYrIkuaF0QupWP/y8sdItwL6Tr1osyaU7eUsWtGfpZqDcTZny8KNDdnQAEEP2nDWZORA/Z3EMJa3w==
 
-"@holochain-open-dev/holochain-run-dna@^0.3.1":
-  version "0.3.1"
-  resolved "https://registry.yarnpkg.com/@holochain-open-dev/holochain-run-dna/-/holochain-run-dna-0.3.1.tgz#151feac5fadcfb6d0ec189e9b14560a69356478f"
-  integrity sha512-df5L7tNz8qYFmyyPktc8PYJnRkKbgEFyVug4YdxSeuDh1YZAZd+xNzkE0ZmUVFr0B1fXAYd19yDBOq+kmQmcoA==
+"@holochain-open-dev/holochain-run-dna@^0.3.2":
+  version "0.3.2"
+  resolved "https://registry.yarnpkg.com/@holochain-open-dev/holochain-run-dna/-/holochain-run-dna-0.3.2.tgz#babc840d4d857c4ecd9074f8cb478f7682aef01b"
+  integrity sha512-wyEcKse/eUZccKK5USNbDVGDSmR81gMGVaRGBZpMHh46zX53/9xnDlM2DV1l6PhiImdqnPRXH3T7T24npi76/Q==
   dependencies:
-    "@holochain/conductor-api" "0.0.1-dev.14"
+    "@holochain/conductor-api" "0.0.1-dev.16"
     babel "^6.23.0"
     chalk "^4.1.0"
     js-yaml "^3.14.0"
     tmp "^0.2.1"
     yargs "^16.1.1"
 
-"@holochain/conductor-api@0.0.1-dev.14":
-  version "0.0.1-dev.14"
-  resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.1-dev.14.tgz#e8a88cefdbe79611f1f43933a4a221df33c60198"
-  integrity sha512-Y10clXo6T6ln5QcHSznQZgzj0Fph000d916RQJKs4qRbD+kU55dYaqoS4AZwAmYoQskeR6i7eF7XPgUD7QYv9A==
-  dependencies:
-    "@msgpack/msgpack" "^2.1.0"
-    "@types/ws" "^7.2.4"
-    isomorphic-ws "^4.0.1"
-    nanoid "^3.1.9"
-    ws "^7.3.0"
-
-"@holochain/conductor-api@^0.0.1-dev.16":
+"@holochain/conductor-api@0.0.1-dev.16", "@holochain/conductor-api@^0.0.1-dev.16":
   version "0.0.1-dev.16"
   resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.1-dev.16.tgz#c9da19859dbab0caec0cdbb6da04b8bf999dc04b"
   integrity sha512-MGBj/vnmnzf5RYZnpCjmj+d+OAScNTzNd4TuNZ1eeHnnX08rLa2UPavXtEkNxS4Vkg8PdRfDXX40Imilbup01A==
@@ -884,9 +874,9 @@ fs.realpath@^1.0.0:
   integrity sha1-FQStJSMVjKpA20onh8sBQRmU6k8=
 
 fsevents@~2.3.1:
-  version "2.3.1"
-  resolved "https://registry.yarnpkg.com/fsevents/-/fsevents-2.3.1.tgz#b209ab14c61012636c8863507edf7fb68cc54e9f"
-  integrity sha512-YR47Eg4hChJGAB1O3yEAOkGO+rlzutoICGqGo9EZ4lKWokzZRSyIW1QmTzqjtw8MJdj9srP869CuWw/hyzSiBw==
+  version "2.3.2"
+  resolved "https://registry.yarnpkg.com/fsevents/-/fsevents-2.3.2.tgz#8a526f78b8fdf4623b709e0b975c52c24c02fd1a"
+  integrity sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==
 
 function-bind@^1.1.1:
   version "1.1.1"
@@ -961,9 +951,9 @@ glob@^7.1.3:
     path-is-absolute "^1.0.0"
 
 graceful-fs@^4.1.9:
-  version "4.2.4"
-  resolved "https://registry.yarnpkg.com/graceful-fs/-/graceful-fs-4.2.4.tgz#2256bde14d3632958c465ebc96dc467ca07a29fb"
-  integrity sha512-WjKPNJF79dtJAVniUlGGWHYGz2jWxT6VhN/4m1NdkbZ2nOsEF+cI1Edgql5zCRhs/VsQYRvrXctxktVXZUkixw==
+  version "4.2.6"
+  resolved "https://registry.yarnpkg.com/graceful-fs/-/graceful-fs-4.2.6.tgz#ff040b2b0853b23c3d31027523706f1885d76bee"
+  integrity sha512-nTnJ528pbqxYanhpDYsi4Rd8MAeaBA67+RZ10CM1m3bTAVFEDcd5AuA4a6W5YkGZ1iNXHzZz8T6TBKLeBuNriQ==
 
 growl@1.10.5:
   version "1.10.5"
@@ -1975,6 +1965,11 @@ tiny-invariant@^1.0.6:
   resolved "https://registry.yarnpkg.com/tiny-invariant/-/tiny-invariant-1.1.0.tgz#634c5f8efdc27714b7f386c35e6760991d230875"
   integrity sha512-ytxQvrb1cPc9WBEI/HSeYYoGD0kWnGEOR8RY6KomWLBVhqz0RgTwVO9dLrGz7dC+nN9llyI7OKAgRq8Vq4ZBSw==
 
+tiny-msgpack@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/tiny-msgpack/-/tiny-msgpack-1.0.2.tgz#78cb189e9d27b30de168284555548e298858edb3"
+  integrity sha1-eMsYnp0nsw3haChFVVSOKYhY7bM=
+
 tmp@^0.2.1:
   version "0.2.1"
   resolved "https://registry.yarnpkg.com/tmp/-/tmp-0.2.1.tgz#8457fc3037dcf4719c251367a1af6500ee1ccf14"
@@ -2037,9 +2032,9 @@ typedarray@^0.0.6:
   integrity sha1-hnrHTjhkGHsdPUfZlqeOxciDB3c=
 
 typescript@^3.6.4:
-  version "3.9.7"
-  resolved "https://registry.yarnpkg.com/typescript/-/typescript-3.9.7.tgz#98d600a5ebdc38f40cb277522f12dc800e9e25fa"
-  integrity sha512-BLbiRkiBzAwsjut4x/dsibSTB6yWpwT5qWmC2OfuCg3GgVQCSgMs4vEctYPhsaGtd0AeuuHMkjZ2h2WG8MSzRw==
+  version "3.9.9"
+  resolved "https://registry.yarnpkg.com/typescript/-/typescript-3.9.9.tgz#e69905c54bc0681d0518bd4d587cc6f2d0b1a674"
+  integrity sha512-kdMjTiekY+z/ubJCATUPlRDl39vXYiMV9iyeMuEuXZh2we6zz80uovNN2WlAxmmdE/Z/YQe+EbOEXB5RHEED3w==
 
 uc.micro@^1.0.1, uc.micro@^1.0.5:
   version "1.0.6"

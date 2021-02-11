@@ -1,6 +1,6 @@
 SHELL		= bash
 
-package-lock.json: package.json
+yarn.lock: package.json
 	yarn install
 	touch $@
 node_modules: yarn.lock
@@ -25,7 +25,7 @@ dnas/servicelogger.dna.gz:	dnas
 dnas/test.dna.gz:	dnas
 	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.0.2/test.dna.gz' -o $@
 
-build:			node_modules build/index.js
+build:		node_modules build/index.js
 docs:			node_modules docs/index.html
 DNAs:			dnas/test.dna.gz dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz
 
@@ -41,36 +41,45 @@ test-nix:		build
 	make test-unit;
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make test-integration
 test-debug:		build
-	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
+	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make test-integration-debug
 	make test-e2e-debug2
 
-test-unit:		build
-	npx mocha $(MOCHA_OPTS) ./tests/unit/
-test-unit-debug:	build
-	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/unit/
-
-conductor:
+test-unit:		build lair
+	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
+	make stop-lair
+test-unit-debug:	build lair
+	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
+	make stop-lair
+lair:
 	mkdir -p ./tests/tmp
 	rm -rf ./tests/tmp/*
-	npx holochain-run-dna -c ./tests/app-config.yml -a 4444 -r ./tests/tmp &> holochain-conductor.log &
+	mkdir -p ./tests/tmp/shim
+	RUST_LOG=trace lair-keystore --lair-dir tests/tmp/keystore &> hc-lair.log &
+stop-lair:
+	killall lair-keystore &
 
-test-integration:	build DNAs
-	yarn run stop-conductor &&	make conductor
-	npx mocha $(MOCHA_OPTS) ./tests/integration/
-test-integration-debug:	build DNAs
-	yarn run stop-conductor &&	make conductor
-	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/integration/
+conductor:
+	RUST_LOG=debug npx holochain-run-dna -c ./tests/app-config.yml -a 4444 -r ./tests/tmp -k shim &> hc-conductor.log &
+stop-conductor:
+	yarn run stop-conductor
+
+test-integration:	build DNAs stop-lair lair
+	yarn run stop-conductor
+	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
+test-integration-debug:	build DNAs stop-lair lair
+	yarn run stop-conductor
+	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
 
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
-	yarn run stop-conductor && make conductor
-	npx mocha $(MOCHA_OPTS) ./tests/e2e
+	yarn run stop-conductor
+	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e
 test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
-	yarn run stop-conductor &&	make conductor
-	LOG_LEVEL=silly npx mocha $(MOCHA_OPTS) ./tests/e2e/
+	yarn run stop-conductor
+	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
-	yarn run stop-conductor && make conductor
-	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn npx mocha $(MOCHA_OPTS) ./tests/e2e/
+	yarn run stop-conductor
+	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
 
 docs-watch:
 build-watch:
@@ -111,8 +120,6 @@ dist/holo_hosting_chaperone.js:
 check-conductor:	check-holochain
 check-holochain:
 	ps -efH | grep holochain | grep -E "conductor-[0-9]+.toml"
-stop-conductor:
-	yarn run stop-conductor
 
 keystore-%.key:
 	@echo "Creating Holochain key for Agent $*: keystore-$*.key";

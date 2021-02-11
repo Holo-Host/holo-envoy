@@ -10,10 +10,10 @@ const uuid = require('uuid');
 const {
   v4: uuidv4
 } = uuid;
-
+const { resetTmp, delay } = require("../utils");
 const expect = require('chai').expect;
 const fetch = require('node-fetch');
-
+const setup_conductor = require("../setup_conductor.js");
 const setup = require("../setup_envoy.js");
 
 describe("Server", () => {
@@ -25,19 +25,16 @@ describe("Server", () => {
   before(async function() {
     this.timeout(40_000);
 
-    function delay(t, val) {
-      return new Promise(function(resolve) {
-        setTimeout(function() {
-          resolve(val);
-        }, t);
-      });
-    }
-
-	  log.info("Waiting for Conductor to spin up");
+    log.info("Waiting for Lair to spin up");
+    setup_conductor.start_lair()
     await delay(10000);
 
     envoy = await setup.start();
     server = envoy.ws_server;
+
+    log.info("Waiting for Conductor to spin up");
+    setup_conductor.start_conductor()
+    await delay(10000);
 
     log.info("Waiting for Conductor connections...");
     await envoy.connected;
@@ -49,11 +46,16 @@ describe("Server", () => {
   after(async function() {
     this.timeout(60_000);
 
+    log.debug("Stop holochain...");
+    await setup_conductor.stop_conductor();
+
     log.info("Closing client...");
     client && await client.close();
 
     log.info("Stopping Envoy...");
     await setup.stop();
+
+    await resetTmp();
   });
 
   const channel_args = {
