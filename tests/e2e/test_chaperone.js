@@ -11,7 +11,7 @@ const setup = require("../setup_envoy.js");
 const setup_conductor = require("../setup_conductor.js");
 const { Codec } = require('@holo-host/cryptolib');
 const installedAppIds = yaml.load(fs.readFileSync('./tests/app-config.yml'));
-const { resetTmp } = require("../utils")
+const { resetTmp, delay } = require("../utils")
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
 const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
 const HHA_INSTALLED_APP_ID = installedAppIds[1].app_name;
@@ -91,14 +91,6 @@ describe("Server", () => {
 
   before(async function() {
     this.timeout(100_000);
-
-    function delay(t, val) {
-      return new Promise(function(resolve) {
-        setTimeout(function() {
-          resolve(val);
-        }, t);
-      });
-    }
 
     log.info("Waiting for Lair to spin up");
     setup_conductor.start_lair()

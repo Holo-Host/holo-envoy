@@ -10,7 +10,7 @@ const uuid = require('uuid');
 const {
   v4: uuidv4
 } = uuid;
-const { resetTmp } = require("../utils");
+const { resetTmp, delay } = require("../utils");
 const expect = require('chai').expect;
 const fetch = require('node-fetch');
 const setup_conductor = require("../setup_conductor.js");
@@ -25,13 +25,6 @@ describe("Server", () => {
   before(async function() {
     this.timeout(40_000);
 
-    function delay(t, val) {
-      return new Promise(function(resolve) {
-        setTimeout(function() {
-          resolve(val);
-        }, t);
-      });
-    }
     log.info("Waiting for Lair to spin up");
     setup_conductor.start_lair()
     await delay(10000);
