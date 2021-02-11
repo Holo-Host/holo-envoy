@@ -9,8 +9,7 @@ const {
   structs,
   MessageParser
 } = require('@holochain/lair-client');
-
-
+const { Codec } = require('@holo-host/cryptolib');
 
 async function init(lair_socket, shim_socket, signing_handler) {
   log.normal('init wormhole');
@@ -37,15 +36,12 @@ async function init(lair_socket, shim_socket, signing_handler) {
       if (header.wire_type_id === structs.Ed25519.SignByPublicKey.Request.WIRE_TYPE) {
         log.normal("Intercepted sign by public key");
         const request = header.wire_type_class.from(await header.payload());
-
         const pubkey = request.get(0);
         const message = request.get(1);
-
         const signature = await signing_handler(pubkey, message);
 
         if (signature !== null) {
-          let response = new structs.Ed25519.SignByPublicKey.Response(signature);
-
+          let response = new structs.Ed25519.SignByPublicKey.Response(Codec.Signature.decode(signature));
           conductor_stream.write(response.toMessage(header.id));
           continue;
         }
