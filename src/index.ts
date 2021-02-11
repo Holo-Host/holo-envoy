@@ -25,8 +25,8 @@ const digest = (payload) => {
 }
 
 const WS_SERVER_PORT = 4656; // holo
-const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/keystore/shim-socket');
-const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/keystore/socket');
+const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim/socket');
+const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
 const RPC_CLIENT_OPTS = {
   "reconnect_interval": 1000,
   "max_reconnects": 300,
