@@ -45,29 +45,30 @@ test-debug:		build
 	make test-integration-debug
 	make test-e2e-debug2
 
-test-unit:		build
+test-unit:		build lair
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
-test-unit-debug:	build
+	make stop-lair
+test-unit-debug:	build lair
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
-
+	make stop-lair
 lair:
 	mkdir -p ./tests/tmp
 	rm -rf ./tests/tmp/*
 	mkdir -p ./tests/tmp/shim
 	RUST_LOG=trace lair-keystore --lair-dir tests/tmp/keystore &> hc-lair.log &
 stop-lair:
-	killall lair-keystore
+	killall lair-keystore &
 
 conductor:
 	RUST_LOG=debug npx holochain-run-dna -c ./tests/app-config.yml -a 4444 -r ./tests/tmp -k shim &> hc-conductor.log &
 stop-conductor:
 	yarn run stop-conductor
 
-test-integration:	build DNAs
-	yarn run stop-conductor &&	make conductor
+test-integration:	build DNAs stop-lair lair
+	yarn run stop-conductor
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
-test-integration-debug:	build DNAs
-	yarn run stop-conductor &&	make conductor
+test-integration-debug:	build DNAs stop-lair lair
+	yarn run stop-conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
 
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
