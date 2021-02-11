@@ -97,7 +97,7 @@ describe("Server", () => {
     await delay(10000);
 
     log.info("Starting Envoy");
-    // TODO: envoy will try to connect to the conductor but the conductor is not started so it needs to retry
+    // Note: envoy will try to connect to the conductor but the conductor is not started so it needs to retry
     envoy = await setup.start(envoyOpts);
     server = envoy.ws_server;
 

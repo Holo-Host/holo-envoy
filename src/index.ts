@@ -664,6 +664,7 @@ class Envoy {
     try {
       // HACK: Since the envoy starts before the conductor this.hcc_clients will not be set
       // So the first time callConductor is called we make a connection
+      // Eventually we should have envoy to automatically retry
       if (Object.keys(this.hcc_clients).length === 0)
         await this.connections()
       if (typeof client === "string")
@@ -800,9 +801,6 @@ class Envoy {
     log.normal("Processing service logger request (%s)", signature);
 
     const call_spec = payload.call_spec;
-    console.log(">>>>>>", call_spec["args"]);
-    console.log(">>>>>>", typeof call_spec["args"]);
-
     const args_hash = digest(call_spec["args"]);
 
     log.debug("Using argument digest: %s", args_hash);
@@ -869,10 +867,6 @@ class Envoy {
     const servicelogger_cell_id = appInfo.cell_data[0][0];
     const buffer_host_agent_servicelogger_id = servicelogger_cell_id[1];
 
-    console.log("Testing client_request: ", client_request);
-    console.log("Testing host_response: ", host_response);
-    console.log("Testing confirmation: ", confirmation);
-    // TODO: I do not think we need to decode it here because the wasm layer does that for us.
     client_request["request_signature"] = Codec.Signature.decode(client_request["request_signature"])
     host_response["signed_response_hash"] = Codec.Signature.decode(host_response["signed_response_hash"])
     confirmation["confirmation_signature"] = Codec.Signature.decode(confirmation["confirmation_signature"])
@@ -882,8 +876,6 @@ class Envoy {
       "response": host_response,
       "confirmation": confirmation,
     }
-
-    console.log("Testing Payload: ", payload);
 
     log.silly("Recording service confirmation with payload: activity: { request: %s, response: %s, confimation: %s }", client_request, host_response, confirmation);
     const resp = await this.callConductor("app", {
