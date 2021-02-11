@@ -34,7 +34,6 @@ describe("Wormhole tests", () => {
     await delay(5000);
     seed = crypto.randomBytes(32);
     keys = new KeyManager(seed);
-    console.log("KEYs:", keys);
     wormhole = await init(LAIR_SOCKET, WH_SERVER_PORT, async function(pubkey, message) {
       return null;
     });
@@ -56,7 +55,6 @@ describe("Wormhole tests", () => {
 
   it("test wormhole signing for zome call", async () => {
     const payload = await getPayload(keys);
-    console.log("logged activity: ", payload);
     loggedActivity = await appWs.callZome({
       cell_id: [Buffer.from(slCellId[0]), Buffer.from(slCellId[1])],
       zome_name: 'service',
@@ -143,7 +141,6 @@ async function setUpServicelogger(appWs) {
       price_bandwidth: 1,
       max_time_before_invoice: [604800, 0]
     }
-    console.log("PAYLOAD: ", payload);
     try {
       logger_settings = await appWs.callZome({
         cell_id: [Buffer.from(serviceloggerCellId[0]), Buffer.from(serviceloggerCellId[1])],
