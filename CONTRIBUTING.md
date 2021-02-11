@@ -17,12 +17,12 @@ nix-shell
 
 Inside the nix shell
 ```bash
-npm install
+yarn install
 ```
 
 ## Compile (Typescript)
 
-The source is written in Typescript.  Run `npm run compile` or `make build`.
+The source is written in Typescript.  Run `yarn run compile` or `make build`.
 
 
 
