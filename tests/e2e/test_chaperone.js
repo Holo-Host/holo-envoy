@@ -129,6 +129,8 @@ describe("Server", () => {
     log.debug("Close browser...");
     await browser.close();
 
+    log.debug("Stop holochain...");
+    await setup_conductor.stop_conductor();
 
     log.debug("Close HTTP server...");
     await http_ctrls.close();
