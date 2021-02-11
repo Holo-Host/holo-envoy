@@ -6,6 +6,7 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 const expect = require('chai').expect;
 const fetch = require('node-fetch');
 const why = require('why-is-node-running');
+const portscanner = require('portscanner');
 
 const setup = require("../setup_envoy.js");
 const MockConductor = require('@holo-host/mock-conductor');
@@ -32,25 +33,38 @@ describe("Server with mock Conductor", () => {
   let client;
 
 
-const envoy_mode_map = {
-  production: 0,
-  develop: 1,
-}
-
-const envoyOpts = {
-  mode: envoy_mode_map.develop,
-  app_port_number: 0,
-  hosted_app: {
-    // servicelogger_id: SERVICE_INSTALLED_APP_ID,
-    dnas: [{
-      nick: 'test-hha',
-			path: './dnas/elemental-chat.dna.gz',
-		}],
-		usingURL: false
+  const envoy_mode_map = {
+    production: 0,
+    develop: 1,
   }
-}
+
+  const envoyOpts = {
+    mode: envoy_mode_map.develop,
+    app_port_number: 0,
+    hosted_app: {
+      // servicelogger_id: SERVICE_INSTALLED_APP_ID,
+      dnas: [{
+        nick: 'test-hha',
+        path: './dnas/elemental-chat.dna.gz',
+      }],
+      usingURL: false
+    }
+  }
+
+  async function checkPorts(port_array) {
+    return new Promise((resolve, reject) => {
+      portscanner.findAPortInUse(port_array, '127.0.0.1', function(error, port) {
+        if (port) {
+          reject(new Error(`Port ${port} already used by other process`));
+        }
+        resolve();
+      });
+    });
+  }
 
   before("Start mock conductor with envoy and client", async () => {
+    await checkPorts([ADMIN_PORT, APP_PORT]);
+
     adminConductor = new MockConductor(ADMIN_PORT);
     appConductor = new MockConductor(APP_PORT);
 

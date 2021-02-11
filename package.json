@@ -35,6 +35,7 @@
     "@whi/stdlog": "^0.3.3",
     "concat-stream": "^2.0.0",
     "json-stable-stringify": "^1.0.1",
+    "portscanner": "^2.2.0",
     "request": "^2.88.2",
     "rpc-websockets": "^7.4.8"
   },
