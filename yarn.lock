@@ -32,14 +32,15 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@holo-host/chaperone@file:../chaperone":
-  version "0.3.0"
+"@holo-host/chaperone@*1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@holo-host/chaperone/-/chaperone-1.0.0.tgz#31a3ef71b72ef22c3bfe5dc98ac7f4a1d64a4291"
+  integrity sha512-Rb31DdoHgjTlxtQxWokYo3woI9yUCMhwVZvbf7viHyhNoGHJJZzzqA1yyShwf41B5HzROCZiAc5hpPCqQcNDqA==
   dependencies:
-    "@holo-host/comb" "^0.1.5"
+    "@holo-host/comb" "^0.2.0"
     "@holo-host/cryptolib" "^0.3.0"
     "@holo-host/data-translator" "^0.1.1"
-    "@holo-host/mock-conductor" "^0.1.1"
-    "@msgpack/msgpack" "^2.3.0"
+    "@holo-host/mock-conductor" "^0.3.0"
     "@whi/http_utils" "^0.1.0"
     "@whi/printf" "^1.0.0"
     "@whi/stdlog" "^0.3.1"
@@ -47,11 +48,12 @@
     json-stable-stringify "^1.0.1"
     rpc-websockets "^4.6.1"
     sprintf-js "^1.1.2"
+    tiny-msgpack "^1.0.2"
 
-"@holo-host/comb@^0.1.5":
-  version "0.1.6"
-  resolved "https://registry.yarnpkg.com/@holo-host/comb/-/comb-0.1.6.tgz#2604c04343f67b9546901dd777e4bbadcf3d5d0c"
-  integrity sha512-QejQMpROdOZ8Fdqp9+CujVUxwgVfLHx8zsuJaWPhZDBYqtB2cUDAhjn8UKfSmQSRiOJDsPCZ810N/kXNFNePCg==
+"@holo-host/comb@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@holo-host/comb/-/comb-0.2.0.tgz#5b6ae502a20fe37ec3e2b05dd2ac3913fd2dce84"
+  integrity sha512-b0JhOvAh/4KEDRDA2BmlJc8zaykRvbu/UM56fHVHdpaXNbVMAk4SY5ER9+xTVDMSu2NpSj27P/70SrtFryAHEQ==
   dependencies:
     postmate "^1.5.1"
 
@@ -80,10 +82,10 @@
     lodash "^4.17.20"
     ws "^7.4.0"
 
-"@holo-host/mock-conductor@^0.1.1":
-  version "0.1.2"
-  resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.1.2.tgz#df8788b4f67b1583dc3edeb18cba906eb7fcfc16"
-  integrity sha512-vfjxhWWLayKuXJmJLf6lpPTKUDAZGvGKoat+lLqIeGDivZEuQpNYGDChYKCYcZr54WRBmqV8STZjHTzBzxQK9w==
+"@holo-host/mock-conductor@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.3.0.tgz#921dc80def329f19537f69528ae2e899dd64996e"
+  integrity sha512-ZjeRuLsKNiUvGYpsTC3USiNfT77mrl4PGGZAjAAgUC/z3z1gP00FAK+BanvffSRlHYE4zRtqLnhiGy0gLsVJYQ==
   dependencies:
     "@msgpack/msgpack" "^2.3.0"
     lodash "^4.17.20"
@@ -1962,6 +1964,11 @@ tiny-invariant@^1.0.6:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/tiny-invariant/-/tiny-invariant-1.1.0.tgz#634c5f8efdc27714b7f386c35e6760991d230875"
   integrity sha512-ytxQvrb1cPc9WBEI/HSeYYoGD0kWnGEOR8RY6KomWLBVhqz0RgTwVO9dLrGz7dC+nN9llyI7OKAgRq8Vq4ZBSw==
+
+tiny-msgpack@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/tiny-msgpack/-/tiny-msgpack-1.0.2.tgz#78cb189e9d27b30de168284555548e298858edb3"
+  integrity sha1-eMsYnp0nsw3haChFVVSOKYhY7bM=
 
 tmp@^0.2.1:
   version "0.2.1"
