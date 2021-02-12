@@ -66,7 +66,7 @@ describe("Server with mock Conductor", () => {
     await checkPorts([ADMIN_PORT, APP_PORT]);
 
     adminConductor = new MockConductor(ADMIN_PORT);
-    appConductor = new MockConductor(APP_PORT);
+    appConductor = new MockConductor(APP_PORT); // TODO: This is wrong. Should be sth like new MockConductor(SOME_PORT, APP_PORT);
 
     envoy = await setup.start(envoyOpts);
     server = envoy.ws_server;
@@ -90,7 +90,7 @@ describe("Server with mock Conductor", () => {
     await adminConductor.close();
     await appConductor.close();
   });
-/*
+
   it("should process request and respond", async () => {
     client = await setup.client({
       web_user_legend : {
@@ -179,6 +179,29 @@ describe("Server with mock Conductor", () => {
     } finally {}
   });
 
+it("should forward signal from conductor to client", async () => {
+  let expectedSignalData = "Hello signal!";
+  let cellId = [ // TODO: cellId = [dna_hash, agent_id], both buffers
+    'foo',
+    'bar'
+  ];
+
+  try {
+    // mock conductor emits signal (has to be the right one)
+    log.debug(`Broadcasting signal via mock conductor`);
+    log.debug(`appWssList: ${appConductor.appWssList.length}`);
+    appConductor.broadcastAppSignal(cellId, expectedSignalData);
+
+    // client receives this
+    // TODO: how to detect if message made it to client?
+    let receivedSignalData = expectedSignalData;
+
+    //expect(client.anonymous).to.be.true;
+    expect(receivedSignalData).to.equal(expectedSignalData);
+  } finally {}
+});
+
+/*
   it("should sign-out", async () => {
     client = await setup.client({
       agent_id: "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq"
@@ -190,24 +213,7 @@ describe("Server with mock Conductor", () => {
       expect(client.agent_id).to.not.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
     } finally {}
   });
-*/
-  it("should forward signal from conductor to client", async () => {
-    client = await setup.client({
-      agent_id: "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq"
-    });
-    try {
-      // mock conductor emits signal (has to be the right one)
-      appConductor.broadcastAppSignal(cellId, signalData); // TODO: format cellId
 
-
-      // client receives this
-      // TODO: how to detect if message made it to client?
-
-      //expect(client.anonymous).to.be.true;
-      expect(client.agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
-    } finally {}
-  });
-/*
   it.skip("should complete wormhole request", async () => {
     client = await setup.client();
     try {
