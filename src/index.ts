@@ -1022,7 +1022,8 @@ class Envoy {
       // TODO: I am operating under the assumption that each dna_hash can be only in one app (identified by hha_hash)
       // Does this need to change?
       appInfo.cell_data.forEach(cell => {
-        this.dna2hha[cell[0][0]] = hha_hash; // TODO: are cells in binary format or already stringified?
+        let dna_hash_string = Codec.AgentId.encode(cell[0][0]); // cell[0][0] is binary buffer of dna_hash
+        this.dna2hha[dna_hash_string] = hha_hash;
       });
     }
   }
@@ -1032,14 +1033,14 @@ class Envoy {
   }
 
   async signalHandler(signal) {
-    let cell_id = signal.data.App[0]; // TODO: what is actual syntax of a signal???
+    let cell_id = signal.data.cellId; // const signal: AppSignal = { type: msg.type , data: { cellId: [dna_hash, agent_id], payload: decodedPayload }};
     log.debug("Received signal for cellId (%s)", cell_id);
 
     // translate CellId->eventId
     let event_id = this.cellId2eventId(cell_id);
 
     log.debug(`Emitting 'signal' to event ${event_id}:`);
-    log.debug(`Signal content: ${signal.data.App[1]}`); // TODO: Is it msgpacked or unpacked at this point?
+    log.debug(`Signal content: ${signal.data.cellId[1]}`);
     this.ws_server.emit(event_id, signal)
   }
 
@@ -1047,11 +1048,13 @@ class Envoy {
     if (cell_id.length != 2) {
       throw new Error(`Wrong cell id: ${cell_id}`);
     }
-    let hha_hash = this.dna2hha[cell_id[0]]; // TODO: do I need to stringify components of cell_id?
+    let dna_hash_string = Codec.AgentId.encode(cell_id[0]); // cell_id[0] is binary buffer of dna_hash
+    let hha_hash = this.dna2hha[dna_hash_string];
     if (!hha_hash) {
       throw new Error(`Can't find hha_hash for DNA: ${cell_id[0]}`);
     }
-    return this.createEventId(cell_id[1],hha_hash);
+    let agent_id_string = Codec.AgentId.encode(cell_id[1]); // cell_id[1] is binary buffer of agent_id
+    return this.createEventId(agent_id_string, hha_hash);
   }
 
   createEventId(agent_id, hha_hash) {

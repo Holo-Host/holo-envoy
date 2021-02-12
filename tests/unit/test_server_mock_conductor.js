@@ -197,9 +197,11 @@ describe("Server with mock Conductor", () => {
     });
     try {
       // mock conductor emits signal (has to be the right one)
+      appConductor.broadcastAppSignal(cellId, signalData); // TODO: format cellId
+
 
       // client receives this
-      appConductor.broadcastAppSignal(cellId, signalData);
+      // TODO: how to detect if message made it to client?
 
       //expect(client.anonymous).to.be.true;
       expect(client.agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
