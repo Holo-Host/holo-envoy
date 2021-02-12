@@ -589,7 +589,9 @@ class Envoy {
 
   // --------------------------------------------------------------------------------------------
   // WORMHOLE Signing function
-  signingRequest(agent: Buffer, payload: string, timeout = 5_000) {
+  // Note: we need to figure out a better way to manage this timeout.
+  // May be based on the paylod_counter and every 10 requests we increase the timeout by 10sec
+  signingRequest(agent: Buffer, payload: string, timeout = 45_000) {
     console.log("Wormhole Signing Requested...");
     const payload_id = this.payload_counter++;
     const agent_id = Codec.AgentId.encode(agent);
