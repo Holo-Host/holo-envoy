@@ -128,7 +128,7 @@ class Envoy {
       },
     };
 
-    this.connections();
+    this.connected = this.connections();
     this.startWebsocketServer();
     this.startHTTPServer();
   }
@@ -151,7 +151,7 @@ class Envoy {
     });
 
     const clients = Object.values(this.hcc_clients);
-    this.connected = Promise.all(
+    return Promise.all(
       clients.map(async (client: any) => {
         await client.opened(CONDUCTOR_TIMEOUT)
           .catch(err => {
@@ -161,9 +161,6 @@ class Envoy {
         log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.connectionMonitor.name, client.connectionMonitor.socket.readyState);
       })
     );
-
-    await this.connected;
-    log.normal("All Conductor clients are in a 'CONNECTED' state");
   }
 
   // --------------------------------------------------------------------------------------------
@@ -175,6 +172,8 @@ class Envoy {
       "port": this.opts.port,
       "host": "0.0.0.0", // "localhost",
     });
+
+    await this.connected;
 
     this.ws_server.on("connection", async (socket, request) => {
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
@@ -204,11 +203,17 @@ class Envoy {
       // to appropriate agents UIs we need to be able to identify connection based on agent_id and hha_hash.
 
       // make sure dna2hha entry exists for given hha
-      this.recordHha(hha_hash);
+      await this.recordHha(hha_hash);
       let event_id = this.createEventId(agent_id, hha_hash);
 
       // create event with unique id so that chaperone can subscribe to it
-      this.ws_server.event(event_id);
+      // don't panic if event already created (might happen on reconnecting)
+      log.debug(`Creating event ${event_id}`);
+      try {
+        this.ws_server.event(event_id);
+      } catch(e) {
+        log.debug(`Event ${event_id} already created`);
+      }
 
       socket.on("close", async () => {
         log.normal("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
