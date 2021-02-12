@@ -65,7 +65,7 @@ const envoy_mode_map = {
   develop: 1,
 }
 
-// Note: All envoyOpts.dnas will be registered via admin interfaice with the paths provided here
+// Note: All envoyOpts.dnas will be registered via admin interface with the paths provided here
 const envoyOpts = {
   mode: envoy_mode_map.develop,
   app_port_number: 0,
