@@ -206,13 +206,20 @@ class Envoy {
       await this.recordHha(hha_hash);
       let event_id = this.createEventId(agent_id, hha_hash);
 
-      // create event with unique id so that chaperone can subscribe to it
-      // don't panic if event already created (might happen on reconnecting)
-      log.debug(`Creating event ${event_id}`);
-      try {
-        this.ws_server.event(event_id);
-      } catch(e) {
-        log.debug(`Event ${event_id} already created`);
+      // Create event with unique id so that chaperone can subscribe to it.
+      // Events can be passed only to logged-in users, otherwise there's no way to map
+      // signal -> agent+app combo
+      // On login connection is re-established with new agent.
+      // Don't panic if event already created (might happen on reconnecting)
+      if (anonymous) {
+        log.debug(`Skipping creating signal event - anonymous user`);
+      } else {
+        log.debug(`Creating signal event ${event_id}`);
+        try {
+          this.ws_server.event(event_id, this.opts.NS);
+        } catch(e) {
+          log.debug(`Event ${event_id} already created`);
+        }
       }
 
       socket.on("close", async () => {
@@ -1015,7 +1022,7 @@ class Envoy {
       // TODO: I am operating under the assumption that each dna_hash can be only in one app (identified by hha_hash)
       // Does this need to change?
       appInfo.cell_data.forEach(cell => {
-        this.dna2hha[cell[0][0]] = hha_hash;
+        this.dna2hha[cell[0][0]] = hha_hash; // TODO: are cells in binary format or already stringified?
       });
     }
   }
@@ -1025,25 +1032,26 @@ class Envoy {
   }
 
   async signalHandler(signal) {
-    let cell_id = signal.data.cellId;
+    let cell_id = signal.data.App[0]; // TODO: what is actual syntax of a signal???
     log.debug("Received signal for cellId (%s)", cell_id);
 
     // translate CellId->eventId
     let event_id = this.cellId2eventId(cell_id);
 
     log.debug(`Emitting 'signal' to event ${event_id}:`);
-    log.debug(signal);
+    log.debug(`Signal content: ${signal.data.App[1]}`); // TODO: Is it msgpacked or unpacked at this point?
     this.ws_server.emit(event_id, signal)
   }
 
   cellId2eventId(cell_id) {
-    // CellId is of a format `agent_id:dna_hash`
-    let cell_arr = cell_id.split(":");
-    if (cell_arr.length != 2) {
+    if (cell_id.length != 2) {
       throw new Error(`Wrong cell id: ${cell_id}`);
     }
-    let hha_hash = this.dna2hha[cell_arr[1]];
-    return this.createEventId(cell_arr[0],hha_hash);
+    let hha_hash = this.dna2hha[cell_id[0]]; // TODO: do I need to stringify components of cell_id?
+    if (!hha_hash) {
+      throw new Error(`Can't find hha_hash for DNA: ${cell_id[0]}`);
+    }
+    return this.createEventId(cell_id[1],hha_hash);
   }
 
   createEventId(agent_id, hha_hash) {

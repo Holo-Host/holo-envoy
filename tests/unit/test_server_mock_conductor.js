@@ -90,7 +90,7 @@ describe("Server with mock Conductor", () => {
     await adminConductor.close();
     await appConductor.close();
   });
-
+/*
   it("should process request and respond", async () => {
     client = await setup.client({
       web_user_legend : {
@@ -187,10 +187,25 @@ describe("Server with mock Conductor", () => {
       await client.signOut();
 
       expect(client.anonymous).to.be.true;
-      expect(client.agent_id).to.not.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
+      expect(client.agent_id).to.not.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
     } finally {}
   });
+*/
+  it("should forward signal from conductor to client", async () => {
+    client = await setup.client({
+      agent_id: "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq"
+    });
+    try {
+      // mock conductor emits signal (has to be the right one)
 
+      // client receives this
+      appConductor.broadcastAppSignal(cellId, signalData);
+
+      //expect(client.anonymous).to.be.true;
+      expect(client.agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+    } finally {}
+  });
+/*
   it.skip("should complete wormhole request", async () => {
     client = await setup.client();
     try {
@@ -244,7 +259,7 @@ describe("Server with mock Conductor", () => {
       expect(envoy.pending_confirms).to.be.empty;
     } finally {}
   });
-
+*/
   it("should fail to sign-up because conductor disconnected");
   it("should fail to sign-up because admin/agent/add returned an error");
   it("should fail to sign-up because HHA returned an error");
