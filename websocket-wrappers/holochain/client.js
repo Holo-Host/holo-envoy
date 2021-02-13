@@ -5,7 +5,8 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 
 const {
   AdminWebsocket,
-  AppWebsocket
+  AppWebsocket,
+  DEFAULT_TIMEOUT
 } = require('@holochain/conductor-api');
 const ConnectionMonitor = require('../utils.js');
 
@@ -47,7 +48,7 @@ class HcAppWebSocket extends AppWebsocket {
 
   static async init(url, signalHandler) {
     const connect = super.connect;
-    const appWsClient = await super.connect(url, signalHandler);
+    const appWsClient = await super.connect(url, DEFAULT_TIMEOUT, signalHandler);
     return new HcAppWebSocket(appWsClient.client, connect);
   }
 

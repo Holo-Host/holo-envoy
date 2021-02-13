@@ -137,7 +137,7 @@ class Envoy {
     try {
       const ifaces = this.conductor_opts.interfaces;
       this.hcc_clients.admin = await HcAdminWebSocket.init(`ws://localhost:${ifaces.admin_port}`);
-      this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`, this.signalHandler);
+      this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`, this.signalHandler.bind(this));
     } catch (err) {
       console.error(err);
     }
@@ -190,7 +190,7 @@ class Envoy {
       });
 
       const anonymous = url.searchParams.get('anonymous') === "true" ? true : false;
-      const agent_id = url.searchParams.get('agent_id');
+      const agent_id = url.searchParams.get('agent_id'); // TODO seems like here suspicious "special signs" replacement is going on, like _/+-, prolly due to some URLencode stuff
       const hha_hash = url.searchParams.get('hha_hash');
       log.normal("%s (%s) connection for HHA ID: %s", anonymous ? "Anonymous" : "Agent", agent_id, hha_hash);
 
@@ -214,11 +214,11 @@ class Envoy {
       if (anonymous) {
         log.debug(`Skipping creating signal event - anonymous user`);
       } else {
-        log.debug(`Creating signal event ${event_id}`);
+        log.debug(`****************** Creating signal event ${event_id}`);
         try {
           this.ws_server.event(event_id, this.opts.NS);
         } catch(e) {
-          log.debug(`Event ${event_id} already created`);
+          log.debug(`****************** Event ${event_id} already created`);
         }
       }
 
@@ -1019,7 +1019,7 @@ class Envoy {
         throw new Error(`No app found with installed_app_id: ${hha_hash}`);
       }
 
-      // TODO: I am operating under the assumption that each dna_hash can be only in one app (identified by hha_hash)
+      // TODO but leave it for now: I am operating under the assumption that each dna_hash can be only in one app (identified by hha_hash)
       // Does this need to change?
       appInfo.cell_data.forEach(cell => {
         let dna_hash_string = Codec.AgentId.encode(cell[0][0]); // cell[0][0] is binary buffer of dna_hash
@@ -1034,16 +1034,16 @@ class Envoy {
 
   async signalHandler(signal) {
     let cell_id = signal.data.cellId; // const signal: AppSignal = { type: msg.type , data: { cellId: [dna_hash, agent_id], payload: decodedPayload }};
-    log.debug("Received signal for cellId (%s)", cell_id);
 
     // translate CellId->eventId
     let event_id = this.cellId2eventId(cell_id);
 
-    log.debug(`Emitting 'signal' to event ${event_id}:`);
-    log.debug(`Signal content: ${signal.data.cellId[1]}`);
+    log.debug(`Signal handler is emitting 'signal' to event ${event_id}:`);
+    log.debug(`Signal content: ${signal.data.payload}`);
     this.ws_server.emit(event_id, signal)
   }
 
+  // takes cell_id in binary (buffer) format
   cellId2eventId(cell_id) {
     if (cell_id.length != 2) {
       throw new Error(`Wrong cell id: ${cell_id}`);

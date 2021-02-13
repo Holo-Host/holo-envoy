@@ -10,12 +10,15 @@ const portscanner = require('portscanner');
 
 const setup = require("../setup_envoy.js");
 const MockConductor = require('@holo-host/mock-conductor');
+const { Codec } = require('@holo-host/cryptolib');
+
 const {
   ZomeAPIResult
 } = MockConductor;
 
 describe("Server with mock Conductor", () => {
   const ADMIN_PORT = 4444;
+  const FAKE_PORT = 666;
   const APP_PORT = 42233;
   const INTERNAL_INSTALLED_APP_ID = "holo-hosting-app"
   // Note: The value used for the hosted installed_app_ids
@@ -23,7 +26,9 @@ describe("Server with mock Conductor", () => {
   const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
   const SERVICE_INSTALLED_APP_ID = `${HOSTED_INSTALLED_APP_ID}::servicelogger`
   const DNA_ALIAS = "dna_alias";
-  const MOCK_CELL_ID = [Buffer.from("dnaHash"), Buffer.from("agentPubkey")];
+  const AGENT_ID = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
+  const DNA_HASH = "uhCEkWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
+  const MOCK_CELL_ID = [Codec.AgentId.decode(DNA_HASH), Codec.AgentId.decode(AGENT_ID)];
   const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
 
   let envoy;
@@ -63,10 +68,12 @@ describe("Server with mock Conductor", () => {
   }
 
   before("Start mock conductor with envoy and client", async () => {
-    await checkPorts([ADMIN_PORT, APP_PORT]);
+    await checkPorts([ADMIN_PORT, FAKE_PORT, APP_PORT]);
 
+    // FAKE_PORT is used in appConducotr because of the way MockConductor works:
+    // 1st arg is Admin port that does not receive signals
     adminConductor = new MockConductor(ADMIN_PORT);
-    appConductor = new MockConductor(APP_PORT); // TODO: This is wrong. Should be sth like new MockConductor(SOME_PORT, APP_PORT);
+    appConductor = new MockConductor(FAKE_PORT, APP_PORT);
 
     envoy = await setup.start(envoyOpts);
     server = envoy.ws_server;
@@ -94,7 +101,7 @@ describe("Server with mock Conductor", () => {
   it("should process request and respond", async () => {
     client = await setup.client({
       web_user_legend : {
-        "alice.test.1@holo.host": "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq",
+        "alice.test.1@holo.host": AGENT_ID,
       }
     });
 
@@ -131,9 +138,8 @@ describe("Server with mock Conductor", () => {
   });
 
   it("should sign-up on this Host", async () => {
-    const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
     client = await setup.client({
-      agent_id: agentId
+      agent_id: AGENT_ID
     });
     client.skip_assign_host = true;
 
@@ -165,7 +171,7 @@ describe("Server with mock Conductor", () => {
 
       const appInfo = {
         installed_app_id: HOSTED_INSTALLED_APP_ID,
-        agent_key: Buffer.from(agentId),
+        agent_key: Codec.AgentId.decode(AGENT_ID),
         dnas: envoyOpts.hosted_app.dnas,
       }
       adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, { type: "success" });
@@ -175,25 +181,30 @@ describe("Server with mock Conductor", () => {
       await client.signUp("alice.test.1@holo.host", "Passw0rd!");
 
       expect(client.anonymous).to.be.false;
-      expect(client.agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+      expect(client.agent_id).to.equal(AGENT_ID);
     } finally {}
   });
 
 it("should forward signal from conductor to client", async () => {
   let expectedSignalData = "Hello signal!";
-  let cellId = [ // TODO: cellId = [dna_hash, agent_id], both buffers
-    'foo',
-    'bar'
-  ];
+  // Instance of DNA that is emitting signal
+  // has to match DNA registered in envoy's dna2hha during Login and agent's ID
+  let cellId = MOCK_CELL_ID;
+
+  client = await setup.client({
+    agent_id: AGENT_ID // In set up I will have to create COMB to be able to read signal outcome
+  });
+  client.skip_assign_host = true;
 
   try {
     // mock conductor emits signal (has to be the right one)
-    log.debug(`Broadcasting signal via mock conductor`);
+    log.debug(`****************** Broadcasting signal via mock conductor`);
     log.debug(`appWssList: ${appConductor.appWssList.length}`);
     appConductor.broadcastAppSignal(cellId, expectedSignalData);
 
     // client receives this
-    // TODO: how to detect if message made it to client?
+    // TODO: how to detect if message made it all the way to client?
+    // My idea - I can set up client with COMB and listen somehow to COMB
     let receivedSignalData = expectedSignalData;
 
     //expect(client.anonymous).to.be.true;
@@ -204,13 +215,13 @@ it("should forward signal from conductor to client", async () => {
 /*
   it("should sign-out", async () => {
     client = await setup.client({
-      agent_id: "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq"
+      agent_id: AGENT_ID
     });
     try {
       await client.signOut();
 
       expect(client.anonymous).to.be.true;
-      expect(client.agent_id).to.not.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+      expect(client.agent_id).to.not.equal(AGENT_ID);
     } finally {}
   });
 
