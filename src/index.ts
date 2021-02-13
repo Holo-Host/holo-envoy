@@ -339,35 +339,35 @@ class Envoy {
           }
         }
 
+        // REMOVE: This port should already be active so we do not need to be attach AppInterface
         // Attach App to Interface - Connect app to hosted interface and start app (ie: spin up all cells within app bundle)
-        try {
-          let app_port
-
-          if ((this.opts.app_port_number === 0 || this.opts.app_port_number) && this.opts.mode === Envoy.DEVELOP_MODE) {
-            log.info("Defaulting to port provided in opts config.  Attaching App to port (%s)", this.opts.app_port_number);
-            // NOTICE: MAKE SURE THIS PORT IS SET TO THE WS PORT EXPECTED IN THE UI
-            app_port = this.opts.app_port_number;
-          } else {
-            app_port = this.conductor_opts.interfaces.app_port;
-          }
-
-          log.info("Starting installed-app (%s) on port (%s)", hosted_agent_instance_app_id, app_port);
-
-          adminResponse = await this.callConductor("admin", 'attachAppInterface', { port: app_port });
-
-          if (adminResponse.type !== "success") {
-            log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse);
-            failed = true
-            throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id '${hosted_agent_instance_app_id}'.`)).toJSON();
-          }
-        } catch (err) {
-          if (err.message.toLowerCase().includes("already active"))
-            log.warn("Cannot Start App: Intalled-app (%s) is already started", hosted_agent_instance_app_id);
-          else {
-            log.error("Failed during 'attachAppInterface': %s", String(err));
-            throw err;
-          }
-        }
+        // try {
+        //   let app_port
+        //
+        //   if ((this.opts.app_port_number === 0 || this.opts.app_port_number) && this.opts.mode === Envoy.DEVELOP_MODE) {
+        //     log.info("Defaulting to port provided in opts config.  Attaching App to port (%s)", this.opts.app_port_number);
+        //     // NOTICE: MAKE SURE THIS PORT IS SET TO THE WS PORT EXPECTED IN THE UI
+        //     app_port = this.opts.app_port_number;
+        //   } else {
+        //     app_port = this.conductor_opts.interfaces.app_port;
+        //   }
+        //
+        //   log.info("Starting installed-app (%s) on port (%s)", hosted_agent_instance_app_id, app_port);
+        //   adminResponse = await this.callConductor("admin", 'attachAppInterface', { port: app_port });
+        //
+        //   if (adminResponse.type !== "success") {
+        //     log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse);
+        //     failed = true
+        //     throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id '${hosted_agent_instance_app_id}'.`)).toJSON();
+        //   }
+        // } catch (err) {
+        //   if (err.message.toLowerCase().includes("already active"))
+        //     log.warn("Cannot Start App: Intalled-app (%s) is already started", hosted_agent_instance_app_id);
+        //   else {
+        //     log.error("Failed during 'attachAppInterface': %s", String(err));
+        //     throw err;
+        //   }
+        // }
 
       } catch (err) {
         failed = true;
