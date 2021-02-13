@@ -713,7 +713,7 @@ class Envoy {
       try {
         resp = await interfaceMethod(args);
       } catch (error) {
-        throw new Error(`CONDUCTOR CALL ERROR: ${JSON.stringify(error)}`);
+        throw new Error(`CONDUCTOR CALL ERROR: ${error}`);
       }
 
       if (callAgent === "app") {
