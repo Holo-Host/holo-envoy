@@ -87,7 +87,7 @@ describe("Server with mock Conductor", () => {
   });
   afterEach("Close client", async () => {
     log.info("Closing client...");
-    await client.close();
+    if (client) await client.close();
   });
   after("Close mock conductor with envoy", async () => {
     log.info("Stopping Envoy...");
@@ -98,6 +98,11 @@ describe("Server with mock Conductor", () => {
     await appConductor.close();
   });
 
+  it("should encode and decode back agent id", async () => {
+    let result = Codec.AgentId.encode(Codec.AgentId.decode(AGENT_ID));
+    expect(result).to.equal(AGENT_ID);
+  });
+/*
   it("should process request and respond", async () => {
     client = await setup.client({
       web_user_legend : {
@@ -192,11 +197,13 @@ it("should forward signal from conductor to client", async () => {
   let cellId = MOCK_CELL_ID;
 
   client = await setup.client({
-    agent_id: AGENT_ID // In set up I will have to create COMB to be able to read signal outcome
+    agent_id: AGENT_ID // TODO: In set up I will have to create COMB to be able to read signal outcome
   });
   client.skip_assign_host = true;
 
   try {
+    await client.signUp("alice.test.1@holo.host", "Passw0rd!");
+
     // mock conductor emits signal (has to be the right one)
     log.debug(`****************** Broadcasting signal via mock conductor`);
     log.debug(`appWssList: ${appConductor.appWssList.length}`);
@@ -212,7 +219,6 @@ it("should forward signal from conductor to client", async () => {
   } finally {}
 });
 
-/*
   it("should sign-out", async () => {
     client = await setup.client({
       agent_id: AGENT_ID

@@ -195,7 +195,7 @@ class Envoy {
       log.normal("%s (%s) connection for HHA ID: %s", anonymous ? "Anonymous" : "Agent", agent_id, hha_hash);
 
       if (anonymous) {
-        log.debug("Adding Agent (%s) to anonymous list with HHA ID %s", agent_id, hha_hash);
+        log.debug(`Adding Agent ${agent_id} to anonymous list with HHA ID ${hha_hash}`);
         this.anonymous_agents[agent_id] = hha_hash;
       }
 
@@ -1038,7 +1038,7 @@ class Envoy {
     // translate CellId->eventId
     let event_id = this.cellId2eventId(cell_id);
 
-    log.debug(`Signal handler is emitting 'signal' to event ${event_id}:`);
+    log.debug(`Signal handler is emitting event ${event_id}`);
     log.debug(`Signal content: ${signal.data.payload}`);
     this.ws_server.emit(event_id, signal)
   }
@@ -1062,7 +1062,7 @@ class Envoy {
   }
 }
 
-async function httpRequestStream(req): Promise<string> {
+async function httpRequestStream(req): Promise<any> {
   return new Promise((f, r) => {
     req.pipe(concat_stream(async (buffer) => {
       try {
