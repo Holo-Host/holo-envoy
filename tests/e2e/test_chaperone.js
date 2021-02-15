@@ -234,16 +234,33 @@ describe("Server", () => {
           console.log(typeof err.stack, err.stack.toString());
           throw err;
         }
-
+        let response
         try {
           // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
           // Ideally we would have a nick like test or chat or elemental-chat
-          return client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", {'value': "This is the returned value"});
+          response =  await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", {'value': "This is the returned value"});
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
         }
-      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH);
+
+        await client.signOut();
+        console.log("Anonymous AFTER: ", client.anonymous);
+
+        // Test for second agent on same host
+        // TODO: This test will fail to sign-up here
+        await client.signUp("bob.test.1@holo.host", "Passw0rd!");
+        console.log("Finished sign-up for agent: %s", client.agent_id);
+        if (client.anonymous === true) {
+          throw new Error("Client did not sign-in")
+        }
+        if (client.agent_id !== "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY") {
+          throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
+        }
+        console.log("BOB Anonymous AFTER: ", client.anonymous);
+
+        return response
+      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH, expect);
 
       log.info("Completed evaluation: %s", response);
       expect(Object.keys(response)).to.have.members(["value"]);
