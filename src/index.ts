@@ -11,6 +11,7 @@ import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
 import { init as wormholeInit } from "../build/wormhole.js";
+const msgpack = require('@msgpack/msgpack');
 
 const requestUrl = request;
 
@@ -34,6 +35,8 @@ const RPC_CLIENT_OPTS = {
 const CONDUCTOR_TIMEOUT = RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
 const NAMESPACE = "/hosting/";
 const READY_STATES = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
+const WORMHOLE_TIMEOUT = 10_000
+const CALL_CONDUCTOR_TIMEOUT = WORMHOLE_TIMEOUT + 10_000
 
 interface CallSpec {
   hha_hash: string;
@@ -586,17 +589,19 @@ class Envoy {
       return new Package(true, { "type": "success" }, { response_id });
     }, this.opts.NS);
   }
-
   // --------------------------------------------------------------------------------------------
   // WORMHOLE Signing function
   // Note: we need to figure out a better way to manage this timeout.
   // May be based on the paylod_counter and every 10 requests we increase the timeout by 10sec
-  signingRequest(agent: Buffer, payload: string, timeout = 45_000) {
-    console.log("Wormhole Signing Requested...");
+  signingRequest(agent: Buffer, payload: string, timeout = WORMHOLE_TIMEOUT) {
+    log.normal("Wormhole Signing Requested...");
     const payload_id = this.payload_counter++;
     const agent_id = Codec.AgentId.encode(agent);
     log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, payload);
     const event = `${agent_id}/wormhole/request`;
+    log.silly(`Agent id: ${agent_id}`);
+    // Note: remove this log is we dont see the need for it because it is using msgpack which will make envoy larger
+    log.silly("Payload to be signed: ", msgpack.decode(payload));
     if (this.ws_server.eventList(this.opts.NS).includes(event) === false) {
       log.warn("Trying to get signature from unknown Agent (%s)", agent_id);
       if (Object.keys(this.anonymous_agents).includes(agent_id))
@@ -660,7 +665,7 @@ class Envoy {
     return isHoloHash;
   }
 
-  async callConductor(client, call_spec, args: any = {}) {
+  async callConductor(client, call_spec, args: any = {}, timeout = CALL_CONDUCTOR_TIMEOUT) {
     log.normal("Received request to call Conductor using client '%s' with call spec of type '%s'", client, typeof call_spec);
     let interfaceMethod, methodName, callAgent;
     try {
@@ -711,7 +716,7 @@ class Envoy {
     try {
       log.silly("Calling Conductor method (%s) over client '%s' with input %s: ", methodName, client.connectionMonitor.name, JSON.stringify(args));
       try {
-        resp = await interfaceMethod(args);
+        resp = await interfaceMethod(args, timeout);
       } catch (error) {
         console.log("CONDUCTOR CALL ERROR: ");
         console.log(error);
