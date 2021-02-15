@@ -10,7 +10,7 @@ import { Codec } from '@holo-host/cryptolib';
 import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
-import { init as wormholeInit } from "../build/wormhole.js";
+import { init as shimInit } from "../build/shim.js";
 const msgpack = require('@msgpack/msgpack');
 
 const requestUrl = request;
@@ -102,7 +102,7 @@ async function promiseMap (array, fn) {
 
 class Envoy {
   ws_server: any;
-  wormhole: any;
+  shim: any;
   opts: EnvoyConfig;
   conductor_opts: any;
   connected: any;
@@ -141,7 +141,7 @@ class Envoy {
   }
 
   async startWormhole() {
-    this.wormhole = await wormholeInit(LAIR_SOCKET, WH_SERVER_PORT, this.signingRequest.bind(this));
+    this.shim = await shimInit(LAIR_SOCKET, WH_SERVER_PORT, this.wormhole.bind(this));
   }
 
   async connections() {
@@ -593,7 +593,7 @@ class Envoy {
   // WORMHOLE Signing function
   // Note: we need to figure out a better way to manage this timeout.
   // May be based on the paylod_counter and every 10 requests we increase the timeout by 10sec
-  signingRequest(agent: Buffer, payload: string, timeout = WORMHOLE_TIMEOUT) {
+  wormhole(agent: Buffer, payload: string, timeout = WORMHOLE_TIMEOUT) {
     log.normal("Wormhole Signing Requested...");
     const payload_id = this.payload_counter++;
     const agent_id = Codec.AgentId.encode(agent);
@@ -638,7 +638,7 @@ class Envoy {
     await this.ws_server.close();
     log.info("RPC WebSocket server is closed");
 
-    await this.wormhole.stop();
+    await this.shim.stop();
     log.info("Wormhole server is closed");
   }
 

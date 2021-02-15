@@ -13,22 +13,22 @@ const {
 
 const {
   init
-} = require("../../build/wormhole.js");
+} = require("../../build/shim.js");
 
 const LAIR_SOCKET = path.resolve(__dirname, '../tmp/keystore/socket');
 const CONDUCTOR_SOCKET = path.resolve(__dirname, '../tmp/shim/socket');
 
-describe("Wormhole tests", () => {
-  let wormhole;
+describe("Shim tests", () => {
+  let shim;
   let fake_signature = Buffer.from("ea067251189fa64a65a33548dc8c4e2989b50d27ec915391bc1491bd52047621d27b097aa352d5470baa9356260cda206d77da5c13d32ab8465f2265bccd7970", "hex");
 
   before(async () => {
-    wormhole = await init(LAIR_SOCKET, CONDUCTOR_SOCKET, async function(pubkey, message) {
+    shim = await init(LAIR_SOCKET, CONDUCTOR_SOCKET, async function(pubkey, message) {
       return fake_signature;
     });
   });
   after(async () => {
-    await wormhole.stop();
+    await shim.stop();
   });
 
   it("should complete round-trip request to Lair", async () => {
