@@ -190,7 +190,7 @@ class Envoy {
       });
 
       const anonymous = url.searchParams.get('anonymous') === "true" ? true : false;
-      const agent_id = url.searchParams.get('agent_id'); // TODO seems like here suspicious "special signs" replacement is going on, like _/+-, prolly due to some URLencode stuff
+      const agent_id = url.searchParams.get('agent_id');
       const hha_hash = url.searchParams.get('hha_hash');
       log.normal("%s (%s) connection for HHA ID: %s", anonymous ? "Anonymous" : "Agent", agent_id, hha_hash);
 
@@ -214,11 +214,11 @@ class Envoy {
       if (anonymous) {
         log.debug(`Skipping creating signal event - anonymous user`);
       } else {
-        log.debug(`****************** Creating signal event ${event_id}`);
+        log.debug(`Creating signal event ${event_id}`);
         try {
           this.ws_server.event(event_id, this.opts.NS);
         } catch(e) {
-          log.debug(`****************** Event ${event_id} already created`);
+          log.debug(`Event ${event_id} already created`);
         }
       }
 
@@ -974,7 +974,6 @@ class Envoy {
     client_request.request_signature = temp_request_signature;
     host_response.signed_response_hash = temp_response_signature;
     confirmation.confirmation_signature = temp_confirm_signature;
-    /******************** **************************** ********************/
 
     log.silly("Recording service confirmation with payload: activity: { request: %s, response: %s, confimation: %s }", client_request, host_response, confirmation);
     const resp = await this.callConductor("app", {

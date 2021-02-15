@@ -26,7 +26,7 @@ describe("Server with mock Conductor", () => {
   const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
   const SERVICE_INSTALLED_APP_ID = `${HOSTED_INSTALLED_APP_ID}::servicelogger`
   const DNA_ALIAS = "dna_alias";
-  const AGENT_ID = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
+  const AGENT_ID = "uhCAkkeIowX20hXW-9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl_xwq";
   const DNA_HASH = "uhCEkWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
   const MOCK_CELL_ID = [Codec.AgentId.decode(DNA_HASH), Codec.AgentId.decode(AGENT_ID)];
   const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
@@ -102,7 +102,7 @@ describe("Server with mock Conductor", () => {
     let result = Codec.AgentId.encode(Codec.AgentId.decode(AGENT_ID));
     expect(result).to.equal(AGENT_ID);
   });
-/*
+
   it("should process request and respond", async () => {
     client = await setup.client({
       web_user_legend : {
@@ -197,7 +197,7 @@ it("should forward signal from conductor to client", async () => {
   let cellId = MOCK_CELL_ID;
 
   client = await setup.client({
-    agent_id: AGENT_ID // TODO: In set up I will have to create COMB to be able to read signal outcome
+    agent_id: AGENT_ID
   });
   client.skip_assign_host = true;
 
@@ -205,16 +205,15 @@ it("should forward signal from conductor to client", async () => {
     await client.signUp("alice.test.1@holo.host", "Passw0rd!");
 
     // mock conductor emits signal (has to be the right one)
-    log.debug(`****************** Broadcasting signal via mock conductor`);
-    log.debug(`appWssList: ${appConductor.appWssList.length}`);
-    appConductor.broadcastAppSignal(cellId, expectedSignalData);
+    log.debug(`Broadcasting signal via mock conductor`);
+    await appConductor.broadcastAppSignal(cellId, expectedSignalData);
+
+    // wait for signal to propagate all across
+    await delay(1000)
 
     // client receives this
-    // TODO: how to detect if message made it all the way to client?
-    // My idea - I can set up client with COMB and listen somehow to COMB
-    let receivedSignalData = expectedSignalData;
+    let receivedSignalData = client.signalStore;
 
-    //expect(client.anonymous).to.be.true;
     expect(receivedSignalData).to.equal(expectedSignalData);
   } finally {}
 });
@@ -284,7 +283,7 @@ it("should forward signal from conductor to client", async () => {
       expect(envoy.pending_confirms).to.be.empty;
     } finally {}
   });
-*/
+
   it("should fail to sign-up because conductor disconnected");
   it("should fail to sign-up because admin/agent/add returned an error");
   it("should fail to sign-up because HHA returned an error");
@@ -295,4 +294,12 @@ it("should forward signal from conductor to client", async () => {
   it("should fail to sign-in because this host doesn't know this Agent");
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
+
+  function delay(t) {
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        resolve();
+      }, t);
+    });
+  }
 });

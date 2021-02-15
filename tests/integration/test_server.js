@@ -16,6 +16,8 @@ const fetch = require('node-fetch');
 
 const setup = require("../setup_envoy.js");
 
+const AGENT_ID = "uhCAkkeIowX20hXW-9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl_xwq";
+
 describe("Server", () => {
 
   let envoy;
@@ -43,7 +45,7 @@ describe("Server", () => {
     await envoy.connected;
 
     client = await setup.client({
-      agent_id: "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq"
+      agent_id: AGENT_ID
     });
   });
   after(async function() {
@@ -129,7 +131,7 @@ describe("Server", () => {
       await client.signUp("someone@example.com", "Passw0rd!");
 
       expect(client.anonymous).to.be.false;
-      expect(client.agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+      expect(client.agent_id).to.equal(AGENT_ID);
     } finally {}
   });
 
@@ -138,7 +140,7 @@ describe("Server", () => {
       await client.signOut();
 
       expect(client.anonymous).to.be.true;
-      expect(client.agent_id).to.not.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+      expect(client.agent_id).to.not.equal(AGENT_ID);
     } finally {}
   });
 
@@ -178,7 +180,7 @@ describe("Server", () => {
       await client.signIn("someone@example.com", "Passw0rd!");
       const agent_id = client.agent_id;
 
-      expect(agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+      expect(agent_id).to.equal(AGENT_ID);
 
       const response = await client.callZomeFunction("elemental-chat", "chat", "list_channels", channel_args);
       log.debug("Response: %s", response);
