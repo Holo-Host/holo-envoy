@@ -190,33 +190,33 @@ describe("Server with mock Conductor", () => {
     } finally {}
   });
 
-it("should forward signal from conductor to client", async () => {
-  let expectedSignalData = "Hello signal!";
-  // Instance of DNA that is emitting signal
-  // has to match DNA registered in envoy's dna2hha during Login and agent's ID
-  let cellId = MOCK_CELL_ID;
+  it("should forward signal from conductor to client", async () => {
+    let expectedSignalData = "Hello signal!";
+    // Instance of DNA that is emitting signal
+    // has to match DNA registered in envoy's dna2hha during Login and agent's ID
+    let cellId = MOCK_CELL_ID;
 
-  client = await setup.client({
-    agent_id: AGENT_ID
+    client = await setup.client({
+      agent_id: AGENT_ID
+    });
+    client.skip_assign_host = true;
+
+    try {
+      await client.signUp("alice.test.1@holo.host", "Passw0rd!");
+
+      // mock conductor emits signal (has to be the right one)
+      log.debug(`Broadcasting signal via mock conductor`);
+      await appConductor.broadcastAppSignal(cellId, expectedSignalData);
+
+      // wait for signal to propagate all across
+      await delay(1000)
+
+      // client receives this
+      let receivedSignalData = client.signalStore;
+
+      expect(receivedSignalData).to.equal(expectedSignalData);
+    } finally {}
   });
-  client.skip_assign_host = true;
-
-  try {
-    await client.signUp("alice.test.1@holo.host", "Passw0rd!");
-
-    // mock conductor emits signal (has to be the right one)
-    log.debug(`Broadcasting signal via mock conductor`);
-    await appConductor.broadcastAppSignal(cellId, expectedSignalData);
-
-    // wait for signal to propagate all across
-    await delay(1000)
-
-    // client receives this
-    let receivedSignalData = client.signalStore;
-
-    expect(receivedSignalData).to.equal(expectedSignalData);
-  } finally {}
-});
 
   it("should sign-out", async () => {
     client = await setup.client({
