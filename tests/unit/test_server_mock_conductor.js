@@ -97,7 +97,7 @@ describe("Server with mock Conductor", () => {
     await adminConductor.close();
     await appConductor.close();
   });
-
+/*
   it("should encode and decode back agent id", async () => {
     let result = Codec.AgentId.encode(Codec.AgentId.decode(AGENT_ID));
     expect(result).to.equal(AGENT_ID);
@@ -141,7 +141,7 @@ describe("Server with mock Conductor", () => {
       expect(response).to.equal("Hello World");
     } finally {}
   });
-
+*/
   it("should sign-up on this Host", async () => {
     client = await setup.client({
       agent_id: AGENT_ID
@@ -209,7 +209,7 @@ describe("Server with mock Conductor", () => {
       await appConductor.broadcastAppSignal(cellId, expectedSignalData);
 
       // wait for signal to propagate all across
-      await delay(1000)
+      await delay(1500)
 
       // client receives this
       let receivedSignalData = client.signalStore;
@@ -217,7 +217,7 @@ describe("Server with mock Conductor", () => {
       expect(receivedSignalData).to.equal(expectedSignalData);
     } finally {}
   });
-
+/*
   it("should sign-out", async () => {
     client = await setup.client({
       agent_id: AGENT_ID
@@ -283,7 +283,7 @@ describe("Server with mock Conductor", () => {
       expect(envoy.pending_confirms).to.be.empty;
     } finally {}
   });
-
+*/
   it("should fail to sign-up because conductor disconnected");
   it("should fail to sign-up because admin/agent/add returned an error");
   it("should fail to sign-up because HHA returned an error");

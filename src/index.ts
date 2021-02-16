@@ -98,6 +98,7 @@ class Envoy {
   opts: EnvoyConfig;
   conductor_opts: any;
   connected: any;
+  serverClients: object = {};
 
   payload_counter: number = 0;
   pending_confirms: object = {};
@@ -204,26 +205,34 @@ class Envoy {
 
       // make sure dna2hha entry exists for given hha
       await this.recordHha(hha_hash);
-      let event_id = this.createEventId(agent_id, hha_hash);
+      let connection_id = this.createConnectionId(agent_id, hha_hash);
 
+      // save socket in serverClients so that we can later find it and send signal
+      // TODO: what with anonymous?
+      this.serverClients[connection_id] = socket;
+      log.debug(`Registering socket for ${connection_id}`);
+
+      // TODO: delete
       // Create event with unique id so that chaperone can subscribe to it.
       // Events can be passed only to logged-in users, otherwise there's no way to map
       // signal -> agent+app combo
       // On login connection is re-established with new agent.
       // Don't panic if event already created (might happen on reconnecting)
-      if (anonymous) {
-        log.debug(`Skipping creating signal event - anonymous user`);
-      } else {
-        log.debug(`Creating signal event ${event_id}`);
-        try {
-          this.ws_server.event(event_id, this.opts.NS);
-        } catch(e) {
-          log.debug(`Event ${event_id} already created`);
-        }
-      }
+      // if (anonymous) {
+      //   log.debug(`Skipping creating signal event - anonymous user`);
+      // } else {
+      //   log.debug(`Creating signal event ${event_id}`);
+      //   try {
+      //     this.ws_server.event(event_id, this.opts.NS);
+      //   } catch(e) {
+      //     log.debug(`Event ${event_id} already created`);
+      //   }
+      // }
 
       socket.on("close", async () => {
         log.normal("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
+
+        delete this.serverClients[connection_id];
 
         if (anonymous) {
           log.debug("Remove anonymous Agent (%s) from anonymous list", agent_id);
@@ -1035,15 +1044,28 @@ class Envoy {
     let cell_id = signal.data.cellId; // const signal: AppSignal = { type: msg.type , data: { cellId: [dna_hash, agent_id], payload: decodedPayload }};
 
     // translate CellId->eventId
-    let event_id = this.cellId2eventId(cell_id);
+    const connection_id = this.cellId2connectionId(cell_id);
 
-    log.debug(`Signal handler is emitting event ${event_id}`);
-    log.debug(`Signal content: ${signal.data.payload}`);
-    this.ws_server.emit(event_id, signal)
+    log.debug(`Signal handler is sending signal to socket ${connection_id}`);
+    let socket = this.serverClients[connection_id];
+
+    if (socket && socket.readyState === 1)
+      {
+        socket.send(signal.data.payload, () => {
+          log.debug(`Sent signal with content: ${signal.data.payload}`);
+        });
+      } else {
+        log.debug(`No client connected with this connection ID`);
+      }
+
+    // TODO: delete
+    // log.debug(`Signal handler is emitting event ${event_id}`);
+    // log.debug(`Signal content: ${signal.data.payload}`);
+    // this.ws_server.emit(event_id, signal)
   }
 
   // takes cell_id in binary (buffer) format
-  cellId2eventId(cell_id) {
+  cellId2connectionId(cell_id) {
     if (cell_id.length != 2) {
       throw new Error(`Wrong cell id: ${cell_id}`);
     }
@@ -1053,11 +1075,11 @@ class Envoy {
       throw new Error(`Can't find hha_hash for DNA: ${cell_id[0]}`);
     }
     let agent_id_string = Codec.AgentId.encode(cell_id[1]); // cell_id[1] is binary buffer of agent_id
-    return this.createEventId(agent_id_string, hha_hash);
+    return this.createConnectionId(agent_id_string, hha_hash);
   }
 
-  createEventId(agent_id, hha_hash) {
-    return `signal:${agent_id}:${hha_hash}`;
+  createConnectionId(agent_id, hha_hash) {
+    return `socket:${agent_id}:${hha_hash}`;
   }
 }
 
