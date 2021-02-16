@@ -37,14 +37,18 @@ async function init (lair_socket, shim_socket, signing_handler) {
         const request = header.wire_type_class.from(await header.payload())
         const pubkey = request.get(0)
         const message = request.get(1)
-        const signature = await signing_handler(pubkey, message)
+        try{
+          const signature = await signing_handler(pubkey, message)
 
-        if (signature !== null) {
-          let response = new structs.Ed25519.SignByPublicKey.Response(
-            Codec.Signature.decode(signature)
-          )
-          conductor_stream.write(response.toMessage(header.id))
-          continue
+          if (signature !== null) {
+            let response = new structs.Ed25519.SignByPublicKey.Response(
+              Codec.Signature.decode(signature)
+            )
+            conductor_stream.write(response.toMessage(header.id))
+            continue
+          }
+        } catch(e) {
+          conductor_stream.write("Shim Error: Failed to sign") // TODO: need to pass the write struct for error to lair
         }
       }
 
