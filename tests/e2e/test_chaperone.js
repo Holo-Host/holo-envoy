@@ -41,7 +41,7 @@ class PageTestUtils {
     this.describeJsHandleLogs = () => page.on('console', async msg => {
       const args = await Promise.all(msg.args().map(arg => this.describeJsHandle(arg)))
         .catch(error => console.log(error.message));
-      console.log(...args);
+      console.log(args);
     });
 
     this.describeJsHandle = (jsHandle) => {
@@ -254,7 +254,7 @@ describe("Server", () => {
         if (client.anonymous === true) {
           throw new Error("Client did not sign-in")
         }
-        if (client.agent_id !== "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY") {
+        if (client.agent_id !== "uhCAkCxDJXYNJtqI3EszLD4DNDiY-k8au1qYbRNZ84eI7a7x76uc1") {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
         console.log("BOB Anonymous AFTER: ", client.anonymous);

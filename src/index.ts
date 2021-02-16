@@ -35,7 +35,7 @@ const RPC_CLIENT_OPTS = {
 const CONDUCTOR_TIMEOUT = RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
 const NAMESPACE = "/hosting/";
 const READY_STATES = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
-const WORMHOLE_TIMEOUT = 10_000
+const WORMHOLE_TIMEOUT = 20_000
 const CALL_CONDUCTOR_TIMEOUT = WORMHOLE_TIMEOUT + 10_000
 
 interface CallSpec {
@@ -601,7 +601,8 @@ class Envoy {
     const event = `${agent_id}/wormhole/request`;
     log.silly(`Agent id: ${agent_id}`);
     // Note: remove this log is we dont see the need for it because it is using msgpack which will make envoy larger
-    log.silly("Payload to be signed: ", msgpack.decode(payload));
+    console.log("Event List: ", this.ws_server.eventList(this.opts.NS));
+    log.silly("Payload to be signed: %s", msgpack.decode(payload));
     if (this.ws_server.eventList(this.opts.NS).includes(event) === false) {
       log.warn("Trying to get signature from unknown Agent (%s)", agent_id);
       if (Object.keys(this.anonymous_agents).includes(agent_id))
