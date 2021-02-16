@@ -244,6 +244,14 @@ describe("Server", () => {
           throw err
         }
 
+        function delay(t, val) {
+          return new Promise(function(resolve) {
+            setTimeout(function() {
+              resolve(val);
+            }, t);
+          });
+        }
+        await delay(10000);
         await client.signOut();
         console.log("Anonymous AFTER: ", client.anonymous);
 

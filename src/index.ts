@@ -600,8 +600,8 @@ class Envoy {
     log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, payload);
     const event = `${agent_id}/wormhole/request`;
     log.silly(`Agent id: ${agent_id}`);
-    // Note: remove this log is we dont see the need for it because it is using msgpack which will make envoy larger
     console.log("Event List: ", this.ws_server.eventList(this.opts.NS));
+    // Note: remove this log is we dont see the need for it because it is using msgpack which will make envoy larger
     log.silly("Payload to be signed: %s", msgpack.decode(payload));
     if (this.ws_server.eventList(this.opts.NS).includes(event) === false) {
       log.warn("Trying to get signature from unknown Agent (%s)", agent_id);
