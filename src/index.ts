@@ -24,6 +24,14 @@ const digest = (payload) => {
   return Codec.Digest.encode(args_digest);
 }
 
+export const calculateBandwidth = (payload, startTime, endTime) => {
+  const response_buffer = Buffer.from(JSON.stringify(payload));
+  const response_size = Buffer.byteLength(response_buffer);
+  const call_duration = endTime - startTime;
+  const bandwidth = (response_size/call_duration);
+  return bandwidth
+}
+
 const WS_SERVER_PORT = 4656; // holo
 const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/keystore/shim-socket');
 const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/keystore/socket');
@@ -396,6 +404,7 @@ class Envoy {
 
 
     // Chaperone AppInfo Call to Envoy Server
+    // QUESTION: We are currently not charing for app_info calls - should we be?
     this.ws_server.register("holo/app_info", async ({ installed_app_id }) => {
       let appInfo
       try {
@@ -457,6 +466,10 @@ class Envoy {
       log.debug("Log service request (%s) from Agent (%s)", service_signature, agent_id);
       request = await this.logServiceRequest(agent_id, payload, service_signature);
 
+      // calculate start time of zomeCall
+      // note: this will floor the value
+      const start_time = new Date().getTime() / 1000 | 0;
+
       // ZomeCall to Conductor App Interface
       let zomeCall_response, holo_error
       try {
@@ -512,6 +525,10 @@ class Envoy {
         }
       }
 
+      // calculate end time of zomeCall for bandwidth
+      // note: this will floor the value
+      const end_time = new Date().getTime() / 1000 | 0;
+
       // - return host response
       let response_message;
       if (holo_error) {
@@ -524,9 +541,12 @@ class Envoy {
 				// - Servicelogger response
 				let host_response;
 
+        // note: we're currently calculating bandwidth by size of zomeCall_response:
+        const bandwidth = calculateBandwidth(zomeCall_response, start_time, end_time);
+
 				const host_metrics = {
-					"cpu": 1,
-          "bandwidth": 1
+					cpu: 1,
+          bandwidth
 				};
 
 				const weblog_compat = {
