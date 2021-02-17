@@ -10,6 +10,7 @@ import { Codec } from '@holo-host/cryptolib';
 import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
+import { init as wormholeInit } from "../build/wormhole.js";
 
 const requestUrl = request;
 
@@ -17,11 +18,15 @@ const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
 
-const sha256 = (buf) => crypto.createHash('sha256').update(Buffer.from(buf)).digest();
-const digest = (data) => Codec.Digest.encode(sha256(typeof data === "string" ? data : SerializeJSON(data)));
+const digest = (payload) => {
+  const serialized_args = typeof payload === "string" ? payload : SerializeJSON(payload);
+  const args_digest = Buffer.from(serialized_args);
+  return Codec.Digest.encode(args_digest);
+}
 
 const WS_SERVER_PORT = 4656; // holo
-const WH_SERVER_PORT = 9676; // worm
+const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/keystore/shim-socket');
+const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/keystore/socket');
 const RPC_CLIENT_OPTS = {
   "reconnect_interval": 1000,
   "max_reconnects": 300,
@@ -94,7 +99,7 @@ async function promiseMap (array, fn) {
 
 class Envoy {
   ws_server: any;
-  http_server: any;
+  wormhole: any;
   opts: EnvoyConfig;
   conductor_opts: any;
   connected: any;
@@ -130,7 +135,11 @@ class Envoy {
 
     this.connected = this.connections();
     this.startWebsocketServer();
-    this.startHTTPServer();
+    this.startWormhole();
+  }
+
+  async startWormhole() {
+    this.wormhole = await wormholeInit(LAIR_SOCKET, WH_SERVER_PORT, this.signingRequest.bind(this));
   }
 
   async connections() {
@@ -139,7 +148,7 @@ class Envoy {
       this.hcc_clients.admin = await HcAdminWebSocket.init(`ws://localhost:${ifaces.admin_port}`);
       this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`, this.signalHandler.bind(this));
     } catch (err) {
-      console.error(err);
+      console.error(`Error while trying to set hcc_clients: ${err}`);
     }
 
     Object.keys(this.hcc_clients).map(k => {
@@ -273,7 +282,7 @@ class Envoy {
 	// EXPOSED ENVOY EVENTS
 
     // Envoy - New Hosted Agent Sign-up Sequence
-    this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id]) => {
+    this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id, membrane_proof]) => {
       log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);
 
       const failure_response = (new HoloError("Failed to create a new hosted agent")).toJSON();
@@ -309,9 +318,16 @@ class Envoy {
           if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
             dnas = this.opts.hosted_app.dnas;
 					} else {
-            const installedDnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0] }));
+            const installedDnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0]}));
+
+            if (membrane_proof) {
+              log.normal("App includes membrane_proof: %s", membrane_proof);
+              dnas = { ...installedDnas, membrane_proof }
+            } else {
+              dnas = installedDnas;
+            }
+
             log.debug('installedDnas : %s', installedDnas);
-            dnas = installedDnas;
 					}
 
           adminResponse = await this.callConductor("admin", 'installApp', {
@@ -428,7 +444,7 @@ class Envoy {
 
     // Chaperone ZomeCall to Envoy Server
     this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
-      log.silly("Received request: %s", payload.call_spec);
+        log.silly("Received request: %s", payload.call_spec);
 
       // Example of request package
       //
@@ -440,7 +456,7 @@ class Envoy {
       //             "host_id"          : string,
       //             "call_spec": {
       //                 "hha_hash"     : string,
-      //				   "dna_alias"	  : string,
+      //				         "dna_alias"	  : string,
       //                 "cell_id"  	  : string,
       //                 "zome"         : string,
       //                 "function"     : string,
@@ -571,7 +587,6 @@ class Envoy {
       // - Servicelogger confirmation
       const { agent_id,
         client_req, host_res } = this.getPendingConfirmation(response_id);
-
       host_res["signed_response_hash"] = response_signature;
 
       let service_log;
@@ -603,68 +618,24 @@ class Envoy {
   }
 
   // --------------------------------------------------------------------------------------------
-
-  // WORMHOLE HTTP SERVER
-
-  // this is currently not used
-  async startHTTPServer() {
-    let wormhole_counter = 0;
-    function prefix(msg) {
-      return `\x1b[95mWORMHOLE #${wormhole_counter}: \x1b[0m` + msg;
-    }
-
-    this.http_server = http.createServer(async (req, res) => {
-      let whid = wormhole_counter++;
-      log.silly(prefix("Received wormhole %s request with content length: %s"), req.method, req.headers["content-length"]);
-
-      // Warn if method is not POST or Content-type is incorrect
-      const body: string = await httpRequestStream(req);
-      log.debug(prefix("Actually HTTP body length: %s"), body.length);
-      log.silly(prefix("HTTP Body: %s"), body);
-
-      let agent_id, payload, signature;
-      try {
-        let data = JSON.parse(body);
-        agent_id = data.agent_id;
-        payload = data.payload;
-      } catch (err) {
-        log.error(prefix("Failed to handle HTTP request: %s"), err);
-        log.silly(prefix("HTTP Request: %s"), body);
-      }
-
-      try {
-        log.debug(prefix("Conductor needs Agent (%s) to sign payload: %s"), agent_id, payload);
-        signature = await this.signingRequest(agent_id, payload);
-      } catch (err) {
-        log.error("WORMHOLE #%s: Signing request error: %s", wormhole_counter, String(err));
-        res.writeHead(400);
-        res.end(`${err.name}: ${err.message}`);
-      }
-
-      log.silly(prefix("Returning signature (%s) for payload: %s"), signature, payload);
-      res.end(signature);
-    });
-    this.http_server.on('clientError', (err, socket) => {
-      socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
-    });
-    this.http_server.listen(WH_SERVER_PORT);
-  }
-
-  signingRequest(agent_id: string, payload: string, timeout = 5_000) {
+  // WORMHOLE Signing function
+  signingRequest(agent: Buffer, payload: string, timeout = 5_000) {
+    console.log("Wormhole Signing Requested...");
     const payload_id = this.payload_counter++;
-    log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, typeof payload);
-
-    return new Promise((f, r) => {
-      const event = `${agent_id}/wormhole/request`;
-
-      if (this.ws_server.eventList(this.opts.NS).includes(event) === false) {
-        log.warn("Trying to get signature from unknown Agent (%s)", agent_id);
-        if (Object.keys(this.anonymous_agents).includes(agent_id))
-          throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
-        else
-          throw new Error(`Agent ${agent_id} is not registered.  Something must have broke?`);
+    const agent_id = Codec.AgentId.encode(agent);
+    log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, payload);
+    const event = `${agent_id}/wormhole/request`;
+    if (this.ws_server.eventList(this.opts.NS).includes(event) === false) {
+      log.warn("Trying to get signature from unknown Agent (%s)", agent_id);
+      if (Object.keys(this.anonymous_agents).includes(agent_id))
+        throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
+      else {
+        console.error(`Agent ${agent_id} is not registered.  It must be a host call`);
+        // Returning null will let the shim redirect to the local lair instance
+        return null
       }
-
+    }
+    return new Promise((f, r) => {
       let toid = setTimeout(() => {
         log.error("Failed during signing request #%s with timeout (%sms)", payload_id, timeout);
         r("Failed to get signature from Chaperone")
@@ -679,9 +650,7 @@ class Envoy {
   }
 
   // --------------------------------------------------------------------------------------------
-
   // RPC Connection Handling
-
   async close() {
     log.normal("Initiating shutdown; closing Conductor clients, RPC WebSocket server, then HTTP server");
 
@@ -692,8 +661,8 @@ class Envoy {
     await this.ws_server.close();
     log.info("RPC WebSocket server is closed");
 
-    await this.http_server.close();
-    log.info("HTTP server is closed");
+    await this.wormhole.stop();
+    log.info("Wormhole server is closed");
   }
 
   // --------------------------------------------------------------------------------------------
@@ -723,6 +692,11 @@ class Envoy {
     log.normal("Received request to call Conductor using client '%s' with call spec of type '%s'", client, typeof call_spec);
     let interfaceMethod, methodName, callAgent;
     try {
+      // HACK: Since the envoy starts before the conductor this.hcc_clients will not be set
+      // So the first time callConductor is called we make a connection
+      // Eventually we should have envoy to automatically retry
+      if (Object.keys(this.hcc_clients).length === 0)
+        await this.connections()
       if (typeof client === "string")
         client = this.hcc_clients[client];
 
@@ -861,7 +835,7 @@ class Envoy {
 
     log.debug("Using argument digest: %s", args_hash);
     const request_payload = {
-      "timestamp": [(new Date(payload.timestamp)).getTime(), 0],
+      "timestamp": payload.timestamp,
       // NB: Servicelogger expects the holo host agent ID as a string (wrapped agent hash), instead of the agent holohash buf.
       "host_id": payload.host_id,
       "call_spec": {
@@ -878,7 +852,6 @@ class Envoy {
       request: request_payload,
       request_signature: signature
     }
-
     log.silly("Set service request from Agent (%s) with signature (%s)\n%s", agent_id, signature, JSON.stringify(request, null, 4));
     return request;
   }
@@ -924,67 +897,22 @@ class Envoy {
     const servicelogger_cell_id = appInfo.cell_data[0][0];
     const buffer_host_agent_servicelogger_id = servicelogger_cell_id[1];
 
-    /******************** WORMHOLE SIGNING WORK AROUND ********************/
-		// TEMPORARY: signing in via servicelogger
-		// REMOVE THIS BLOCK ONCE WORMHOLE IMPLEMENTATION COMPLETE
+    client_request["request_signature"] = Codec.Signature.decode(client_request["request_signature"])
+    host_response["signed_response_hash"] = Codec.Signature.decode(host_response["signed_response_hash"])
+    confirmation["confirmation_signature"] = Codec.Signature.decode(confirmation["confirmation_signature"])
 
-    let temp_request_signature, temp_response_signature, temp_confirm_signature
-    try {
-      temp_request_signature = await this.callConductor("app", {
-        "cell_id": servicelogger_cell_id,
-        "zome_name": "service",
-        "fn_name": "sign_request",
-        "payload": client_request.request,
-        "cap": null,
-        "provenance": buffer_host_agent_servicelogger_id,
-      });
-    } catch (error) {
-      log.error("Failed to sign REQUEST in wormhole workaround: ", error);
-      throw new Error(JSON.stringify(error))
+    const payload = {
+      "request": client_request,
+      "response": host_response,
+      "confirmation": confirmation,
     }
-
-    try {
-      temp_response_signature = await this.callConductor("app", {
-        "cell_id": servicelogger_cell_id,
-        "zome_name": "service",
-        "fn_name": "sign_response",
-        "payload": host_response.response_hash,
-        "cap": null,
-        "provenance": buffer_host_agent_servicelogger_id,
-      });
-    } catch (error) {
-      log.error("Failed to sign RESPONSE in wormhole workaround: ", error);
-      throw new Error(JSON.stringify(error))
-    }
-
-    try {
-      temp_confirm_signature = await this.callConductor("app", {
-        "cell_id": servicelogger_cell_id,
-        "zome_name": "service",
-        "fn_name": "sign_confirmation",
-        "payload": confirmation.confirmation,
-        "cap": null,
-        "provenance": buffer_host_agent_servicelogger_id,
-      });
-    } catch (error) {
-      log.error("Failed to sign CONFIRMATION in wormhole workaround': ", error);
-      throw new Error(JSON.stringify(error))
-    }
-
-    client_request.request_signature = temp_request_signature;
-    host_response.signed_response_hash = temp_response_signature;
-    confirmation.confirmation_signature = temp_confirm_signature;
 
     log.silly("Recording service confirmation with payload: activity: { request: %s, response: %s, confimation: %s }", client_request, host_response, confirmation);
     const resp = await this.callConductor("app", {
       "cell_id": servicelogger_cell_id,
       "zome_name": "service",
       "fn_name": "log_activity",
-      "payload": {
-        "request": client_request,
-        "response": host_response,
-        "confirmation": confirmation,
-      },
+      payload,
       cap: null,
       provenance: buffer_host_agent_servicelogger_id,
     });

@@ -37,7 +37,6 @@ describe("Server with mock Conductor", () => {
   // let wormhole;
   let client;
 
-
   const envoy_mode_map = {
     production: 0,
     develop: 1,
@@ -47,10 +46,9 @@ describe("Server with mock Conductor", () => {
     mode: envoy_mode_map.develop,
     app_port_number: 0,
     hosted_app: {
-      // servicelogger_id: SERVICE_INSTALLED_APP_ID,
       dnas: [{
         nick: 'test-hha',
-        path: './dnas/elemental-chat.dna.gz',
+        path: './dnas/elemental-chat.dna.gz'
       }],
       usingURL: false
     }
@@ -77,7 +75,6 @@ describe("Server with mock Conductor", () => {
 
     envoy = await setup.start(envoyOpts);
     server = envoy.ws_server;
-    // wormhole			= envoy.wormhole;
 
     log.info("Waiting for Conductor connections...");
     await envoy.connected;
@@ -142,7 +139,9 @@ describe("Server with mock Conductor", () => {
     } finally {}
   });
 
-  it("should sign-up on this Host", async () => {
+
+  it("should sign-up on this Host without membrane_proof", async () => {
+    const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
     client = await setup.client({
       agent_id: AGENT_ID
     });
@@ -157,7 +156,55 @@ describe("Server with mock Conductor", () => {
           zomeFnArgs: "happ bundle info"
         }
       };
-      const happ_bundle_details_response = {
+      const happ_bundle_1_details_response = {
+        happ_id: Buffer.from('HeaderHash'),
+        happ_bundle: {
+          hosted_url: 'http://testfuel.holohost.net',
+          happ_alias: 'testfuel-console',
+          ui_path: 'path/to/compressed/ui/file',
+          name: 'TestFuel Console',
+          dnas: [{
+            hash: 'uhCkk...',
+            path: '/path/to/compressed/dna/file',
+            nick: 'testfuel'
+          }],
+        },
+        provider_pubkey: Buffer.from('AgentPubKey'),
+      };
+      appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_1_details_response);
+
+      const appInfo = {
+        installed_app_id: HOSTED_INSTALLED_APP_ID,
+        agent_key: Buffer.from(AGENT_ID),
+        dnas: envoyOpts.hosted_app.dnas,
+      }
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, { type: "success" });
+      adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, { type: "success" });
+      adminConductor.once(MockConductor.ATTACH_APP_INTERFACE_TYPE, { port: 0 }, { type: "success" });
+
+      await client.signUp("alice.test.1@holo.host", "Passw0rd!");
+
+      expect(client.anonymous).to.be.false;
+      expect(client.agent_id).to.equal(AGENT_ID);
+    } finally {}
+  });
+
+  it("should sign-up on this Host with membrane_proof", async () => {
+    client = await setup.client({
+      agent_id: AGENT_ID
+    });
+    client.skip_assign_host = true;
+
+    try {
+      const hhaData = {
+        cell_id: MOCK_CELL_ID,
+        zome_name: "hha",
+        fn_name: "get_happ",
+        args: {
+          zomeFnArgs: "happ bundle info"
+        }
+      };
+      const happ_bundle_2_details_response = {
         happ_id: Buffer.from('HeaderHash'),
         happ_bundle: {
           hosted_url: 'http://holofuel.holohost.net',
@@ -172,12 +219,16 @@ describe("Server with mock Conductor", () => {
         },
         provider_pubkey: Buffer.from('AgentPubKey'),
       };
-      appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_details_response);
+      appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_2_details_response);
 
       const appInfo = {
         installed_app_id: HOSTED_INSTALLED_APP_ID,
-        agent_key: Codec.AgentId.decode(AGENT_ID),
-        dnas: envoyOpts.hosted_app.dnas,
+
+        agent_key: Buffer.from(AGENT_ID),
+        dnas: {
+          ...envoyOpts.hosted_app.dnas,
+          membrane_proof: 'the unique joining code'
+        }
       }
       adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, { type: "success" });
       adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, { type: "success" });

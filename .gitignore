@@ -12,5 +12,6 @@ AGENTID
 conductor.log
 sim2h.log
 holochain-conductor/storage
-holochain-conductor.log
+hc-conductor.log
+hc-lair.log
 tests/tmp
