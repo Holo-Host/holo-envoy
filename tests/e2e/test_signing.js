@@ -34,7 +34,6 @@ describe("Wormhole tests", () => {
     await delay(5000);
     seed = crypto.randomBytes(32);
     keys = new KeyManager(seed);
-    console.log("KEYs:", keys);
     wormhole = await init(LAIR_SOCKET, WH_SERVER_PORT, async function(pubkey, message) {
       return null;
     });

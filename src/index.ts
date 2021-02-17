@@ -24,14 +24,6 @@ const digest = (payload) => {
   return Codec.Digest.encode(args_digest);
 }
 
-export const calculateBandwidth = (payload, startTime, endTime) => {
-  const response_buffer = Buffer.from(JSON.stringify(payload));
-  const response_size = Buffer.byteLength(response_buffer);
-  const call_duration = endTime - startTime;
-  const bandwidth = (response_size/call_duration);
-  return bandwidth
-}
-
 const WS_SERVER_PORT = 4656; // holo
 const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/keystore/shim-socket');
 const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/keystore/socket');
@@ -468,7 +460,7 @@ class Envoy {
 
       // calculate start time of zomeCall
       // note: this will floor the value
-      const start_time = new Date().getTime() / 1000 | 0;
+      const start_time = process.hrtime();
 
       // ZomeCall to Conductor App Interface
       let zomeCall_response, holo_error
@@ -527,7 +519,8 @@ class Envoy {
 
       // calculate end time of zomeCall for bandwidth
       // note: this will floor the value
-      const end_time = new Date().getTime() / 1000 | 0;
+      const call_duration = process.hrtime(start_time);
+      const call_duration_ns = call_duration[0] * 1000000000 + call_duration[1];
 
       // - return host response
       let response_message;
@@ -541,15 +534,20 @@ class Envoy {
 				// - Servicelogger response
 				let host_response;
 
-        // note: we're currently calculating bandwidth by size of zomeCall_response:
-        const bandwidth = calculateBandwidth(zomeCall_response, start_time, end_time);
+        // note: we're currently calculating bandwidth by size of zomeCall_response by the 
+        // duration of the zomeCall measured in nanoseconds
+        const response_buffer = Buffer.from(JSON.stringify(zomeCall_response));
+        const response_size = Buffer.byteLength(response_buffer);
+        log.silly('response size (%s) ', response_size);
+        log.silly('call duration (%s) ', call_duration_ns);
+        const bandwidth = (response_size * (call_duration_ns));
 
 				const host_metrics = {
 					cpu: 1,
-          bandwidth
+          bandwidth // measured in nanoseconds (so value will be precise but very high -> x1000000000 larger than the conventional 'payload per second' record)
 				};
 
-				const weblog_compat = {
+        const weblog_compat = {
 					source_ip: "100:0:0:0",
 					status_code: 200
 				}
