@@ -18,7 +18,7 @@ const {
 
 describe("Server with mock Conductor", () => {
   const ADMIN_PORT = 4444;
-  const FAKE_PORT = 666;
+  const FAKE_PORT = 4443;
   const APP_PORT = 42233;
   const INTERNAL_INSTALLED_APP_ID = "holo-hosting-app"
   // Note: The value used for the hosted installed_app_ids
@@ -34,7 +34,6 @@ describe("Server with mock Conductor", () => {
   let envoy;
   let server;
   let conductor;
-  // let wormhole;
   let client;
 
   const envoy_mode_map = {
