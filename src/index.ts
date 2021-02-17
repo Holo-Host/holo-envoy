@@ -1,9 +1,6 @@
 import path from 'path';
-import fs from 'fs';
 import logger from '@whi/stdlog';
-import crypto from 'crypto';
 import request from 'request';
-import http from 'http';
 import concat_stream from 'concat-stream';
 import SerializeJSON from 'json-stable-stringify';
 import { Codec } from '@holo-host/cryptolib';
@@ -11,8 +8,6 @@ import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
 import { init as wormholeInit } from "../build/wormhole.js";
-
-const requestUrl = request;
 
 const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
@@ -458,10 +453,6 @@ class Envoy {
       log.debug("Log service request (%s) from Agent (%s)", service_signature, agent_id);
       request = await this.logServiceRequest(agent_id, payload, service_signature);
 
-      // calculate start time of zomeCall
-      // note: this will floor the value
-      const start_time = process.hrtime();
-
       // ZomeCall to Conductor App Interface
       let zomeCall_response, holo_error
       try {
@@ -517,11 +508,6 @@ class Envoy {
         }
       }
 
-      // calculate end time of zomeCall for bandwidth
-      // note: this will floor the value
-      const call_duration = process.hrtime(start_time);
-      const call_duration_ns = call_duration[0] * 1000000000 + call_duration[1];
-
       // - return host response
       let response_message;
       if (holo_error) {
@@ -535,12 +521,8 @@ class Envoy {
 				let host_response;
 
         // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits) 
-        // ** per the duration of the zomeCall measured in nanoseconds (so value will be precise but very high - x1000000000 larger than the conventional 'payload per second' record)
         const response_buffer = Buffer.from(JSON.stringify(zomeCall_response));
-        const response_size = Buffer.byteLength(response_buffer);
-        log.silly('response size (%s) ', response_size);
-        log.silly('call duration (%s) ', call_duration_ns);
-        const bandwidth = (response_size * (call_duration_ns));
+        const bandwidth = Buffer.byteLength(response_buffer);
 
 				const host_metrics = {
 					cpu: 1,
