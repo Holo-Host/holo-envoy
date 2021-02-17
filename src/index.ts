@@ -534,8 +534,8 @@ class Envoy {
 				// - Servicelogger response
 				let host_response;
 
-        // note: we're currently calculating bandwidth by size of zomeCall_response by the 
-        // duration of the zomeCall measured in nanoseconds
+        // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits) 
+        // ** per the duration of the zomeCall measured in nanoseconds (so value will be precise but very high - x1000000000 larger than the conventional 'payload per second' record)
         const response_buffer = Buffer.from(JSON.stringify(zomeCall_response));
         const response_size = Buffer.byteLength(response_buffer);
         log.silly('response size (%s) ', response_size);
@@ -544,7 +544,7 @@ class Envoy {
 
 				const host_metrics = {
 					cpu: 1,
-          bandwidth // measured in nanoseconds (so value will be precise but very high -> x1000000000 larger than the conventional 'payload per second' record)
+          bandwidth 
 				};
 
         const weblog_compat = {
