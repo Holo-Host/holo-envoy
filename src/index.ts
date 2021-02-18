@@ -356,6 +356,9 @@ class Envoy {
         log.normal("Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
         return res;
       } catch (err) {
+        if (err.toString().includes("Tried to activate an app that was not installed")) {
+          return new HoloError("Failed to sign-in: Agent unknown to this host").toJSON()
+        }
         return failure_response;
       }
     }, this.opts.NS);
