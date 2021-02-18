@@ -1,9 +1,9 @@
-{ pkgs ? import ./nixpkgs.nix {} }:
+{ pkgs ? import ./pkgs.nix {} }:
 
 with pkgs;
 
 {
-  holo-envoy = mkYarnPackage rec {
+  holo-envoy = stdenv.mkDerivation rec {
     name = "holo-envoy";
     src = gitignoreSource ./.;
 
@@ -19,27 +19,31 @@ with pkgs;
       ps
     ];
 
-    packageJSON = "${src}/package.json";
-    yarnLock = "${src}/yarn.lock";
+    preConfigure = ''
+      cp -r ${npmToNix { inherit src; }} node_modules
+      chmod -R +w node_modules
+      patchShebangs node_modules
+    '';
 
     buildPhase = ''
-      yarn build
+      npm run build
     '';
 
     installPhase = ''
-        mkdir $out
-        mv node_modules $out
-        cd deps/@holo-host/envoy/
-        mv build websocket-wrappers server.js $out
-        makeWrapper ${nodejs}/bin/node $out/bin/${name} \
-          --add-flags $out/server.js
+      mkdir $out
+      mv build node_modules rpc-websocket-wrappers server.js $out
+      makeWrapper ${nodejs}/bin/node $out/bin/${name} \
+        --add-flags $out/server.js
     '';
 
     fixupPhase = ''
       patchShebangs $out
     '';
 
-    distPhase = '':'';
+    checkPhase = ''
+      make test-nix
+      make stop-sim2h
+    '';
 
     doCheck = true;
   };
