@@ -11,6 +11,7 @@ import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
 import { init as shimInit } from "../build/shim.js";
+import { fail } from 'assert';
 const msgpack = require('@msgpack/msgpack');
 
 const requestUrl = request;
@@ -217,6 +218,10 @@ class Envoy {
         if (anonymous) {
           log.debug("Remove anonymous Agent (%s) from anonymous list", agent_id);
           delete this.anonymous_agents[agent_id];
+        } else {
+          this.signOut(agent_id).catch(err => {
+            log.error("Failed to sign out Agent (%s): %s", agent_id, String(err));
+          })
         }
       });
     });
@@ -323,55 +328,7 @@ class Envoy {
           }
         }
 
-        // Activate App - Add the Installed App to a hosted interface.
-        try {
-          log.info("Activating Installed App (%s)", hosted_agent_instance_app_id);
-          adminResponse = await this.callConductor("admin", 'activateApp', { installed_app_id: hosted_agent_instance_app_id });
-
-          if (adminResponse.type !== "success") {
-            log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse);
-            failed = true
-            throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
-          }
-        } catch (err) {
-          if (err.message.toLowerCase().includes("already in interface"))
-            log.warn("Cannot Activate App: Installed App ID (%s) is already added to hosted interface", hosted_agent_instance_app_id);
-          else {
-            log.error("Failed during 'activateApp': %s", String(err));
-            throw err;
-          }
-        }
-
-        // REMOVE: This port should already be active so we do not need to be attach AppInterface
-        // Attach App to Interface - Connect app to hosted interface and start app (ie: spin up all cells within app bundle)
-        // try {
-        //   let app_port
-        //
-        //   if ((this.opts.app_port_number === 0 || this.opts.app_port_number) && this.opts.mode === Envoy.DEVELOP_MODE) {
-        //     log.info("Defaulting to port provided in opts config.  Attaching App to port (%s)", this.opts.app_port_number);
-        //     // NOTICE: MAKE SURE THIS PORT IS SET TO THE WS PORT EXPECTED IN THE UI
-        //     app_port = this.opts.app_port_number;
-        //   } else {
-        //     app_port = this.conductor_opts.interfaces.app_port;
-        //   }
-        //
-        //   log.info("Starting installed-app (%s) on port (%s)", hosted_agent_instance_app_id, app_port);
-        //   adminResponse = await this.callConductor("admin", 'attachAppInterface', { port: app_port });
-        //
-        //   if (adminResponse.type !== "success") {
-        //     log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse);
-        //     failed = true
-        //     throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id '${hosted_agent_instance_app_id}'.`)).toJSON();
-        //   }
-        // } catch (err) {
-        //   if (err.message.toLowerCase().includes("already active"))
-        //     log.warn("Cannot Start App: Intalled-app (%s) is already started", hosted_agent_instance_app_id);
-        //   else {
-        //     log.error("Failed during 'attachAppInterface': %s", String(err));
-        //     throw err;
-        //   }
-        // }
-
+        await this.signIn(hha_hash, agent_id);
       } catch (err) {
         failed = true;
         log.error("Failed during DNA processing for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, String(err));
@@ -390,6 +347,19 @@ class Envoy {
       return true;
     }, this.opts.NS);
 
+    // Envoy - New Hosted Agent Sign-up Sequence
+    this.ws_server.register("holo/agent/signin", async ([hha_hash, agent_id]) => {
+      const failure_response = (new HoloError("Failed to sign-in an existing hosted agent")).toJSON();
+
+      log.normal("Received sign in request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);
+      try {
+        const res = await this.signIn(hha_hash, agent_id);
+        log.normal("Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
+        return res;
+      } catch (err) {
+        return failure_response;
+      }
+    }, this.opts.NS);
 
     // Chaperone AppInfo Call to Envoy Server
     this.ws_server.register("holo/app_info", async ({ installed_app_id }) => {
@@ -589,6 +559,61 @@ class Envoy {
       return new Package(true, { "type": "success" }, { response_id });
     }, this.opts.NS);
   }
+
+  async signIn(hha_hash, agent_id): Promise<void> {
+    if (agent_id in this.anonymous_agents) {
+      // Nothing to do. Anonymous cell is always active
+      return;
+    }
+
+    const hosted_agent_instance_app_id = `${hha_hash}:${agent_id}`;
+
+    // Activate App - Tell Holochain to begin gossiping and be ready for zome calls on this app.
+    try {
+      log.info("Activating Installed App (%s)", hosted_agent_instance_app_id);
+      const adminResponse = await this.callConductor("admin", 'activateApp', { installed_app_id: hosted_agent_instance_app_id });
+
+      if (adminResponse.type !== "success") {
+        log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse);
+        throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
+      }
+    } catch (err) {
+      if (err.message.includes("Tried to activate an app that was not installed")) {
+        // This error is returned in two cases:
+        // a) The app is not installed -- Return an error to the user saying that they may need to sign up first.
+        // b) The app is already activated -- Our job is done.
+
+        // Check for the second case using appInfo
+        try {
+          const appInfo = await this.callConductor("app", { installed_app_id: hosted_agent_instance_app_id });
+          // Check that the appInfo result was not null (would indicate app not installed)
+          if (appInfo.installed_app_id !== undefined) {
+            log.normal("Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
+            return;
+          }
+        } catch (appInfoErr) {
+          log.error("Failed during 'appInfo': %s", String(appInfoErr));
+          throw (new HoloError(`Failed to complete 'appInfo' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
+        }
+      }
+      log.error("Failed during 'activateApp': %s", String(err));
+      throw err;
+    }
+  }
+
+  async signOut(agent_id): Promise<void> {
+    // Assuming agent is not anonymous, we need to deactivate all their hApps.
+
+    const regex = new RegExp(`:${agent_id}$`);
+
+    const activeApps = await this.callConductor("admin", "listActiveApps");
+    await Promise.all(activeApps.map(async (installed_app_id: string) => {
+      if (regex.test(installed_app_id)) {
+        await this.callConductor("admin", "deactivateApp", { installed_app_id });
+      }
+    }));
+  }
+
   // --------------------------------------------------------------------------------------------
   // WORMHOLE Signing function
   // Note: we need to figure out a better way to manage this timeout.
@@ -616,6 +641,9 @@ class Envoy {
       let toid = setTimeout(() => {
         log.error("Failed during signing request #%s with timeout (%sms)", payload_id, timeout);
         r("Failed to get signature from Chaperone")
+        this.signOut(agent_id).catch(err => {
+          log.error("Failed to sign out Agent (%s) after they disconnected from wormhole: %s", agent_id, String(err));
+        });
       }, timeout);
 
       log.info("Adding signature request #%s to pending signatures", payload_id);
