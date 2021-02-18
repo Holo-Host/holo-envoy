@@ -11,7 +11,6 @@ import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
 import { init as shimInit } from "../build/shim.js";
-import { fail } from 'assert';
 const msgpack = require('@msgpack/msgpack');
 
 const requestUrl = request;
