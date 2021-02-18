@@ -6,4 +6,9 @@ mkShell {
   inputsFrom = lib.attrValues (import ./. {
     inherit pkgs;
   });
+  buildInputs = [
+    holochain
+    lair-keystore
+    python
+  ];
 }
