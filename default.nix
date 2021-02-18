@@ -3,10 +3,10 @@
 with pkgs;
 
 {
-  holo-envoy = mkYarnPackage rec {
+  holo-envoy = stdenv.mkDerivation rec {
     name = "holo-envoy";
     src = gitignoreSource ./.;
-    
+
     packageJSON = "${src}/package.json";
     yarnLock = "${src}/yarn.lock";
 
