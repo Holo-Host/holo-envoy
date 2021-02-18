@@ -256,7 +256,6 @@ describe("Server", () => {
         console.log("Anonymous AFTER: ", client.anonymous);
 
         // Test for second agent on same host
-        // TODO: This test will fail to sign-up here
         await client.signUp("bob.test.1@holo.host", "Passw0rd!");
         console.log("Finished sign-up for agent: %s", client.agent_id);
         if (client.anonymous === true) {
