@@ -7,12 +7,6 @@ with pkgs;
     name = "holo-envoy";
     src = gitignoreSource ./.;
 
-    buildInputs = [
-      holochain
-      lair-keystore
-      python
-    ];
-
     nativeBuildInputs = [
       nodejs
       makeWrapper
