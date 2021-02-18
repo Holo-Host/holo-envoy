@@ -33,6 +33,8 @@ jobs:
       run: echo $NIX_PATH
     - name: Prepare Nix environment
       run: nix-shell --command "echo"
+    - name: Echo Nix environment
+      run: nix-shell --command "echo zo-el"
     - name: Prepare Nix environment
       run: nix-shell --command "holochain -V"
     - name: Run all holo-envoy tests
