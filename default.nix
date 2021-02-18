@@ -33,13 +33,16 @@ with pkgs;
         mv build websocket-wrappers server.js $out
         makeWrapper ${nodejs}/bin/node $out/bin/${name} \
           --add-flags $out/server.js
+        cd ../../../  
     '';
 
     fixupPhase = ''
       patchShebangs $out
     '';
 
-    distPhase = '':'';
+    distPhase = ''
+      make test-nix
+    '';
 
     doCheck = true;
   };
