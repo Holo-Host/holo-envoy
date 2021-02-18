@@ -31,5 +31,7 @@ jobs:
         cp ./.github/nix.conf ~/.config/nix/
     - name: Prepare Nix environment
       run: nix-shell --command "echo"
+    - name: Prepare Nix environment
+      run: nix-shell --command "holochain -V"
     - name: Run all holo-envoy tests
       run: nix-shell --run 'make test'
