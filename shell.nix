@@ -7,4 +7,12 @@ mkShell {
     inherit pkgs;
     shell = true;
   });
+
+  buildInputs = [
+    # additional packages go here
+    holochain
+    lair-keystore
+    python
+  ];
+
 }
