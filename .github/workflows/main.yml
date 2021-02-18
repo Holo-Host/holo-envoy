@@ -24,6 +24,13 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
+    - name: Configure Nix substituters
+      run: |
+        set -xe
+        mkdir -p ~/.config/nix/
+        cp ./.github/nix.conf ~/.config/nix/
+    - name: echo Nix environment
+      run: echo $NIX_PATH
     - name: Prepare Nix environment
       run: nix-shell --command "echo"
     - name: Prepare Nix environment
