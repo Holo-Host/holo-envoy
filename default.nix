@@ -1,4 +1,4 @@
-{ pkgs ? import ./pkgs.nix {}, mkYarnPackage }:
+{ pkgs ? import ./pkgs.nix {}, shell ? false  }:
 
 with pkgs;
 
@@ -33,7 +33,7 @@ with pkgs;
         mv build websocket-wrappers server.js $out
         makeWrapper ${nodejs}/bin/node $out/bin/${name} \
           --add-flags $out/server.js
-        cd ../../../  
+        cd ../../../
     '';
 
     fixupPhase = ''

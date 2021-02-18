@@ -1,10 +1,10 @@
-{ pkgs ? import ./pkgs.nix {} }:
+{ pkgs ? import ./pkgs.nix {}, shell ? false  }:
 
 with pkgs;
 
 mkShell {
   inputsFrom = lib.attrValues (import ./. {
     inherit pkgs;
-    inherit mkYarnPackage;
+    shell = true;
   });
 }
