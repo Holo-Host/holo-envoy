@@ -1,4 +1,4 @@
-{ pkgs ? import ./pkgs.nix {}, shell ? false }:
+{ pkgs ? import ./pkgs.nix {}, mkYarnPackage }:
 
 with pkgs;
 
