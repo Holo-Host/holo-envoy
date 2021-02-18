@@ -251,6 +251,8 @@ describe("Server", () => {
             }, t);
           });
         }
+        // Delay is added so that the zomeCall has time to finish all the signing required
+        //and by signing out too soon it would not be able to get all the signature its needs and the test would fail
         await delay(10000);
         await client.signOut();
         console.log("Anonymous AFTER: ", client.anonymous);
