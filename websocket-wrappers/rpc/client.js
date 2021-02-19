@@ -8,11 +8,15 @@ const RPCWebSocket = require('rpc-websockets').Client;
 class WebSocket extends RPCWebSocket {
   constructor(...args) {
     super(...args);
-    this.connectionMonitor = new ConnectionMonitor(this.client, this.connect, 'RPC', HOLOCHAIN_WS_CLIENT_OPTS);
+    this.connectionMonitor = new ConnectionMonitor(this.client, this.connect, 'RPC', { reconnectInterval: null });
   }
 
-  opened = async (timeout) => await this.connectionMonitor.setWsOpened(timeout = 1000);
-  closed = async (timeout) => await this.connectionMonitor.setWsClosed(timeout = 1000);
+  close() {
+    this.connectionMonitor.close();
+  }
+
+  opened = async (timeout) => await this.connectionMonitor.waitWsOpened(timeout = 1000);
+  closed = async (timeout) => await this.connectionMonitor.waitWsClosed(timeout = 1000);
   setSocketInfo = ({
     port,
     name

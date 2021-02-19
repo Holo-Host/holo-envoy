@@ -27,8 +27,12 @@ class HcAdminWebSocket extends AdminWebsocket {
     return new HcAdminWebSocket(adminWsClient.client, connect);
   }
 
-  opened = async (timeout) => await this.connectionMonitor.setWsOpened(timeout = 1000);
-  closed = async (timeout) => await this.connectionMonitor.setWsClosed(timeout = 1000);
+  close() {
+    this.connectionMonitor.close();
+  }
+
+  opened = async (timeout) => await this.connectionMonitor.waitWsOpened(timeout = 1000);
+  closed = async (timeout) => await this.connectionMonitor.waitWsClosed(timeout = 1000);
   setSocketInfo = ({
     port,
     name
@@ -51,8 +55,8 @@ class HcAppWebSocket extends AppWebsocket {
     return new HcAppWebSocket(appWsClient.client, connect);
   }
 
-  opened = async (timeout) => await this.connectionMonitor.setWsOpened(timeout = 1000);
-  closed = async (timeout) => await this.connectionMonitor.setWsClosed(timeout = 1000);
+  opened = async (timeout) => await this.connectionMonitor.waitWsOpened(timeout = 1000);
+  closed = async (timeout) => await this.connectionMonitor.waitWsClosed(timeout = 1000);
   setSocketInfo = ({
     port,
     name

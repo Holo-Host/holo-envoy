@@ -610,7 +610,7 @@ class Envoy {
     log.normal("Initiating shutdown; closing Conductor clients, RPC WebSocket server, then HTTP server");
 
     const clients = Object.values(this.hcc_clients);
-    await Promise.all(clients.map((client: any) => client.connectionMonitor.socket.close()));
+    await Promise.all(clients.map((client: HcAdminWebSocket | HcAppWebSocket) => client.close()));
     log.info("All Conductor clients are closed");
 
     await this.ws_server.close();

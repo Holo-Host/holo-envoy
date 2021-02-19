@@ -13,40 +13,18 @@ class ConnectionMonitor {
     this.socket = client.socket;
     this.connect = connect;
     this.wsProtocol = wsProtocol;
-    this.openListener = () => {};
-    this.closeListener = () => {};
     this.name = '';
     this.port = null;
-    this.reconnections = 0;
-    this.reconnectId = null;
-    this.closed = true;
+    this.closed = false;
     this.opts = {
       "reconnectInterval": reconnectInterval || null,
-      "maxReconnects": maxReconnects || null
+      "maxReconnects": maxReconnects || Infinity
     }
-  }
-
-  setSocketInfo = ({
-    port,
-    name
-  }) => {
-    if (port) this.port = port;
-    if (name) this.name = name;
-    return;
-  }
-
-  checkReconnect = () => {
-    log.silly(`checking reconnection opts for WebSocket client (%s)`, this.name);
-    if (!this.opts.reconnectInterval || !this.opts.maxReconnects) return;
-    if (reconnections < this.opts.maxReconnects && this.closed) {
-      const reconnectId = setInterval(this.connect(this.socket.url), this.opts.reconnectInterval);
-      this.reconnectId = reconnectId;
-      this.reconnections++;
+    this.reconnections = 0;
+    if (this.opts.reconnectInterval !== null) {
+      this.reconnectId = setInterval(this.tryReconnect.bind(this), reconnectInterval);
     }
-    return;
-  }
 
-  setListeners() {
     switch (this.wsProtocol) {
       case 'RPC':
         this.openListener = fn => this.on("open", fn);
@@ -61,12 +39,41 @@ class ConnectionMonitor {
       default:
         throw new Error('Unrecognized protocol for web client connections.');
     }
+
+    this.closeListener(() => {
+      this.closed = true;
+    });
   }
 
-  setWsOpened(timeout = 1000) {
-    log.debug(`Waiting for ${this.wsProtocol} WebSocket client (%s) to be in 'CONNECTED' ready state...`, this.name);
+  close () {
+    clearTimeout(this.reconnectId);
+    this.socket.close();
+  }
 
-    this.setListeners();
+  tryReconnect () {
+    if (this.reconnections >= this.opts.maxReconnects) {
+      log.info("reached max reconnection attempts for WebSocket client (%s)", this.name)
+      clearInterval(this.reconnectId)
+      return;
+    }
+    if (this.closed) {
+      log.info("reconnecting to WebSocket client (%s)", this.name);
+      this.closed = false;
+      this.connect(this.socket.url);
+      this.reconnections += 1;
+    }
+  }
+
+  setSocketInfo = ({
+    port,
+    name
+  }) => {
+    if (port) this.port = port;
+    if (name) this.name = name;
+  }
+
+  waitWsOpened(timeout = 1000) {
+    log.debug(`Waiting for ${this.wsProtocol} WebSocket client (%s) to be in 'CONNECTED' ready state...`, this.name);
 
     if (this.socket.readyState === 1) {
       return Promise.resolve(log.silly("WebSocket is already in CONNECTED ready state (%s)", this.socket.readyState));
@@ -79,14 +86,11 @@ class ConnectionMonitor {
           if (this.socket.readyState === 1)
             return f();
 
-          log.silly("Triggering timeout for '%s' because ready state is not 'CONNECTED' withing %sms", this.name, timeout);
+          log.silly("Triggering timeout for '%s' because ready state is not 'CONNECTED' within %sms", this.name, timeout);
           r();
         }, timeout - 10);
 
-        return this.openListener(() => {
-          this.closed = false;
-          clearInterval(this.reconnectId);
-          this.reconnectId = null;
+        this.openListener(() => {
           log.silly(`'open' event triggered on ${this.wsProtocol} WebSocket client (%s)`, this.name);
           f();
           clearTimeout(tid);
@@ -95,15 +99,12 @@ class ConnectionMonitor {
     }, timeout);
   }
 
-  setWsClosed(timeout = 1000) {
-    log.silly('port closing for WebSocket client %s ', this.name);
-    this.setListeners();
+  waitWsClosed(timeout = 1000) {
+    log.silly('waiting for WebSocket client %s to close', this.name);
     return async_with_timeout(() => {
       return new Promise((f, r) => {
-        return this.closeListener(() => {
+        this.closeListener(() => {
           log.silly(`'close' event triggered on ${this.wsProtocol} WebSocket client (%s)`, this.name);
-          this.closed = true;
-          checkReconnect();
           f();
         });
       });
