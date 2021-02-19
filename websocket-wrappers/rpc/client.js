@@ -8,15 +8,18 @@ const RPCWebSocket = require('rpc-websockets').Client;
 class WebSocket extends RPCWebSocket {
   constructor(...args) {
     super(...args);
-    this.connectionMonitor = new ConnectionMonitor(this.client, this.connect, 'RPC', { reconnectInterval: null });
+    this.connectionMonitor = new ConnectionMonitor(this.client, this.connect, 'RPC', {
+      "reconnect_interval": 1000,
+      "max_reconnects": 300,
+    });
   }
 
   close() {
     this.connectionMonitor.close();
   }
 
-  opened = async (timeout) => await this.connectionMonitor.waitWsOpened(timeout = 1000);
-  closed = async (timeout) => await this.connectionMonitor.waitWsClosed(timeout = 1000);
+  opened = async (timeout = 1000) => await this.connectionMonitor.waitWsOpened(timeout);
+  closed = async (timeout = 1000) => await this.connectionMonitor.waitWsClosed(timeout);
   setSocketInfo = ({
     port,
     name
