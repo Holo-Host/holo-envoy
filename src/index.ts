@@ -101,18 +101,18 @@ async function promiseMap (array, fn) {
 }
 
 class Envoy {
-  ws_server: any;
-  shim: any;
+  ws_server: WebSocketServer;
+  shim: { stop: () => Promise<void> };
   opts: EnvoyConfig;
   conductor_opts: any;
-  connected: any;
+  connected: Promise<Array<void>>;
 
   payload_counter: number = 0;
   pending_confirms: object = {};
   pending_signatures: object = {};
-  anonymous_agents: any = {};
+  anonymous_agents: Record<string, string> = {};
 
-  hcc_clients: any = {};
+  hcc_clients: { app?: any, admin?: any } = {};
 
   static PRODUCT_MODE: number = 0;
   static DEVELOP_MODE: number = 1;
