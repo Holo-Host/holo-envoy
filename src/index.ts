@@ -218,9 +218,9 @@ class Envoy {
           log.debug("Remove anonymous Agent (%s) from anonymous list", agent_id);
           delete this.anonymous_agents[agent_id];
         } else {
-          this.signOut(agent_id).catch(err => {
+          this.callConductor("admin", "deactivateApp", { installed_app_id: `${hha_hash}:${agent_id}` }).catch(err => {
             log.error("Failed to sign out Agent (%s): %s", agent_id, String(err));
-          })
+          });
         }
       });
     });
