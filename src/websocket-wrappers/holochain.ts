@@ -7,24 +7,26 @@ const {
   AdminWebsocket,
   AppWebsocket
 } = require('@holochain/conductor-api');
-const ConnectionMonitor = require('../utils.js');
+import ConnectionMonitor from './connection_monitor';
 
 const HOLOCHAIN_WS_CLIENT_OPTS = {
-  "reconnect_interval": 1000,
-  "max_reconnects": 300,
+  "reconnectInterval": 1000,
+  "maxReconnects": 300,
 };
 
 class HcAdminWebSocket extends AdminWebsocket {
-  constructor(client, connect, ...args) {
-    super(...args);
-    this.client = client;
-    this.connectionMonitor = new ConnectionMonitor(client, connect, 'Holochain-WireMessage', HOLOCHAIN_WS_CLIENT_OPTS);
+  constructor(client, url, ...args) {
+    super(client, ...args);
+    const reconnect = async () => {
+      this.client = (await super.connect(url)).client;
+      return this.client.socket;
+    };
+    this.connectionMonitor = new ConnectionMonitor(client, reconnect, HOLOCHAIN_WS_CLIENT_OPTS);
   };
 
   static async init(url) {
-    const connect = super.connect;
     const adminWsClient = await super.connect(url);
-    return new HcAdminWebSocket(adminWsClient.client, connect);
+    return new HcAdminWebSocket(adminWsClient.client, url);
   }
 
   close() {
@@ -43,16 +45,22 @@ class HcAdminWebSocket extends AdminWebsocket {
 }
 
 class HcAppWebSocket extends AppWebsocket {
-  constructor(client, connect, ...args) {
-    super(...args);
-    this.client = client;
-    this.connectionMonitor = new ConnectionMonitor(client, connect, 'Holochain-WireMessage', HOLOCHAIN_WS_CLIENT_OPTS);
+  constructor(client, url, ...args) {
+    super(client, ...args);
+    const reconnect = async () => {
+      this.client = (await super.connect(url)).client;
+      return this.client.socket;
+    };
+    this.connectionMonitor = new ConnectionMonitor(client, reconnect, HOLOCHAIN_WS_CLIENT_OPTS);
   };
 
   static async init(url) {
-    const connect = super.connect;
     const appWsClient = await super.connect(url);
-    return new HcAppWebSocket(appWsClient.client, connect);
+    return new HcAppWebSocket(appWsClient.client, url);
+  }
+
+  close() {
+    this.connectionMonitor.close();
   }
 
   opened = async (timeout) => await this.connectionMonitor.waitWsOpened(timeout = 1000);
@@ -66,7 +74,6 @@ class HcAppWebSocket extends AppWebsocket {
   });
 }
 
-module.exports = {
-  HcAdminWebSocket,
-  HcAppWebSocket
+export {
+  HcAdminWebSocket, HcAppWebSocket
 }

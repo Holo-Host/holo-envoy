@@ -1,4 +1,5 @@
 class TimeoutError extends Error {
+  timeout: number;
 
   constructor(message, timeout, ...params) {
     // Pass remaining arguments (including vendor specific ones) to parent constructor

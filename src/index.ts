@@ -8,7 +8,7 @@ import concat_stream from 'concat-stream';
 import SerializeJSON from 'json-stable-stringify';
 import { Codec } from '@holo-host/cryptolib';
 import { Package } from '@holo-host/data-translator';
-import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
+import { HcAdminWebSocket, HcAppWebSocket } from "./websocket-wrappers/holochain";
 import { Server as WebSocketServer } from './wss';
 import { init as shimInit } from "../build/shim.js";
 const msgpack = require('@msgpack/msgpack');
@@ -112,7 +112,7 @@ class Envoy {
   pending_signatures: object = {};
   anonymous_agents: Record<string, string> = {};
 
-  hcc_clients: { app?: any, admin?: any } = {};
+  hcc_clients: { app?: HcAppWebSocket, admin?: HcAdminWebSocket } = {};
 
   static PRODUCT_MODE: number = 0;
   static DEVELOP_MODE: number = 1;
@@ -145,12 +145,16 @@ class Envoy {
   }
 
   async connections() {
+    const ifaces = this.conductor_opts.interfaces;
     try {
-      const ifaces = this.conductor_opts.interfaces;
       this.hcc_clients.admin = await HcAdminWebSocket.init(`ws://localhost:${ifaces.admin_port}`);
+    } catch (err) {
+      console.error(`Error while trying to connect to admin WS: ${err}`);
+    }
+    try {
       this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`);
     } catch (err) {
-      console.error(`Error while trying to set hcc_clients: ${err}`);
+      console.error(`Error while trying to connect to app WS: ${err}`);
     }
 
     Object.keys(this.hcc_clients).map(k => {
@@ -164,11 +168,7 @@ class Envoy {
     const clients = Object.values(this.hcc_clients);
     this.connected = Promise.all(
       clients.map(async (client: any) => {
-        await client.opened(CONDUCTOR_TIMEOUT)
-          .catch(err => {
-            log.fatal("Conductor client '%s' failed to connect: %s", client.connectionMonitor.name, String(err));
-          });
-
+        await client.opened(Infinity);
         log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.connectionMonitor.name, client.connectionMonitor.socket.readyState);
       })
     );

@@ -7,7 +7,6 @@ const log = logger(path.basename(__filename), {
 
 
 const RPCWebSocketServer = require('rpc-websockets').Server;
-const WebSocket = require('../websocket-wrappers/rpc/client.js');
 
 
 class WebSocketServer extends RPCWebSocketServer {
@@ -52,20 +51,6 @@ class WebSocketServer extends RPCWebSocketServer {
     }, ns);
   }
 
-  async client() {
-    const id = this.client_counter++;
-    log.normal(this.log_prefix + "Creating RPC WebSocket client #%s @ ws://localhost:%s", id, this.port);
-    const rws = new WebSocket(`ws://localhost:${this.port}`);
-    rws.id = id;
-
-    await rws.opened();
-    log.silly(this.log_prefix + "RPC WebSocket client #%s is connected", rws.id);
-
-    this.clients.push(rws);
-
-    return rws;
-  }
-
   async close() {
     log.debug(this.log_prefix + "Closing %s client(s)", this.clients.length);
     for (let [i, rws] of this.clients.entries()) {
@@ -87,5 +72,4 @@ class WebSocketServer extends RPCWebSocketServer {
 export default WebSocketServer;
 export {
   WebSocketServer as Server,
-  WebSocket as Client,
 }
