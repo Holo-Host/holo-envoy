@@ -298,7 +298,7 @@ describe("server without mock conductor to start", () => {
   let envoy;
   let server;
   
-  it.only("should try to reconnect to conductor if fails on first try", async () => {
+  it("should try to reconnect to conductor if fails on first try", async () => {
     envoy = await setup.start(envoyOpts);
     server = envoy.ws_server;
 
