@@ -10,14 +10,9 @@ import {
 
 import Websocket from 'ws';
 
-import {WsClient as HolochainWsClient} from '@holochain/conductor-api/src/websocket/client'
+import {WsClient as HolochainWsClient} from '@holochain/conductor-api/lib/websocket/client'
 
 import ReconnectingWebSocket from 'reconnecting-websocket';
-
-const HOLOCHAIN_WS_CLIENT_OPTS = {
-  "reconnectInterval": 1000,
-  "maxReconnects": 300,
-};
 
 class HcAdminWebSocket extends AdminWebsocket {
   constructor(url, ...args) {
