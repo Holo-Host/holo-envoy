@@ -7,7 +7,13 @@ import {
   AdminWebsocket,
   AppWebsocket
 } from '@holochain/conductor-api';
-import ConnectionMonitor from './connection_monitor';
+
+import Websocket from 'ws';
+
+import {WsClient as HolochainWsClient} from '@holochain/conductor-api/lib/websocket/client'
+
+import ReconnectingWebSocket from 'reconnecting-websocket';
+import { runInThisContext } from 'vm';
 
 const HOLOCHAIN_WS_CLIENT_OPTS = {
   "reconnectInterval": 1000,
@@ -15,59 +21,37 @@ const HOLOCHAIN_WS_CLIENT_OPTS = {
 };
 
 class HcAdminWebSocket extends AdminWebsocket {
-  connectionMonitor: ConnectionMonitor;
-
   constructor(url, ...args) {
-    super(null, ...args);
-    console.log("done super")
-    const reconnect = async () => {
-      this.client = (await AdminWebsocket.connect(url)).client;
-      return this.client.socket;
-    };
-    this.connectionMonitor = new ConnectionMonitor(reconnect, HOLOCHAIN_WS_CLIENT_OPTS);
+    super(new HolochainWsClient(new ReconnectingWebSocket(url, [], {
+      WebSocket: Websocket,
+      maxRetries: 300,
+    })), ...args);
   };
 
-  close() {
-    this.connectionMonitor.close();
+  close(): Promise<void> {
+    this.client.socket.close();
+    return this.closed();
   }
 
-  opened = async (timeout = 1000) => await this.connectionMonitor.waitWsOpened(timeout);
-  closed = async (timeout = 1000) => await this.connectionMonitor.waitWsClosed(timeout);
-  setSocketInfo = ({
-    port,
-    name
-  }) => this.connectionMonitor.setSocketInfo({
-    port,
-    name
-  });
+  opened = () => new Promise<void>((resolve, reject) => this.client.socket.addEventListener("open", () => resolve()));
+  closed = () => new Promise<void>((resolve, reject) => this.client.socket.addEventListener("close", () => resolve()));
 }
 
 class HcAppWebSocket extends AppWebsocket {
-  connectionMonitor: ConnectionMonitor;
-
   constructor(url, ...args) {
-    super(undefined, ...args);
-    console.log("done super")
-    const reconnect = async () => {
-      this.client = (await AppWebsocket.connect(url)).client;
-      return this.client.socket;
-    };
-    this.connectionMonitor = new ConnectionMonitor(reconnect, HOLOCHAIN_WS_CLIENT_OPTS);
+    super(new HolochainWsClient(new ReconnectingWebSocket(url, [], {
+      WebSocket: Websocket,
+      maxRetries: 300,
+    })), ...args);
   };
 
-  close() {
-    this.connectionMonitor.close();
+  close(): Promise<void> {
+    this.client.socket.close();
+    return this.closed();
   }
 
-  opened = async (timeout = 1000) => await this.connectionMonitor.waitWsOpened(timeout);
-  closed = async (timeout = 1000) => await this.connectionMonitor.waitWsClosed(timeout);
-  setSocketInfo = ({
-    port,
-    name
-  }) => this.connectionMonitor.setSocketInfo({
-    port,
-    name
-  });
+  opened = () => new Promise<void>((resolve, reject) => this.client.socket.addEventListener("open", () => resolve()));
+  closed = () => new Promise<void>((resolve, reject) => this.client.socket.addEventListener("close", () => resolve()));
 }
 
 export {

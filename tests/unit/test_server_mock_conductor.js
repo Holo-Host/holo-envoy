@@ -314,12 +314,14 @@ describe("server without mock conductor to start", () => {
     appConductor = new MockConductor(APP_PORT);
     console.log("conductor online");
     await envoy.connected;
-    const appSocket = envoy.hcc_clients.app.connectionMonitor.socket;
-    const adminSocket = envoy.hcc_clients.admin.connectionMonitor.socket;
-    expect(appSocket).to.not.be.null;
-    expect(adminSocket).to.not.be.null;
-    expect(appSocket.readyState).to.be(1);
-    expect(adminSocket.readyState).to.be(1);
+    expect(envoy.hcc_clients.admin.client.socket.readyState).to.equal(1);
+    expect(envoy.hcc_clients.app.client.socket.readyState).to.equal(1);
     console.log("bloob");
+    log.info("Stopping Envoy...");
+    await setup.stop();
+
+    log.info("Stopping Conductor...");
+    await adminConductor.close();
+    await appConductor.close();
   });
 });
