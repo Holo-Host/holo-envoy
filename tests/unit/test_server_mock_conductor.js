@@ -285,7 +285,6 @@ const envoyOpts = {
   it("should fail to sign-up because Happ Store returned an error");
   it("should fail to sign-up because adminInterface call, `installApp`, returned an error");
   it("should fail to sign-up because adminInterface call, `activateApp`, returned an error");
-  it("should fail to sign-up because adminInterface call, `attachAppInterface`, returned an error");
   it("should fail to sign-in because this host doesn't know this Agent");
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");

@@ -7,7 +7,8 @@ import { Codec } from '@holo-host/cryptolib';
 import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
-import { init as wormholeInit } from "../build/wormhole.js";
+import { init as shimInit } from "../build/shim.js";
+const msgpack = require('@msgpack/msgpack');
 
 const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
@@ -20,8 +21,8 @@ const digest = (payload) => {
 }
 
 const WS_SERVER_PORT = 4656; // holo
-const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/keystore/shim-socket');
-const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/keystore/socket');
+const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim/socket');
+const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
 const RPC_CLIENT_OPTS = {
   "reconnect_interval": 1000,
   "max_reconnects": 300,
@@ -29,6 +30,8 @@ const RPC_CLIENT_OPTS = {
 const CONDUCTOR_TIMEOUT = RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
 const NAMESPACE = "/hosting/";
 const READY_STATES = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
+const WORMHOLE_TIMEOUT = 20_000
+const CALL_CONDUCTOR_TIMEOUT = WORMHOLE_TIMEOUT + 10_000
 
 interface CallSpec {
   hha_hash: string;
@@ -94,7 +97,7 @@ async function promiseMap (array, fn) {
 
 class Envoy {
   ws_server: any;
-  wormhole: any;
+  shim: any;
   opts: EnvoyConfig;
   conductor_opts: any;
   connected: any;
@@ -133,7 +136,7 @@ class Envoy {
   }
 
   async startWormhole() {
-    this.wormhole = await wormholeInit(LAIR_SOCKET, WH_SERVER_PORT, this.signingRequest.bind(this));
+    this.shim = await shimInit(LAIR_SOCKET, WH_SERVER_PORT, this.wormhole.bind(this));
   }
 
   async connections() {
@@ -337,36 +340,6 @@ class Envoy {
             log.warn("Cannot Activate App: Installed App ID (%s) is already added to hosted interface", hosted_agent_instance_app_id);
           else {
             log.error("Failed during 'activateApp': %s", String(err));
-            throw err;
-          }
-        }
-
-        // Attach App to Interface - Connect app to hosted interface and start app (ie: spin up all cells within app bundle)
-        try {
-          let app_port
-
-          if ((this.opts.app_port_number === 0 || this.opts.app_port_number) && this.opts.mode === Envoy.DEVELOP_MODE) {
-            log.info("Defaulting to port provided in opts config.  Attaching App to port (%s)", this.opts.app_port_number);
-            // NOTICE: MAKE SURE THIS PORT IS SET TO THE WS PORT EXPECTED IN THE UI
-            app_port = this.opts.app_port_number;
-          } else {
-            app_port = this.conductor_opts.interfaces.app_port;
-          }
-
-          log.info("Starting installed-app (%s) on port (%s)", hosted_agent_instance_app_id, app_port);
-
-          adminResponse = await this.callConductor("admin", 'attachAppInterface', { port: app_port });
-
-          if (adminResponse.type !== "success") {
-            log.error("Conductor 'attachAppInterface' returned non-success response: %s", adminResponse);
-            failed = true
-            throw (new HoloError(`Failed to complete 'attachAppInterface' for installed_app_id '${hosted_agent_instance_app_id}'.`)).toJSON();
-          }
-        } catch (err) {
-          if (err.message.toLowerCase().includes("already active"))
-            log.warn("Cannot Start App: Intalled-app (%s) is already started", hosted_agent_instance_app_id);
-          else {
-            log.error("Failed during 'attachAppInterface': %s", String(err));
             throw err;
           }
         }
@@ -593,15 +566,20 @@ class Envoy {
       return new Package(true, { "type": "success" }, { response_id });
     }, this.opts.NS);
   }
-
   // --------------------------------------------------------------------------------------------
   // WORMHOLE Signing function
-  signingRequest(agent: Buffer, payload: string, timeout = 5_000) {
-    console.log("Wormhole Signing Requested...");
+  // Note: we need to figure out a better way to manage this timeout.
+  // May be based on the paylod_counter and every 10 requests we increase the timeout by 10sec
+  wormhole(agent: Buffer, payload: string, timeout = WORMHOLE_TIMEOUT) {
+    log.normal("Wormhole Signing Requested...");
     const payload_id = this.payload_counter++;
     const agent_id = Codec.AgentId.encode(agent);
     log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, payload);
     const event = `${agent_id}/wormhole/request`;
+    log.silly(`Agent id: ${agent_id}`);
+    console.log("Event List: ", this.ws_server.eventList(this.opts.NS));
+    // Note: remove this log is we dont see the need for it because it is using msgpack which will make envoy larger
+    log.silly("Payload to be signed: %s", msgpack.decode(payload));
     if (this.ws_server.eventList(this.opts.NS).includes(event) === false) {
       log.warn("Trying to get signature from unknown Agent (%s)", agent_id);
       if (Object.keys(this.anonymous_agents).includes(agent_id))
@@ -638,7 +616,7 @@ class Envoy {
     await this.ws_server.close();
     log.info("RPC WebSocket server is closed");
 
-    await this.wormhole.stop();
+    await this.shim.stop();
     log.info("Wormhole server is closed");
   }
 
@@ -665,7 +643,7 @@ class Envoy {
     return isHoloHash;
   }
 
-  async callConductor(client, call_spec, args: any = {}) {
+  async callConductor(client, call_spec, args: any = {}, timeout = CALL_CONDUCTOR_TIMEOUT) {
     log.normal("Received request to call Conductor using client '%s' with call spec of type '%s'", client, typeof call_spec);
     let interfaceMethod, methodName, callAgent;
     try {
@@ -716,8 +694,10 @@ class Envoy {
     try {
       log.silly("Calling Conductor method (%s) over client '%s' with input %s: ", methodName, client.connectionMonitor.name, JSON.stringify(args));
       try {
-        resp = await interfaceMethod(args);
+        resp = await interfaceMethod(args, timeout);
       } catch (error) {
+        console.log("CONDUCTOR CALL ERROR: ");
+        console.log(error);
         throw new Error(`CONDUCTOR CALL ERROR: ${JSON.stringify(error)}`);
       }
 
