@@ -108,10 +108,20 @@
     tmp "^0.2.1"
     yargs "^16.1.1"
 
-"@holochain/conductor-api@0.0.1-dev.16", "@holochain/conductor-api@^0.0.1-dev.16":
+"@holochain/conductor-api@0.0.1-dev.16":
   version "0.0.1-dev.16"
   resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.1-dev.16.tgz#c9da19859dbab0caec0cdbb6da04b8bf999dc04b"
   integrity sha512-MGBj/vnmnzf5RYZnpCjmj+d+OAScNTzNd4TuNZ1eeHnnX08rLa2UPavXtEkNxS4Vkg8PdRfDXX40Imilbup01A==
+  dependencies:
+    "@msgpack/msgpack" "^2.1.0"
+    "@types/ws" "^7.2.4"
+    isomorphic-ws "^4.0.1"
+    nanoid "^3.1.9"
+    ws "^7.3.0"
+
+"@holochain/conductor-api@git://github.com/holochain/holochain-conductor-api.git#045cb593c65f049f00baf7bef241dffd74fc0341":
+  version "0.0.1-dev.15"
+  resolved "git://github.com/holochain/holochain-conductor-api.git#045cb593c65f049f00baf7bef241dffd74fc0341"
   dependencies:
     "@msgpack/msgpack" "^2.1.0"
     "@types/ws" "^7.2.4"

@@ -10,10 +10,9 @@ import {
 
 import Websocket from 'ws';
 
-import {WsClient as HolochainWsClient} from '@holochain/conductor-api/lib/websocket/client'
+import {WsClient as HolochainWsClient} from '@holochain/conductor-api/src/websocket/client'
 
 import ReconnectingWebSocket from 'reconnecting-websocket';
-import { runInThisContext } from 'vm';
 
 const HOLOCHAIN_WS_CLIENT_OPTS = {
   "reconnectInterval": 1000,

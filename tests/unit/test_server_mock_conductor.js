@@ -294,7 +294,7 @@ describe("Server with mock Conductor", () => {
   it("should disconnect Envoy's websocket clients on conductor disconnect");
 });
 
-describe("server without mock conductor to start", () => {
+describe.skip("server without mock conductor to start", () => {
   let envoy;
   let server;
   
