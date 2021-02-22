@@ -144,18 +144,13 @@ class Envoy {
     this.shim = await shimInit(LAIR_SOCKET, WH_SERVER_PORT, this.wormhole.bind(this));
   }
 
-  async connections() {
+  connections() {
+    console.log("connections")
     const ifaces = this.conductor_opts.interfaces;
-    try {
-      this.hcc_clients.admin = await HcAdminWebSocket.init(`ws://localhost:${ifaces.admin_port}`);
-    } catch (err) {
-      console.error(`Error while trying to connect to admin WS: ${err}`);
-    }
-    try {
-      this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`);
-    } catch (err) {
-      console.error(`Error while trying to connect to app WS: ${err}`);
-    }
+    this.hcc_clients.admin = new HcAdminWebSocket(`ws://localhost:${ifaces.admin_port}`);
+    console.log('fish')
+    this.hcc_clients.app = new HcAppWebSocket(`ws://localhost:${ifaces.app_port}`);
+    console.log('hello')
 
     Object.keys(this.hcc_clients).map(k => {
       this.hcc_clients[k].setSocketInfo({
@@ -166,15 +161,16 @@ class Envoy {
     });
 
     const clients = Object.values(this.hcc_clients);
+    console.log("this.connected =")
     this.connected = Promise.all(
       clients.map(async (client: any) => {
-        await client.opened(Infinity);
+        await client.opened(null);
         log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.connectionMonitor.name, client.connectionMonitor.socket.readyState);
       })
     );
+    console.log(this.connected)
 
-    await this.connected;
-    log.normal("All Conductor clients are in a 'CONNECTED' state");
+    this.connected.then(() => log.normal("All Conductor clients are in a 'CONNECTED' state"));
   }
 
   // --------------------------------------------------------------------------------------------
