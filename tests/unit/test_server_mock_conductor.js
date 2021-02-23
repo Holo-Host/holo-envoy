@@ -14,21 +14,6 @@ const {
 const ADMIN_PORT = 4444;
 const APP_PORT = 42233;
 
-describe("Server with mock Conductor", () => {
-  const INTERNAL_INSTALLED_APP_ID = "holo-hosting-app"
-  // Note: The value used for the hosted installed_app_ids
-  // ** must match the hha_hash pased to the chaperone server (in setup_envoy.js)
-  const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
-  const DNA_ALIAS = "dna_alias";
-  const MOCK_CELL_ID = [Buffer.from("dnaHash"), Buffer.from("agentPubkey")];
-  const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
-
-  let envoy;
-  let server;
-  let conductor;
-  // let wormhole;
-  let client;
-
 const envoy_mode_map = {
   production: 0,
   develop: 1,
@@ -51,7 +36,6 @@ describe("Server with mock Conductor", () => {
   // Note: The value used for the hosted installed_app_ids
   // ** must match the hha_hash pased to the chaperone server (in setup_envoy.js)
   const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
-  const SERVICE_INSTALLED_APP_ID = `${HOSTED_INSTALLED_APP_ID}::servicelogger`
   const DNA_ALIAS = "dna_alias";
   const MOCK_CELL_ID = [Buffer.from("dnaHash"), Buffer.from("agentPubkey")];
   const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
@@ -61,7 +45,6 @@ describe("Server with mock Conductor", () => {
   let conductor;
   // let wormhole;
   let client;
-
 
   before("Start mock conductor with envoy and client", async () => {
     adminConductor = new MockConductor(ADMIN_PORT);
