@@ -41,7 +41,7 @@ class PageTestUtils {
     this.describeJsHandleLogs = () => page.on('console', async msg => {
       const args = await Promise.all(msg.args().map(arg => this.describeJsHandle(arg)))
         .catch(error => console.log(error.message));
-      console.log(...args);
+      console.log(args);
     });
 
     this.describeJsHandle = (jsHandle) => {
@@ -65,7 +65,7 @@ const envoy_mode_map = {
   develop: 1,
 }
 
-// Note: All envoyOpts.dnas will be registered via admin interfaice with the paths provided here
+// Note: All envoyOpts.dnas will be registered via admin interface with the paths provided here
 const envoyOpts = {
   mode: envoy_mode_map.develop,
   app_port_number: 0,
@@ -244,17 +244,26 @@ describe("Server", () => {
           throw err
         }
 
+        function delay(t, val) {
+          return new Promise(function(resolve) {
+            setTimeout(function() {
+              resolve(val);
+            }, t);
+          });
+        }
+        // Delay is added so that the zomeCall has time to finish all the signing required
+        //and by signing out too soon it would not be able to get all the signature its needs and the test would fail
+        await delay(10000);
         await client.signOut();
         console.log("Anonymous AFTER: ", client.anonymous);
 
         // Test for second agent on same host
-        // TODO: This test will fail to sign-up here
         await client.signUp("bob.test.1@holo.host", "Passw0rd!");
         console.log("Finished sign-up for agent: %s", client.agent_id);
         if (client.anonymous === true) {
           throw new Error("Client did not sign-in")
         }
-        if (client.agent_id !== "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY") {
+        if (client.agent_id !== "uhCAkCxDJXYNJtqI3EszLD4DNDiY-k8au1qYbRNZ84eI7a7x76uc1") {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
         console.log("BOB Anonymous AFTER: ", client.anonymous);

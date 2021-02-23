@@ -35,7 +35,7 @@ const RPC_CLIENT_OPTS = {
 const CONDUCTOR_TIMEOUT = RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
 const NAMESPACE = "/hosting/";
 const READY_STATES = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
-const WORMHOLE_TIMEOUT = 10_000
+const WORMHOLE_TIMEOUT = 20_000
 const CALL_CONDUCTOR_TIMEOUT = WORMHOLE_TIMEOUT + 10_000
 
 interface CallSpec {
@@ -266,7 +266,7 @@ class Envoy {
 	// EXPOSED ENVOY EVENTS
 
     // Envoy - New Hosted Agent Sign-up Sequence
-    this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id]) => {
+    this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id, membrane_proof]) => {
       log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);
 
       const failure_response = (new HoloError("Failed to create a new hosted agent")).toJSON();
@@ -302,9 +302,16 @@ class Envoy {
           if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
             dnas = this.opts.hosted_app.dnas;
 					} else {
-            const installedDnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0] }));
+            const installedDnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0]}));
+
+            if (membrane_proof) {
+              log.normal("App includes membrane_proof: %s", membrane_proof);
+              dnas = { ...installedDnas, membrane_proof }
+            } else {
+              dnas = installedDnas;
+            }
+
             log.debug('installedDnas : %s', installedDnas);
-            dnas = installedDnas;
 					}
 
           adminResponse = await this.callConductor("admin", 'installApp', {
@@ -627,8 +634,9 @@ class Envoy {
     log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, payload);
     const event = `${agent_id}/wormhole/request`;
     log.silly(`Agent id: ${agent_id}`);
+    console.log("Event List: ", this.ws_server.eventList(this.opts.NS));
     // Note: remove this log is we dont see the need for it because it is using msgpack which will make envoy larger
-    log.silly("Payload to be signed: ", msgpack.decode(payload));
+    log.silly("Payload to be signed: %s", msgpack.decode(payload));
     if (this.ws_server.eventList(this.opts.NS).includes(event) === false) {
       log.warn("Trying to get signature from unknown Agent (%s)", agent_id);
       if (Object.keys(this.anonymous_agents).includes(agent_id))
