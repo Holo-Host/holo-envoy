@@ -311,11 +311,11 @@ describe("Server with mock Conductor", () => {
 
     const res2 = await callAppInfo();
     expect(res2).to.deep.equal({
-      type: 'error',
+      type: "error",
       payload: {
-        source: 'HoloError',
-        error: 'HoloError',
-        message: 'Failed during Conductor AppInfo call',
+        source: "HoloError",
+        error: "HoloError",
+        message: "Failed during Conductor AppInfo call",
         stack: []
       }
     });
@@ -323,6 +323,12 @@ describe("Server with mock Conductor", () => {
     adminConductor = new MockConductor(ADMIN_PORT);
     appConductor = new MockConductor(APP_PORT);
     appConductor.any({ cell_data: MOCK_CELL_DATA });
+
+    // Wait for envoy to reconnect
+    await Promise.all([
+      new Promise(resolve => adminConductor.adminWss.once("connection", resolve)),
+      new Promise(resolve => appConductor.adminWss.once("connection", resolve))
+    ]);
 
     const res3 = await callAppInfo();
     expect(res3).to.deep.equal(res1);
@@ -336,10 +342,6 @@ describe("server without mock conductor to start", () => {
   it("should try to reconnect to conductor if fails on first try", async () => {
     envoy = await setup.start(envoyOpts);
     server = envoy.ws_server;
-
-    const delay = (ms) => new Promise((resolve) => global.setTimeout(resolve, ms));
-    
-    await delay(1000);
 
     let connected = false;
     envoy.connected.then(() => connected = true);
