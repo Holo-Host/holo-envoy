@@ -29,7 +29,7 @@
     "@holo-host/cryptolib": "^0.3.0",
     "@holo-host/data-translator": "^0.1.1",
     "@holo-host/mock-conductor": "^0.3.0",
-    "@holochain/conductor-api": "../holochain-conductor-api",
+    "@holochain/conductor-api": "^0.0.1-dev.17",
     "@holochain/lair-client": "^0.1.1",
     "@msgpack/msgpack": "^2.3.0",
     "@whi/stdlog": "^0.3.3",

@@ -99,8 +99,10 @@
     tmp "^0.2.1"
     yargs "^16.1.1"
 
-"@holochain/conductor-api@../holochain-conductor-api":
-  version "0.0.1-dev.15"
+"@holochain/conductor-api@0.0.1-dev.16":
+  version "0.0.1-dev.16"
+  resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.1-dev.16.tgz#c9da19859dbab0caec0cdbb6da04b8bf999dc04b"
+  integrity sha512-MGBj/vnmnzf5RYZnpCjmj+d+OAScNTzNd4TuNZ1eeHnnX08rLa2UPavXtEkNxS4Vkg8PdRfDXX40Imilbup01A==
   dependencies:
     "@msgpack/msgpack" "^2.1.0"
     "@types/ws" "^7.2.4"
@@ -108,10 +110,10 @@
     nanoid "^3.1.9"
     ws "^7.3.0"
 
-"@holochain/conductor-api@0.0.1-dev.16":
-  version "0.0.1-dev.16"
-  resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.1-dev.16.tgz#c9da19859dbab0caec0cdbb6da04b8bf999dc04b"
-  integrity sha512-MGBj/vnmnzf5RYZnpCjmj+d+OAScNTzNd4TuNZ1eeHnnX08rLa2UPavXtEkNxS4Vkg8PdRfDXX40Imilbup01A==
+"@holochain/conductor-api@^0.0.1-dev.17":
+  version "0.0.1-dev.17"
+  resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.1-dev.17.tgz#ec082b6f5da7d867d3f2c089a5e1ccfac0af0e54"
+  integrity sha512-HuZDN2c8r3JpIHLNoSFv2QeR8d0w8qR0ewNrR4uRR3t9JXBsnMLpW3UiFt++R4tFJNp9GB337HxmK5h7kbxWbA==
   dependencies:
     "@msgpack/msgpack" "^2.1.0"
     "@types/ws" "^7.2.4"
