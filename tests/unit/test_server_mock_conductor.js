@@ -293,7 +293,7 @@ describe("Server with mock Conductor", () => {
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
 
-  it.only("should reconnect and successfully handle app_info", async () => {
+  it("should reconnect and successfully handle app_info", async () => {
     const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
     client = await setup.client({
       agent_id: agentId
