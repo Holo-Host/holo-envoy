@@ -147,15 +147,11 @@ class Envoy {
   }
 
   connections() {
-    console.log("connections")
     const ifaces = this.conductor_opts.interfaces;
     this.hcc_clients.admin = new HcAdminWebSocket(`ws://localhost:${ifaces.admin_port}`);
-    console.log('fish')
     this.hcc_clients.app = new HcAppWebSocket(`ws://localhost:${ifaces.app_port}`);
-    console.log('hello')
 
     const clients = Object.entries(this.hcc_clients);
-    console.log("this.connected =")
     this.connected = Promise.all(
       clients.map(async (pair) => {
         const [name, client] = pair;
@@ -163,7 +159,6 @@ class Envoy {
         log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", name, client.client.socket.readyState);
       })
     );
-    console.log(this.connected)
 
     this.connected.then(() => log.normal("All Conductor clients are in a 'CONNECTED' state"));
   }
