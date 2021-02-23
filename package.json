@@ -28,7 +28,7 @@
   "dependencies": {
     "@holo-host/cryptolib": "^0.3.0",
     "@holo-host/data-translator": "^0.1.1",
-    "@holo-host/mock-conductor": "0.2.0",
+    "@holo-host/mock-conductor": "^0.3.0",
     "@holochain/conductor-api": "../holochain-conductor-api",
     "@holochain/lair-client": "^0.1.1",
     "@msgpack/msgpack": "^2.3.0",

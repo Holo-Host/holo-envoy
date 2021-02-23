@@ -73,15 +73,6 @@
   resolved "https://registry.yarnpkg.com/@holo-host/data-translator/-/data-translator-0.1.1.tgz#aefab77086e2a65d88e77f32b1f6a7f18352fdd9"
   integrity sha512-WIg0RDj+VT2yCJPAWJWJdq5e7mfU2Xm3sSc1s6jyT+DlPzKynZ1QeE282DuwuMWeqhNyyW2haGtADTnom5oKuw==
 
-"@holo-host/mock-conductor@0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.2.0.tgz#3bca062fd9e2ebca89e484df856d42ae14620249"
-  integrity sha512-vocoZ//2GhWxe7JQ/Y2mLCC8nFn+qExQX9zCHFuye2sWe2Dnq/XVOVXS0kfEYbyr6OvVD1gxHIuDL+4k83CRuw==
-  dependencies:
-    "@msgpack/msgpack" "^2.3.0"
-    lodash "^4.17.20"
-    ws "^7.4.0"
-
 "@holo-host/mock-conductor@^0.3.0":
   version "0.3.0"
   resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.3.0.tgz#921dc80def329f19537f69528ae2e899dd64996e"

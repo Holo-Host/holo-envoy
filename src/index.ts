@@ -15,6 +15,8 @@ const msgpack = require('@msgpack/msgpack');
 
 const requestUrl = request;
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
@@ -635,21 +637,15 @@ class Envoy {
   async callConductor(client, call_spec, args: any = {}, timeout = CALL_CONDUCTOR_TIMEOUT) {
     log.normal("Received request to call Conductor using client '%s' with call spec of type '%s'", client, typeof call_spec);
     let interfaceMethod, methodName, callAgent;
+    if (typeof client === "string")
+      client = this.hcc_clients[client];
+
+    await Promise.race([client.opened(), delay(1000)]);
+    let ready_state = client.client.socket.readyState;
+    if (ready_state !== 1) {
+      throw new HoloError("Conductor disconnected");
+    }
     try {
-      // HACK: Since the envoy starts before the conductor this.hcc_clients will not be set
-      // So the first time callConductor is called we make a connection
-      // Eventually we should have envoy to automatically retry
-      if (Object.keys(this.hcc_clients).length === 0)
-        await this.connections()
-      if (typeof client === "string")
-        client = this.hcc_clients[client];
-
-      let ready_state = client.client.socket.readyState;
-      if (ready_state !== 1) {
-        log.silly("Waiting for 'CONNECTED' state because current ready state is %s (%s)", ready_state, READY_STATES[ready_state]);
-        await client.opened();
-      }
-
       // Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a function (admin client).
       interfaceMethod = client.callZome;
       methodName = 'callZome'

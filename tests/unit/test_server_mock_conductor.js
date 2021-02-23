@@ -292,9 +292,50 @@ describe("Server with mock Conductor", () => {
   it("should fail to sign-in because this host doesn't know this Agent");
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
+
+  it.only("should reconnect and successfully handle app_info", async () => {
+    const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
+    client = await setup.client({
+      agent_id: agentId
+    });
+    const callAppInfo = () => client.processCOMBRequest("appInfo");
+
+    const res1 = await callAppInfo();
+    expect(res1)
+      .to.have.property("type", "success");
+    expect(res1).to.have.property("payload")
+      .which.has.property("cell_data");
+
+    await appConductor.close();
+    await adminConductor.close();
+
+    const delay = (ms) => new Promise((resolve) => global.setTimeout(resolve, ms));
+    
+    await delay(1000);
+
+    const res2 = await callAppInfo();
+    expect(res2).to.deep.equal({
+      type: 'error',
+      payload: {
+        source: 'HoloError',
+        error: 'HoloError',
+        message: 'Failed during Conductor AppInfo call',
+        stack: []
+      }
+    });
+
+    adminConductor = new MockConductor(ADMIN_PORT);
+    appConductor = new MockConductor(APP_PORT);
+    appConductor.any({ cell_data: MOCK_CELL_DATA });
+    
+    await delay(1000);
+
+    const res3 = await callAppInfo();
+    expect(res3).to.deep.equal(res1);
+  });
 });
 
-describe.skip("server without mock conductor to start", () => {
+describe("server without mock conductor to start", () => {
   let envoy;
   let server;
   
