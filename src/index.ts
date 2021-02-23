@@ -391,7 +391,6 @@ class Envoy {
       log.silly("Received request: %s", payload.call_spec);
       // calcuate the cpuUsage prior to zomeCall to create a baseline
       const baselineCpu = process.cpuUsage()
-      console.log('baselineCpu: ', baselineCpu)
 
       // Example of request package
       //
@@ -495,10 +494,8 @@ class Envoy {
 				let host_response;
 
         // Note: we're caluclating cpu time usage of the current process (zomecall) in microseconds (not seconds)
-        const cpuUsage = process.cpuUsage(baselineCpu)
-        console.log('cpuUsage: ', cpuUsage)
-        
-        const cpu = cpuUsage.system
+        const cpuUsage = process.cpuUsage(baselineCpu)        
+        const cpu = cpuUsage.user + cpuUsage.system
 
         // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits) 
         const response_buffer = Buffer.from(JSON.stringify(zomeCall_response));
@@ -508,10 +505,6 @@ class Envoy {
 					cpu,
           bandwidth 
 				};
-
-        console.log('host metrics: ', host_metrics)
-
-        throw new Error('STOP HERE..')
 
         const weblog_compat = {
 					source_ip: "100:0:0:0",
