@@ -309,10 +309,6 @@ describe("Server with mock Conductor", () => {
     await appConductor.close();
     await adminConductor.close();
 
-    const delay = (ms) => new Promise((resolve) => global.setTimeout(resolve, ms));
-    
-    await delay(1000);
-
     const res2 = await callAppInfo();
     expect(res2).to.deep.equal({
       type: 'error',
@@ -327,8 +323,6 @@ describe("Server with mock Conductor", () => {
     adminConductor = new MockConductor(ADMIN_PORT);
     appConductor = new MockConductor(APP_PORT);
     appConductor.any({ cell_data: MOCK_CELL_DATA });
-    
-    await delay(1000);
 
     const res3 = await callAppInfo();
     expect(res3).to.deep.equal(res1);
@@ -353,11 +347,9 @@ describe("server without mock conductor to start", () => {
     
     adminConductor = new MockConductor(ADMIN_PORT);
     appConductor = new MockConductor(APP_PORT);
-    console.log("conductor online");
     await envoy.connected;
     expect(envoy.hcc_clients.admin.client.socket.readyState).to.equal(1);
     expect(envoy.hcc_clients.app.client.socket.readyState).to.equal(1);
-    console.log("bloob");
     log.info("Stopping Envoy...");
     await setup.stop();
 
