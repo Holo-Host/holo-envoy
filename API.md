@@ -10,6 +10,13 @@ Arguments
 - `<agent_id>`
 
 
+### `holo/agent/signin`
+Request Envoy to run already installed app for this Agent.
+
+Arguments
+- `<hha_hash>`
+- `<agent_id>`
+
 ### `holo/app_info`
 Endpoint for fetching app data, including a list of cell_data and nicknames for each dna in the app.
 
@@ -78,4 +85,3 @@ Arguments
 - `<agent_id>`
 - `<response_hash>`
 - `<signature>`
-

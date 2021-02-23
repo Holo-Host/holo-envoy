@@ -93,8 +93,7 @@ made, Envoy must know if this is a new (sign-up) or existing user (sign-in).
 The Agent is connecting to this Host for the first time and has never used this hApp
 
 *Process*
-- register this Agent as a Hosted Agent in Conductor
-- start cells for each of the hApp's DNAs
+- install cells for each of the hApp's DNAs
 - and continue to sign-in process...
     
 #### Sign-in
@@ -102,6 +101,7 @@ The Agent has used this hApp before and expects this Host to have their installe
 
 *Process*
 - Register Agent's wormhole endpoint in RPC events
+- start cells for each of the hApp's DNAs
 
 
 ## Process
