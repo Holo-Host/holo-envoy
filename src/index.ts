@@ -3,7 +3,7 @@ import fs from 'fs';
 import logger from '@whi/stdlog';
 import crypto from 'crypto';
 import request from 'request';
-import http from 'http';
+import * as http from 'http';
 import concat_stream from 'concat-stream';
 import SerializeJSON from 'json-stable-stringify';
 import { Codec } from '@holo-host/cryptolib';
@@ -11,6 +11,7 @@ import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
 import { init as shimInit } from "../build/shim.js";
+import Websocket from 'ws';
 const msgpack = require('@msgpack/msgpack');
 
 const requestUrl = request;
@@ -111,6 +112,8 @@ class Envoy {
   pending_confirms: object = {};
   pending_signatures: object = {};
   anonymous_agents: any = {};
+  agent_connections: Record<string, Array<Websocket>> = {};
+  agent_wormhole_num_timeouts: Record<string, number> = {};
 
   hcc_clients: any = {};
 
@@ -187,7 +190,7 @@ class Envoy {
       "host": "0.0.0.0", // "localhost",
     });
 
-    this.ws_server.on("connection", async (socket, request) => {
+    this.ws_server.on("connection", async (socket: Websocket, request: http.IncomingMessage) => {
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
       // client-side if something is not right.
       log.silly("Incoming connection from %s", request.url);
@@ -209,6 +212,11 @@ class Envoy {
       if (anonymous) {
         log.debug("Adding Agent (%s) to anonymous list with HHA ID %s", agent_id, hha_hash);
         this.anonymous_agents[agent_id] = hha_hash;
+      } else {
+        if (this.agent_connections[agent_id] === undefined) {
+          this.agent_connections[agent_id] = [];
+        }
+        this.agent_connections[agent_id].push(socket);
       }
 
       socket.on("close", async () => {
@@ -218,6 +226,8 @@ class Envoy {
           log.debug("Remove anonymous Agent (%s) from anonymous list", agent_id);
           delete this.anonymous_agents[agent_id];
         } else {
+          const idx = this.agent_connections[agent_id].indexOf(socket);
+          delete this.agent_connections[agent_id][idx];
           this.callConductor("admin", "deactivateApp", { installed_app_id: `${hha_hash}:${agent_id}` }).catch(err => {
             log.error("Failed to sign out Agent (%s): %s", agent_id, String(err));
           });
@@ -610,7 +620,11 @@ class Envoy {
     }
   }
 
-  async signOut(agent_id): Promise<void> {
+  async signOut(agent_id: string): Promise<void> {
+    const connections = this.agent_connections[agent_id];
+    delete this.agent_connections[agent_id];
+    connections.forEach(connection => connection.close());
+
     // Assuming agent is not anonymous, we need to deactivate all their hApps.
 
     const regex = new RegExp(`:${agent_id}$`);
@@ -621,6 +635,8 @@ class Envoy {
         await this.callConductor("admin", "deactivateApp", { installed_app_id });
       }
     }));
+
+    delete this.agent_wormhole_num_timeouts[agent_id];
   }
 
   // --------------------------------------------------------------------------------------------
@@ -650,10 +666,18 @@ class Envoy {
     return new Promise((f, r) => {
       let toid = setTimeout(() => {
         log.error("Failed during signing request #%s with timeout (%sms)", payload_id, timeout);
+        // If the same agent times out 3 times, sign them out.
+        // If the same agent times out more than 3 times, then we are already in the process of signing them out.
+        if (this.agent_wormhole_num_timeouts[agent_id] === undefined) {
+          this.agent_wormhole_num_timeouts[agent_id] = 0;
+        }
+        this.agent_wormhole_num_timeouts[agent_id] += 1;
+        if (this.agent_wormhole_num_timeouts[agent_id] === 3) {
+          this.signOut(agent_id).catch(err => {
+            log.error("Failed to sign out Agent (%s) after they disconnected from wormhole: %s", agent_id, String(err));
+          });
+        }
         r("Failed to get signature from Chaperone")
-        this.signOut(agent_id).catch(err => {
-          log.error("Failed to sign out Agent (%s) after they disconnected from wormhole: %s", agent_id, String(err));
-        });
       }, timeout);
 
       log.info("Adding signature request #%s to pending signatures", payload_id);

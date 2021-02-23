@@ -36,7 +36,8 @@
     "concat-stream": "^2.0.0",
     "json-stable-stringify": "^1.0.1",
     "request": "^2.88.2",
-    "rpc-websockets": "^7.4.8"
+    "rpc-websockets": "^7.4.8",
+    "ws": "7.4.3"
   },
   "devDependencies": {
     "@holo-host/chaperone": "*1.1.0",
