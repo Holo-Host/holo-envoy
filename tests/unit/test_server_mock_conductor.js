@@ -4,8 +4,6 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 });
 
 const expect = require('chai').expect;
-const fetch = require('node-fetch');
-const why = require('why-is-node-running');
 
 const setup = require("../setup_envoy.js");
 const MockConductor = require('@holo-host/mock-conductor');
@@ -15,6 +13,21 @@ const {
 
 const ADMIN_PORT = 4444;
 const APP_PORT = 42233;
+
+describe("Server with mock Conductor", () => {
+  const INTERNAL_INSTALLED_APP_ID = "holo-hosting-app"
+  // Note: The value used for the hosted installed_app_ids
+  // ** must match the hha_hash pased to the chaperone server (in setup_envoy.js)
+  const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
+  const DNA_ALIAS = "dna_alias";
+  const MOCK_CELL_ID = [Buffer.from("dnaHash"), Buffer.from("agentPubkey")];
+  const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
+
+  let envoy;
+  let server;
+  let conductor;
+  // let wormhole;
+  let client;
 
 const envoy_mode_map = {
   production: 0,

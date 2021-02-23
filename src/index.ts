@@ -1,9 +1,6 @@
 import path from 'path';
-import fs from 'fs';
 import logger from '@whi/stdlog';
-import crypto from 'crypto';
 import request from 'request';
-import http from 'http';
 import concat_stream from 'concat-stream';
 import SerializeJSON from 'json-stable-stringify';
 import { Codec } from '@holo-host/cryptolib';
@@ -12,8 +9,6 @@ import { HcAdminWebSocket, HcAppWebSocket } from "./websocket-wrappers/holochain
 import { Server as WebSocketServer } from './wss';
 import { init as shimInit } from "../build/shim.js";
 const msgpack = require('@msgpack/msgpack');
-
-const requestUrl = request;
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -355,6 +350,7 @@ class Envoy {
 
 
     // Chaperone AppInfo Call to Envoy Server
+    // QUESTION: We are currently not charing for app_info calls - should we be?
     this.ws_server.register("holo/app_info", async ({ installed_app_id }) => {
       let appInfo
       try {
@@ -483,12 +479,16 @@ class Envoy {
 				// - Servicelogger response
 				let host_response;
 
+        // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits) 
+        const response_buffer = Buffer.from(JSON.stringify(zomeCall_response));
+        const bandwidth = Buffer.byteLength(response_buffer);
+
 				const host_metrics = {
-					"cpu": 1,
-          "bandwidth": 1
+					cpu: 1,
+          bandwidth 
 				};
 
-				const weblog_compat = {
+        const weblog_compat = {
 					source_ip: "100:0:0:0",
 					status_code: 200
 				}
