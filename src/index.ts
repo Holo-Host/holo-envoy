@@ -464,7 +464,7 @@ class Envoy {
           "cell_id": [Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])],
           "zome_name": call_spec["zome"],
           "fn_name": call_spec["function"],
-          "payload": msgpack.decode(Buffer.from(call_spec["args"])),
+          "payload": msgpack.decode(Buffer.from(Object.entries(call_spec["args"]))),
           "cap": null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
           "provenance": Codec.AgentId.decodeToHoloHash(agent_id),
         });
