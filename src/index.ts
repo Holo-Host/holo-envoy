@@ -551,6 +551,33 @@ class Envoy {
       return response_message;
     }, this.opts.NS);
 
+    // Temporary "state dump" logic for checking Holochain network peer consistency
+    this.ws_server.register("holo/tmp/state_dump", async ({ installed_app_id, cell_nick }) => {
+      let appInfo
+      try {
+        log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
+        appInfo = await this.callConductor("app", { installed_app_id });
+        if (!appInfo) {
+          log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo);
+          throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
+        }
+      } catch (err) {
+        log.error("Failed during Conductor AppInfo call: %s", String(err));
+        return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
+      }
+
+      let result
+      try {
+        const cell_data: Array<[Buffer, Buffer]> = appInfo.cell_data;
+        const [cell_id,] = cell_data.find(([_cell_id, installed_cell_nick]) => cell_nick === installed_cell_nick);
+        result = await this.callConductor("admin", "dumpState", { cell_id });
+      } catch (err) {
+        log.error("Failed during Conductor StateDump call: %s", String(err));
+        return Package.createFromError("HoloError", (new HoloError('Failed during Conductor StateDump call')).toJSON());
+      }
+      return new Package(result, { "type": "success" });
+    }, this.opts.NS);
+
     // Chaperone Call to Envoy Server to confirm service
     this.ws_server.register("holo/service/confirm", async ([response_id, response_signature, confirmation]) => {
       log.normal("Received confirmation request for call response (%s)...", response_id.substring(0,9));
