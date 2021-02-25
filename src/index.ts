@@ -5,11 +5,13 @@ import concat_stream from 'concat-stream';
 import SerializeJSON from 'json-stable-stringify';
 import { Codec } from '@holo-host/cryptolib';
 import { Package } from '@holo-host/data-translator';
-import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
+import { HcAdminWebSocket, HcAppWebSocket } from "./websocket-wrappers/holochain";
 import { Server as WebSocketServer } from './wss';
 import { init as shimInit } from "../build/shim.js";
 import Websocket from 'ws';
 const msgpack = require('@msgpack/msgpack');
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
@@ -97,20 +99,20 @@ async function promiseMap (array, fn) {
 }
 
 class Envoy {
-  ws_server: any;
-  shim: any;
+  ws_server: WebSocketServer;
+  shim: { stop: () => Promise<void> };
   opts: EnvoyConfig;
   conductor_opts: any;
-  connected: any;
+  connected: Promise<Array<void>>;
 
   payload_counter: number = 0;
   pending_confirms: object = {};
   pending_signatures: object = {};
-  anonymous_agents: any = {};
+  anonymous_agents: Record<string, string> = {};
   agent_connections: Record<string, Array<Websocket>> = {};
   agent_wormhole_num_timeouts: Record<string, number> = {};
 
-  hcc_clients: any = {};
+  hcc_clients: { app?: HcAppWebSocket, admin?: HcAdminWebSocket } = {};
 
   static PRODUCT_MODE: number = 0;
   static DEVELOP_MODE: number = 1;
@@ -142,37 +144,21 @@ class Envoy {
     this.shim = await shimInit(LAIR_SOCKET, WH_SERVER_PORT, this.wormhole.bind(this));
   }
 
-  async connections() {
-    try {
-      const ifaces = this.conductor_opts.interfaces;
-      this.hcc_clients.admin = await HcAdminWebSocket.init(`ws://localhost:${ifaces.admin_port}`);
-      this.hcc_clients.app = await HcAppWebSocket.init(`ws://localhost:${ifaces.app_port}`);
-    } catch (err) {
-      console.error(`Error while trying to set hcc_clients: ${err}`);
-    }
+  connections() {
+    const ifaces = this.conductor_opts.interfaces;
+    this.hcc_clients.admin = new HcAdminWebSocket(`ws://localhost:${ifaces.admin_port}`);
+    this.hcc_clients.app = new HcAppWebSocket(`ws://localhost:${ifaces.app_port}`);
 
-    Object.keys(this.hcc_clients).map(k => {
-      this.hcc_clients[k].setSocketInfo({
-        name: k,
-        port: this.conductor_opts.interfaces[`${k}_port`]
-      });
-      log.info("Conductor client '%s' configured for port (%s)", k, this.hcc_clients[k].connectionMonitor.port);
-    });
-
-    const clients = Object.values(this.hcc_clients);
+    const clients = Object.entries(this.hcc_clients);
     this.connected = Promise.all(
-      clients.map(async (client: any) => {
-        await client.opened(CONDUCTOR_TIMEOUT)
-          .catch(err => {
-            log.fatal("Conductor client '%s' failed to connect: %s", client.connectionMonitor.name, String(err));
-          });
-
-        log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", client.connectionMonitor.name, client.connectionMonitor.socket.readyState);
+      clients.map(async (pair) => {
+        const [name, client] = pair;
+        await client.opened();
+        log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", name, client.client.socket.readyState);
       })
     );
 
-    await this.connected;
-    log.normal("All Conductor clients are in a 'CONNECTED' state");
+    this.connected.then(() => log.normal("All Conductor clients are in a 'CONNECTED' state"));
   }
 
   // --------------------------------------------------------------------------------------------
@@ -699,7 +685,7 @@ class Envoy {
     log.normal("Initiating shutdown; closing Conductor clients, RPC WebSocket server, then HTTP server");
 
     const clients = Object.values(this.hcc_clients);
-    await Promise.all(clients.map((client: any) => client.connectionMonitor.socket.close()));
+    await Promise.all(clients.map((client: HcAdminWebSocket | HcAppWebSocket) => client.close()));
     log.info("All Conductor clients are closed");
 
     await this.ws_server.close();
@@ -735,21 +721,15 @@ class Envoy {
   async callConductor(client, call_spec, args: any = {}, timeout = CALL_CONDUCTOR_TIMEOUT) {
     log.normal("Received request to call Conductor using client '%s' with call spec of type '%s'", client, typeof call_spec);
     let interfaceMethod, methodName, callAgent;
+    if (typeof client === "string")
+      client = this.hcc_clients[client];
+
+    await Promise.race([client.opened(), delay(1000)]);
+    let ready_state = client.client.socket.readyState;
+    if (ready_state !== 1) {
+      throw new HoloError("Conductor disconnected");
+    }
     try {
-      // HACK: Since the envoy starts before the conductor this.hcc_clients will not be set
-      // So the first time callConductor is called we make a connection
-      // Eventually we should have envoy to automatically retry
-      if (Object.keys(this.hcc_clients).length === 0)
-        await this.connections()
-      if (typeof client === "string")
-        client = this.hcc_clients[client];
-
-      let ready_state = client.connectionMonitor.socket.readyState;
-      if (ready_state !== 1) {
-        log.silly("Waiting for 'CONNECTED' state because current ready state is %s (%s)", ready_state, READY_STATES[ready_state]);
-        await client.opened();
-      }
-
       // Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a function (admin client).
       interfaceMethod = client.callZome;
       methodName = 'callZome'
@@ -781,7 +761,7 @@ class Envoy {
 
     let resp;
     try {
-      log.silly("Calling Conductor method (%s) over client '%s' with input %s: ", methodName, client.connectionMonitor.name, JSON.stringify(args));
+      log.silly("Calling Conductor method (%s) over client '%s' with input %s: ", methodName, callAgent, JSON.stringify(args));
       try {
         resp = await interfaceMethod(args, timeout);
       } catch (error) {

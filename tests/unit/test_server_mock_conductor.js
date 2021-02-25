@@ -11,23 +11,8 @@ const {
   ZomeAPIResult
 } = MockConductor;
 
-describe("Server with mock Conductor", () => {
-  const ADMIN_PORT = 4444;
-  const APP_PORT = 42233;
-  const INTERNAL_INSTALLED_APP_ID = "holo-hosting-app"
-  // Note: The value used for the hosted installed_app_ids
-  // ** must match the hha_hash pased to the chaperone server (in setup_envoy.js)
-  const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
-  const DNA_ALIAS = "dna_alias";
-  const MOCK_CELL_ID = [Buffer.from("dnaHash"), Buffer.from("agentPubkey")];
-  const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
-
-  let envoy;
-  let server;
-  let conductor;
-  // let wormhole;
-  let client;
-
+const ADMIN_PORT = 4444;
+const APP_PORT = 42233;
 
 const envoy_mode_map = {
   production: 0,
@@ -45,6 +30,21 @@ const envoyOpts = {
 		usingURL: false
   }
 }
+
+describe("Server with mock Conductor", () => {
+  const INTERNAL_INSTALLED_APP_ID = "holo-hosting-app"
+  // Note: The value used for the hosted installed_app_ids
+  // ** must match the hha_hash pased to the chaperone server (in setup_envoy.js)
+  const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
+  const DNA_ALIAS = "dna_alias";
+  const MOCK_CELL_ID = [Buffer.from("dnaHash"), Buffer.from("agentPubkey")];
+  const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
+
+  let envoy;
+  let server;
+  let conductor;
+  // let wormhole;
+  let client;
 
   before("Start mock conductor with envoy and client", async () => {
     adminConductor = new MockConductor(ADMIN_PORT);
@@ -288,4 +288,71 @@ const envoyOpts = {
   it("should fail to sign-in because this host doesn't know this Agent");
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
+
+  it("should reconnect and successfully handle app_info", async () => {
+    const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
+    client = await setup.client({
+      agent_id: agentId
+    });
+    const callAppInfo = () => client.processCOMBRequest("appInfo");
+
+    const res1 = await callAppInfo();
+    expect(res1)
+      .to.have.property("type", "success");
+    expect(res1).to.have.property("payload")
+      .which.has.property("cell_data");
+
+    await appConductor.close();
+    await adminConductor.close();
+
+    const res2 = await callAppInfo();
+    expect(res2).to.deep.equal({
+      type: "error",
+      payload: {
+        source: "HoloError",
+        error: "HoloError",
+        message: "Failed during Conductor AppInfo call",
+        stack: []
+      }
+    });
+
+    adminConductor = new MockConductor(ADMIN_PORT);
+    appConductor = new MockConductor(APP_PORT);
+    appConductor.any({ cell_data: MOCK_CELL_DATA });
+
+    // Wait for envoy to reconnect
+    await Promise.all([
+      new Promise(resolve => adminConductor.adminWss.once("connection", resolve)),
+      new Promise(resolve => appConductor.adminWss.once("connection", resolve))
+    ]);
+
+    const res3 = await callAppInfo();
+    expect(res3).to.deep.equal(res1);
+  });
+});
+
+describe("server without mock conductor to start", () => {
+  let envoy;
+  let server;
+  
+  it("should try to reconnect to conductor if fails on first try", async () => {
+    envoy = await setup.start(envoyOpts);
+    server = envoy.ws_server;
+
+    let connected = false;
+    envoy.connected.then(() => connected = true);
+    expect(connected).to.be.false;
+    
+    adminConductor = new MockConductor(ADMIN_PORT);
+    appConductor = new MockConductor(APP_PORT);
+    await envoy.connected;
+    expect(envoy.hcc_clients.admin.client.socket.readyState).to.equal(1);
+    expect(envoy.hcc_clients.app.client.socket.readyState).to.equal(1);
+    log.info("Stopping Envoy...");
+    await setup.stop();
+
+    log.info("Stopping Conductor...");
+    await adminConductor.close();
+    await appConductor.close();
+  });
 });
