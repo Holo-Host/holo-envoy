@@ -492,14 +492,14 @@ class Envoy {
 				// - Servicelogger response
 				let host_response;
 
-
         // Note: we're caluclating cpu time usage of the current process (zomecall) in microseconds (not seconds)
         const cpuUsage = process.cpuUsage(baselineCpu)
         const cpu = cpuUsage.user + cpuUsage.system
 
         // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits)
-        const response_buffer = Buffer.from(JSON.stringify(zomeCall_response));
-        const bandwidth = Buffer.byteLength(response_buffer);
+        const inbound_payload_buffer = Buffer.from(JSON.stringify(payload));
+        const outbound_payload_buffer = Buffer.from(JSON.stringify(zomeCall_response));
+        const bandwidth = Buffer.byteLength(outbound_payload_buffer) + Buffer.byteLength(inbound_payload_buffer)
 
 				const host_metrics = {
 					cpu,
