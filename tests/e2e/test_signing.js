@@ -16,7 +16,7 @@ const {
 } = require('@holochain/conductor-api');
 const setup_conductor = require("../setup_conductor.js");
 const { Codec, KeyManager } = require('@holo-host/cryptolib');
-const { init } = require("../../build/wormhole.js");
+const { init } = require("../../build/shim.js");
 const crypto = require('crypto')
 const WH_SERVER_PORT = path.resolve(__dirname, '../tmp/shim/socket');
 const LAIR_SOCKET = path.resolve(__dirname, '../tmp/keystore/socket');
@@ -25,7 +25,7 @@ const installedAppIds = yaml.load(fs.readFileSync('./tests/app-config.yml'));
 const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
 
 describe("Wormhole tests", () => {
-  let wormhole, appWs, seed, keys, slCellId;
+  let shim, appWs, seed, keys, slCellId;
   before(async function() {
     this.timeout(100_000);
 
@@ -34,8 +34,7 @@ describe("Wormhole tests", () => {
     await delay(5000);
     seed = crypto.randomBytes(32);
     keys = new KeyManager(seed);
-    console.log("KEYs:", keys);
-    wormhole = await init(LAIR_SOCKET, WH_SERVER_PORT, async function(pubkey, message) {
+    shim = await init(LAIR_SOCKET, WH_SERVER_PORT, async function(pubkey, message) {
       return null;
     });
     await delay(5000);
@@ -49,14 +48,13 @@ describe("Wormhole tests", () => {
 
   });
   after(async () => {
-    await wormhole.stop();
+    await shim.stop();
     await setup_conductor.stop_conductor();
     await resetTmp();
   });
 
-  it("test wormhole signing for zome call", async () => {
+  it("test shim signing for zome call", async () => {
     const payload = await getPayload(keys);
-    console.log("logged activity: ", payload);
     loggedActivity = await appWs.callZome({
       cell_id: [Buffer.from(slCellId[0]), Buffer.from(slCellId[1])],
       zome_name: 'service',
@@ -143,7 +141,6 @@ async function setUpServicelogger(appWs) {
       price_bandwidth: 1,
       max_time_before_invoice: [604800, 0]
     }
-    console.log("PAYLOAD: ", payload);
     try {
       logger_settings = await appWs.callZome({
         cell_id: [Buffer.from(serviceloggerCellId[0]), Buffer.from(serviceloggerCellId[1])],

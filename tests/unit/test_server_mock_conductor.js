@@ -24,7 +24,6 @@ describe("Server with mock Conductor", () => {
   // Note: The value used for the hosted installed_app_ids
   // ** must match the hha_hash pased to the chaperone server (in setup_envoy.js)
   const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
-  const SERVICE_INSTALLED_APP_ID = `${HOSTED_INSTALLED_APP_ID}::servicelogger`
   const DNA_ALIAS = "dna_alias";
   const AGENT_ID = "uhCAkkeIowX20hXW-9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl_xwq";
   const DNA_HASH = "uhCEkWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
@@ -340,7 +339,6 @@ describe("Server with mock Conductor", () => {
   it("should fail to sign-up because Happ Store returned an error");
   it("should fail to sign-up because adminInterface call, `installApp`, returned an error");
   it("should fail to sign-up because adminInterface call, `activateApp`, returned an error");
-  it("should fail to sign-up because adminInterface call, `attachAppInterface`, returned an error");
   it("should fail to sign-in because this host doesn't know this Agent");
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
