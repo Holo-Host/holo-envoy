@@ -431,8 +431,8 @@ class Envoy {
         const hosted_app_cell_id = call_spec["cell_id"];
         let payload = call_spec["args"]
         log.silly('Original payload for zomeCall:', payload);
-        if (typeof call_spec["args"] === String) {
-          payload = msgpack.decode(Codec.Digest.decode(call_spec["args"]));
+        if (typeof payload === 'string') {
+          payload = msgpack.decode(Buffer.from(call_spec["args"], 'base64'));
           if (Object.keys(payload).length <= 0) {
             log.debug('No call_spec.args, converting value to null for zomeCall.');
             payload = null
@@ -447,7 +447,7 @@ class Envoy {
           "cell_id": [Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])],
           "zome_name": call_spec["zome"],
           "fn_name": call_spec["function"],
-          payload
+          payload,
           "cap": null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
           "provenance": Codec.AgentId.decodeToHoloHash(agent_id),
         });

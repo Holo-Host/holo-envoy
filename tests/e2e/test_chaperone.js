@@ -192,7 +192,7 @@ describe("Server", () => {
         const hhaBuffer = Buffer.from(buf);
         return Codec.HoloHash.encode(type, hhaBuffer);
       });
-      let zomeCallPayload = msgpack.encode({'value': "This is the returned value"});
+      let zomeCallPayload = Buffer.from(msgpack.encode({'value': "This is the returned value"})).toString('base64');
       response = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash, zomeCallPayload) {
         console.log("Registered Happ Hash: %s", registered_happ_hash);
 
