@@ -5,7 +5,7 @@
   "main": "build/index.js",
   "scripts": {
     "install": "yarn run build",
-    "build": "tsc --esModuleInterop --lib es7,dom --outDir ./build -p ./src",
+    "build": "tsc --outDir ./build -p ./src",
     "test": "yarn run test-unit && yarn run test-integration",
     "test-unit": "mocha ./tests/unit/",
     "test-integration": "mocha ./tests/integration/",
@@ -28,14 +28,15 @@
   "dependencies": {
     "@holo-host/cryptolib": "^0.3.0",
     "@holo-host/data-translator": "^0.1.1",
-    "@holo-host/mock-conductor": "0.2.0",
-    "@holochain/conductor-api": "^0.0.1-dev.16",
+    "@holo-host/mock-conductor": "^0.3.0",
+    "@holochain/conductor-api": "^0.0.1-dev.17",
     "@holochain/lair-client": "^0.1.1",
     "@msgpack/msgpack": "^2.3.0",
     "@types/ws": "^7.4.0",
     "@whi/stdlog": "^0.3.3",
     "concat-stream": "^2.0.0",
     "json-stable-stringify": "^1.0.1",
+    "reconnecting-websocket": "^4.4.0",
     "request": "^2.88.2",
     "rpc-websockets": "^7.4.8"
   },

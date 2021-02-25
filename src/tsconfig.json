@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
     "outDir": "../build",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "target": "ES6",
+    "moduleResolution": "node",
+    "lib": ["ES7", "DOM"],
+    "module": "CommonJS",
   }
 }
