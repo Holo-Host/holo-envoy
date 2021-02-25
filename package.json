@@ -30,9 +30,10 @@
     "@msgpack/msgpack": "^2.3.0",
     "@whi/stdlog": "^0.3.3",
     "concat-stream": "^2.0.0",
+    "get-folder-size": "^2.0.1",
     "json-stable-stringify": "^1.0.1",
-    "rpc-websockets": "^4.6.1",
-    "request": "^2.88.2"
+    "request": "^2.88.2",
+    "rpc-websockets": "^4.6.1"
   },
   "devDependencies": {
     "@holo-host/chaperone": "0.3.0",

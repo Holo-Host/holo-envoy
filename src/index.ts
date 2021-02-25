@@ -11,6 +11,7 @@ import { Codec } from '@holo-host/cryptolib';
 import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
+import { getDiskUsagePerDna } from './utils';
 
 const requestUrl = request;
 
@@ -136,6 +137,7 @@ class Envoy {
     this.connections();
     this.startWebsocketServer();
     this.startHTTPServer();
+    this.startStoragePolling();
   }
 
   async connections() {
@@ -690,6 +692,35 @@ class Envoy {
     this.http_server.listen(WH_SERVER_PORT);
   }
 
+  startStoragePolling () {
+    setInterval(this.updateStorageUsage.bind(this), 60 * 60 * 1000)
+  }
+
+  updateStorageUsage () {
+    const hashes = []
+    const usagePerDna = getDiskUsagePerDna(hashes)
+
+    // this fires off a bunch of promises and never waits for them to return
+    hashes.forEach(hash => {
+      const cellId = this.getServiceLoggerCellId(hash)
+
+      const payload = {
+        source_chains: [],
+        integrated_entries: [],
+        total_disk_usage: usagePerDna[hash]
+      }
+
+      this.callConductor("service", {
+        cell_id: cellId,
+        zome_name: "service",
+        fn_name: "log_disk_usage",
+        payload,
+        cap: null,
+        provenance: cellId[1]
+      })
+    })
+  }
+
   signingRequest(agent_id: string, payload: string, timeout = 5_000) {
     const payload_id = this.payload_counter++;
     log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, typeof payload);
@@ -941,11 +972,7 @@ class Envoy {
     return resp;
   }
 
-  async logServiceConfirmation(client_request, host_response, confirmation) {
-    log.normal("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response);
-
-    const hha_hash = client_request.request.call_spec.hha_hash;
-
+  async getServiceLoggerCellId (hha_hash) {
     let servicelogger_installed_app_id;
 
     if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
@@ -964,7 +991,16 @@ class Envoy {
     }
 
     log.debug("Servicelogger app_info: '%s'", appInfo);
-    const servicelogger_cell_id = appInfo.cell_data[0][0];
+
+    return appInfo.cell_data[0][0];
+  }
+
+  async logServiceConfirmation(client_request, host_response, confirmation) {
+    log.normal("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response);
+
+    const hha_hash = client_request.request.call_spec.hha_hash;
+
+    const servicelogger_cell_id = await this.getServiceLoggerCellId(hha_hash)
     const buffer_host_agent_servicelogger_id = servicelogger_cell_id[1];
 
     /******************** WORMHOLE SIGNING WORK AROUND ********************/
