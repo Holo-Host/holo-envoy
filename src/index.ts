@@ -588,7 +588,7 @@ class Envoy {
         throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
       }
     } catch (err) {
-      if (err.message.includes("Tried to activate an app that was not installed")) {
+      if (err.message.includes("AppNotInstalled")) {
         // This error is returned in two cases:
         // a) The app is not installed -- Return an error to the user saying that they may need to sign up first.
         // b) The app is already activated -- Our job is done.
