@@ -12,6 +12,8 @@ const setup_conductor = require("../setup_conductor.js");
 const { Codec } = require('@holo-host/cryptolib');
 const installedAppIds = yaml.load(fs.readFileSync('./tests/app-config.yml'));
 const { resetTmp, delay } = require("../utils")
+const msgpack = require('@msgpack/msgpack');
+
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
 const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
 const HHA_INSTALLED_APP_ID = installedAppIds[1].app_name;
@@ -191,8 +193,8 @@ describe("Server", () => {
         const hhaBuffer = Buffer.from(buf);
         return Codec.HoloHash.encode(type, hhaBuffer);
       });
-
-      response = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash) {
+      let zomeCallPayload = msgpack.encode({'value': "This is the returned value"});
+      response = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash, zomeCallPayload) {
         console.log("Registered Happ Hash: %s", registered_happ_hash);
 
         const client = new Chaperone({
@@ -238,7 +240,7 @@ describe("Server", () => {
         try {
           // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
           // Ideally we would have a nick like test or chat or elemental-chat
-          response =  await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", {'value': "This is the returned value"});
+          response =  await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", zomeCallPayload);
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
@@ -269,7 +271,7 @@ describe("Server", () => {
         console.log("BOB Anonymous AFTER: ", client.anonymous);
 
         return response
-      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH, expect);
+      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH, zomeCallPayload);
 
       log.info("Completed evaluation: %s", response);
       expect(Object.keys(response)).to.have.members(["value"]);

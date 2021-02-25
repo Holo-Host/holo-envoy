@@ -10,7 +10,7 @@ import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochai
 import { Server as WebSocketServer } from './wss';
 import { init as shimInit } from "../build/shim.js";
 import Websocket from 'ws';
-const msgpack = require('@msgpack/msgpack');
+import msgpack from '@msgpack/msgpack';
 
 const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
