@@ -32,6 +32,7 @@
     "@holochain/conductor-api": "^0.0.1-dev.16",
     "@holochain/lair-client": "^0.1.1",
     "@msgpack/msgpack": "^2.3.0",
+    "@types/ws": "^7.4.0",
     "@whi/stdlog": "^0.3.3",
     "concat-stream": "^2.0.0",
     "json-stable-stringify": "^1.0.1",

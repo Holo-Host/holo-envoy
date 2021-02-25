@@ -1,5 +1,6 @@
 import path from 'path';
 import logger from '@whi/stdlog';
+import * as http from 'http';
 import concat_stream from 'concat-stream';
 import SerializeJSON from 'json-stable-stringify';
 import { Codec } from '@holo-host/cryptolib';
@@ -7,6 +8,7 @@ import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "../websocket-wrappers/holochain/client";
 import { Server as WebSocketServer } from './wss';
 import { init as shimInit } from "../build/shim.js";
+import Websocket from 'ws';
 const msgpack = require('@msgpack/msgpack');
 
 const log = logger(path.basename(__filename), {
@@ -105,6 +107,8 @@ class Envoy {
   pending_confirms: object = {};
   pending_signatures: object = {};
   anonymous_agents: any = {};
+  agent_connections: Record<string, Array<Websocket>> = {};
+  agent_wormhole_num_timeouts: Record<string, number> = {};
 
   hcc_clients: any = {};
 
@@ -181,7 +185,7 @@ class Envoy {
       "host": "0.0.0.0", // "localhost",
     });
 
-    this.ws_server.on("connection", async (socket, request) => {
+    this.ws_server.on("connection", async (socket: Websocket, request: http.IncomingMessage) => {
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
       // client-side if something is not right.
       log.silly("Incoming connection from %s", request.url);
@@ -203,6 +207,11 @@ class Envoy {
       if (anonymous) {
         log.debug("Adding Agent (%s) to anonymous list with HHA ID %s", agent_id, hha_hash);
         this.anonymous_agents[agent_id] = hha_hash;
+      } else {
+        if (this.agent_connections[agent_id] === undefined) {
+          this.agent_connections[agent_id] = [];
+        }
+        this.agent_connections[agent_id].push(socket);
       }
 
       socket.on("close", async () => {
@@ -211,6 +220,12 @@ class Envoy {
         if (anonymous) {
           log.debug("Remove anonymous Agent (%s) from anonymous list", agent_id);
           delete this.anonymous_agents[agent_id];
+        } else {
+          const idx = this.agent_connections[agent_id].indexOf(socket);
+          delete this.agent_connections[agent_id][idx];
+          this.callConductor("admin", "deactivateApp", { installed_app_id: `${hha_hash}:${agent_id}` }).catch(err => {
+            log.error("Failed to sign out Agent (%s): %s", agent_id, String(err));
+          });
         }
       });
     });
@@ -323,25 +338,7 @@ class Envoy {
           }
         }
 
-        // Activate App - Add the Installed App to a hosted interface.
-        try {
-          log.info("Activating Installed App (%s)", hosted_agent_instance_app_id);
-          adminResponse = await this.callConductor("admin", 'activateApp', { installed_app_id: hosted_agent_instance_app_id });
-
-          if (adminResponse.type !== "success") {
-            log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse);
-            failed = true
-            throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
-          }
-        } catch (err) {
-          if (err.message.toLowerCase().includes("already in interface"))
-            log.warn("Cannot Activate App: Installed App ID (%s) is already added to hosted interface", hosted_agent_instance_app_id);
-          else {
-            log.error("Failed during 'activateApp': %s", String(err));
-            throw err;
-          }
-        }
-
+        await this.signIn(hha_hash, agent_id);
       } catch (err) {
         failed = true;
         log.error("Failed during DNA processing for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, String(err));
@@ -360,6 +357,22 @@ class Envoy {
       return true;
     }, this.opts.NS);
 
+    // Envoy - New Hosted Agent Sign-up Sequence
+    this.ws_server.register("holo/agent/signin", async ([hha_hash, agent_id]) => {
+      const failure_response = (new HoloError("Failed to sign-in an existing hosted agent")).toJSON();
+
+      log.normal("Received sign in request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);
+      try {
+        const res = await this.signIn(hha_hash, agent_id);
+        log.normal("Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
+        return res;
+      } catch (err) {
+        if (err.toString().includes("Tried to activate an app that was not installed")) {
+          return new HoloError("Failed to sign-in: Agent unknown to this host").toJSON()
+        }
+        return failure_response;
+      }
+    }, this.opts.NS);
 
     // Chaperone AppInfo Call to Envoy Server
     // NOTE: we have decided as a team to charge for app_info calls, but after release and user feedback
@@ -570,6 +583,67 @@ class Envoy {
       return new Package(true, { "type": "success" }, { response_id });
     }, this.opts.NS);
   }
+
+  async signIn(hha_hash, agent_id): Promise<void> {
+    if (agent_id in this.anonymous_agents) {
+      // Nothing to do. Anonymous cell is always active
+      return;
+    }
+
+    const hosted_agent_instance_app_id = `${hha_hash}:${agent_id}`;
+
+    // Activate App - Tell Holochain to begin gossiping and be ready for zome calls on this app.
+    try {
+      log.info("Activating Installed App (%s)", hosted_agent_instance_app_id);
+      const adminResponse = await this.callConductor("admin", 'activateApp', { installed_app_id: hosted_agent_instance_app_id });
+
+      if (adminResponse.type !== "success") {
+        log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse);
+        throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
+      }
+    } catch (err) {
+      if (err.message.includes("Tried to activate an app that was not installed")) {
+        // This error is returned in two cases:
+        // a) The app is not installed -- Return an error to the user saying that they may need to sign up first.
+        // b) The app is already activated -- Our job is done.
+
+        // Check for the second case using appInfo
+        try {
+          const appInfo = await this.callConductor("app", { installed_app_id: hosted_agent_instance_app_id });
+          // Check that the appInfo result was not null (would indicate app not installed)
+          if (appInfo.installed_app_id !== undefined) {
+            log.normal("Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
+            return;
+          }
+        } catch (appInfoErr) {
+          log.error("Failed during 'appInfo': %s", String(appInfoErr));
+          throw (new HoloError(`Failed to complete 'appInfo' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
+        }
+      }
+      log.error("Failed during 'activateApp': %s", String(err));
+      throw err;
+    }
+  }
+
+  async signOut(agent_id: string): Promise<void> {
+    const connections = this.agent_connections[agent_id];
+    delete this.agent_connections[agent_id];
+    connections.forEach(connection => connection.close());
+
+    // Assuming agent is not anonymous, we need to deactivate all their hApps.
+
+    const regex = new RegExp(`:${agent_id}$`);
+
+    const activeApps = await this.callConductor("admin", "listActiveApps");
+    await Promise.all(activeApps.map(async (installed_app_id: string) => {
+      if (regex.test(installed_app_id)) {
+        await this.callConductor("admin", "deactivateApp", { installed_app_id });
+      }
+    }));
+
+    delete this.agent_wormhole_num_timeouts[agent_id];
+  }
+
   // --------------------------------------------------------------------------------------------
   // WORMHOLE Signing function
   // Note: we need to figure out a better way to manage this timeout.
@@ -597,6 +671,17 @@ class Envoy {
     return new Promise((f, r) => {
       let toid = setTimeout(() => {
         log.error("Failed during signing request #%s with timeout (%sms)", payload_id, timeout);
+        // If the same agent times out 3 times, sign them out.
+        // If the same agent times out more than 3 times, then we are already in the process of signing them out.
+        if (this.agent_wormhole_num_timeouts[agent_id] === undefined) {
+          this.agent_wormhole_num_timeouts[agent_id] = 0;
+        }
+        this.agent_wormhole_num_timeouts[agent_id] += 1;
+        if (this.agent_wormhole_num_timeouts[agent_id] === 3) {
+          this.signOut(agent_id).catch(err => {
+            log.error("Failed to sign out Agent (%s) after they disconnected from wormhole: %s", agent_id, String(err));
+          });
+        }
         r("Failed to get signature from Chaperone")
       }, timeout);
 
