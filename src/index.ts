@@ -635,7 +635,7 @@ class Envoy {
     log.normal("Wormhole Signing Requested...");
     const payload_id = this.payload_counter++;
     const agent_id = Codec.AgentId.encode(agent);
-    log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, payload);
+    log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, typeof payload);
     const event = `${agent_id}/wormhole/request`;
     log.silly(`Agent id: ${agent_id}`);
     console.log("Event List: ", this.ws_server.eventList(this.opts.NS));
