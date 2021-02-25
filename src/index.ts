@@ -1,6 +1,5 @@
 import path from 'path';
 import logger from '@whi/stdlog';
-import request from 'request';
 import * as http from 'http';
 import concat_stream from 'concat-stream';
 import SerializeJSON from 'json-stable-stringify';
@@ -270,7 +269,6 @@ class Envoy {
     // ------------------------------------------------------------------------
 
 	// EXPOSED ENVOY EVENTS
-
     // Envoy - New Hosted Agent Sign-up Sequence
     this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id, membrane_proof]) => {
       log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);
@@ -377,7 +375,7 @@ class Envoy {
     }, this.opts.NS);
 
     // Chaperone AppInfo Call to Envoy Server
-    // QUESTION: We are currently not charing for app_info calls - should we be?
+    // NOTE: we have decided as a team to charge for app_info calls, but after release and user feedback
     this.ws_server.register("holo/app_info", async ({ installed_app_id }) => {
       let appInfo
       try {
@@ -403,7 +401,9 @@ class Envoy {
 
     // Chaperone ZomeCall to Envoy Server
     this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
-        log.silly("Received request: %s", payload.call_spec);
+      log.silly("Received request: %s", payload.call_spec);
+      // calcuate the cpuUsage prior to zomeCall to create a baseline
+      const baselineCpu = process.cpuUsage()
 
       // Example of request package
       //
@@ -506,12 +506,16 @@ class Envoy {
 				// - Servicelogger response
 				let host_response;
 
+        // Note: we're caluclating cpu time usage of the current process (zomecall) in microseconds (not seconds)
+        const cpuUsage = process.cpuUsage(baselineCpu)        
+        const cpu = cpuUsage.user + cpuUsage.system
+
         // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits) 
         const response_buffer = Buffer.from(JSON.stringify(zomeCall_response));
         const bandwidth = Buffer.byteLength(response_buffer);
 
 				const host_metrics = {
-					cpu: 1,
+					cpu,
           bandwidth 
 				};
 
@@ -643,7 +647,7 @@ class Envoy {
   // --------------------------------------------------------------------------------------------
   // WORMHOLE Signing function
   // Note: we need to figure out a better way to manage this timeout.
-  // May be based on the paylod_counter and every 10 requests we increase the timeout by 10sec
+  // One idea is to make it based on the payload_counter and every 10 requests we increase the timeout by 10sec
   wormhole(agent: Buffer, payload: string, timeout = WORMHOLE_TIMEOUT) {
     log.normal("Wormhole Signing Requested...");
     const payload_id = this.payload_counter++;
