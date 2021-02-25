@@ -9,7 +9,7 @@ import { HcAdminWebSocket, HcAppWebSocket } from "./websocket-wrappers/holochain
 import { Server as WebSocketServer } from './wss';
 import { init as shimInit } from "../build/shim.js";
 import Websocket from 'ws';
-import msgpack from '@msgpack/msgpack';
+const msgpack = require('@msgpack/msgpack');
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -494,16 +494,16 @@ class Envoy {
 
 
         // Note: we're caluclating cpu time usage of the current process (zomecall) in microseconds (not seconds)
-        const cpuUsage = process.cpuUsage(baselineCpu)        
+        const cpuUsage = process.cpuUsage(baselineCpu)
         const cpu = cpuUsage.user + cpuUsage.system
 
-        // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits) 
+        // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits)
         const response_buffer = Buffer.from(JSON.stringify(zomeCall_response));
         const bandwidth = Buffer.byteLength(response_buffer);
 
 				const host_metrics = {
 					cpu,
-          bandwidth 
+          bandwidth
 				};
 
         const weblog_compat = {
@@ -635,7 +635,7 @@ class Envoy {
   // WORMHOLE Signing function
   // Note: we need to figure out a better way to manage this timeout.
   // One idea is to make it based on the payload_counter and every 10 requests we increase the timeout by 10sec
-  wormhole(agent: Buffer, payload: string, timeout = WORMHOLE_TIMEOUT) {
+  wormhole(agent: Buffer, payload: any, timeout = WORMHOLE_TIMEOUT) {
     log.normal("Wormhole Signing Requested...");
     const payload_id = this.payload_counter++;
     const agent_id = Codec.AgentId.encode(agent);
