@@ -428,29 +428,26 @@ class Envoy {
       // ZomeCall to Conductor App Interface
       let zomeCall_response, holo_error
       try {
-        const zomeCallArgs = (typeof call_spec.args === 'object')
-          ? Object.entries(call_spec.args).map(([k, v]) => {
-            if (!k || !v) return {};
-            return `${k} : ${typeof v}`
-          }).join(", ")
-          : call_spec.args
-        log.debug("Calling zome function %s->%s( %s ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
-          call_spec.zome, call_spec.function, zomeCallArgs, call_spec.cell_id, null, agent_id]);
-
-        // In case of no call args, convert empty obj to null
-        if (Object.keys(call_spec.args).length <= 0) {
-          log.debug('No call_spec.args, converting value to null for zomeCall.');
-          call_spec.args = null
-        };
-
         const hosted_app_cell_id = call_spec["cell_id"];
+        let payload = call_spec["args"]
+        log.silly('Original payload for zomeCall:', payload);
+        if (typeof call_spec["args"] === String) {
+          payload = msgpack.decode(Codec.Digest.decode(call_spec["args"]));
+          if (Object.keys(payload).length <= 0) {
+            log.debug('No call_spec.args, converting value to null for zomeCall.');
+            payload = null
+          };
+          log.debug('Decoded payload for zomeCall:', payload);
+        }
+        log.debug("Calling zome function %s->%s( %s ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
+          call_spec.zome, call_spec.function, payload, call_spec.cell_id, null, agent_id]);
 
         zomeCall_response = await this.callConductor("app", {
           // QUESTION: why we can't just pass directly in the cell_id received back from appInfo call...
           "cell_id": [Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])],
           "zome_name": call_spec["zome"],
           "fn_name": call_spec["function"],
-          "payload": msgpack.decode(Object.values(call_spec["args"])),
+          payload
           "cap": null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
           "provenance": Codec.AgentId.decodeToHoloHash(agent_id),
         });
