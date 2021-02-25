@@ -353,7 +353,7 @@ class Envoy {
         log.normal("Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
         return res;
       } catch (err) {
-        if (err.toString().includes("Tried to activate an app that was not installed")) {
+        if (err.toString().includes("AppNotInstalled")) {
           return new HoloError("Failed to sign-in: Agent unknown to this host").toJSON()
         }
         return failure_response;
@@ -588,7 +588,7 @@ class Envoy {
         throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
       }
     } catch (err) {
-      if (err.message.includes("Tried to activate an app that was not installed")) {
+      if (err.message.includes("AppNotInstalled")) {
         // This error is returned in two cases:
         // a) The app is not installed -- Return an error to the user saying that they may need to sign up first.
         // b) The app is already activated -- Our job is done.
