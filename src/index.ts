@@ -450,7 +450,7 @@ class Envoy {
           "cell_id": [Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])],
           "zome_name": call_spec["zome"],
           "fn_name": call_spec["function"],
-          "payload": call_spec["args"],
+          "payload": msgpack.decode(Object.values(call_spec["args"])),
           "cap": null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
           "provenance": Codec.AgentId.decodeToHoloHash(agent_id),
         });
@@ -492,17 +492,18 @@ class Envoy {
 				// - Servicelogger response
 				let host_response;
 
+
         // Note: we're caluclating cpu time usage of the current process (zomecall) in microseconds (not seconds)
-        const cpuUsage = process.cpuUsage(baselineCpu)        
+        const cpuUsage = process.cpuUsage(baselineCpu)
         const cpu = cpuUsage.user + cpuUsage.system
 
-        // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits) 
+        // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits)
         const response_buffer = Buffer.from(JSON.stringify(zomeCall_response));
         const bandwidth = Buffer.byteLength(response_buffer);
 
 				const host_metrics = {
 					cpu,
-          bandwidth 
+          bandwidth
 				};
 
         const weblog_compat = {
@@ -634,7 +635,7 @@ class Envoy {
   // WORMHOLE Signing function
   // Note: we need to figure out a better way to manage this timeout.
   // One idea is to make it based on the payload_counter and every 10 requests we increase the timeout by 10sec
-  wormhole(agent: Buffer, payload: string, timeout = WORMHOLE_TIMEOUT) {
+  wormhole(agent: Buffer, payload: any, timeout = WORMHOLE_TIMEOUT) {
     log.normal("Wormhole Signing Requested...");
     const payload_id = this.payload_counter++;
     const agent_id = Codec.AgentId.encode(agent);
@@ -752,6 +753,7 @@ class Envoy {
         const payload_log = (typeof call_spec.args === 'object') ? Object.entries(call_spec.payload).map(([k, v]) => `${k} : ${typeof v}`).join(", ") : call_spec.payload;
         log.debug("\nZome Call spec details - called with cap token (%s), provenance (%s), cell_id(%s), and zome fn call: %s->%s( %s )", () => [
           call_spec.cap, call_spec.provenance, call_spec.cell_id, call_spec.zome_name, call_spec.fn_name, payload_log]);
+
         args = call_spec;
       }
     } catch (err) {
