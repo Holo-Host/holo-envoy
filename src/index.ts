@@ -606,6 +606,7 @@ class Envoy {
       log.error("Failed during 'activateApp': %s", String(err));
       throw err;
     }
+    return true
   }
 
   async signOut(agent_id: string): Promise<void> {
