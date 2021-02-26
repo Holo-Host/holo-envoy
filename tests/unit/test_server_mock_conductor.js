@@ -297,10 +297,7 @@ describe("Server with mock Conductor", () => {
     const callAppInfo = () => client.processCOMBRequest("appInfo");
 
     const res1 = await callAppInfo();
-    expect(res1)
-      .to.have.property("type", "success");
-    expect(res1).to.have.property("payload")
-      .which.has.property("cell_data");
+    expect(res1).to.have.property("cell_data");
 
     await appConductor.close();
     await adminConductor.close();
@@ -309,10 +306,8 @@ describe("Server with mock Conductor", () => {
     expect(res2).to.deep.equal({
       type: "error",
       payload: {
-        source: "HoloError",
-        error: "HoloError",
-        message: "Failed during Conductor AppInfo call",
-        stack: []
+        "error": "Error",
+        "message": "Error while calling envoy app_info: {\"type\":\"error\",\"payload\":{\"source\":\"HoloError\",\"error\":\"HoloError\",\"message\":\"Failed during Conductor AppInfo call\",\"stack\":[]}}"
       }
     });
 

@@ -41,7 +41,7 @@
     "rpc-websockets": "^7.4.8"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "*1.1.0",
+    "@holo-host/chaperone": "^1.2.2",
     "@holochain-open-dev/holochain-run-dna": "^0.3.2",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
