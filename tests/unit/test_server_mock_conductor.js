@@ -140,7 +140,7 @@ describe("Server with mock Conductor", () => {
 
 
   it("should sign-up on this Host without membrane_proof", async () => {
-    const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
+    const agentId = AGENT_ID;
     client = await setup.client({
       agent_id: AGENT_ID
     });
@@ -353,7 +353,7 @@ describe("Server with mock Conductor", () => {
   }
 
   it("should reconnect and successfully handle app_info", async () => {
-    const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
+    const agentId = AGENT_ID;
     client = await setup.client({
       agent_id: agentId
     });
