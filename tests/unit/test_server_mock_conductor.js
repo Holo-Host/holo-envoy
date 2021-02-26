@@ -44,8 +44,8 @@ describe("Server with mock Conductor", () => {
   const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
   const DNA_ALIAS = "dna_alias";
   const AGENT_ID = "uhCAkkeIowX20hXW-9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl_xwq";
-  const DNA_HASH = "uhCEkWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
-  const MOCK_CELL_ID = [Codec.AgentId.decode(DNA_HASH), Codec.AgentId.decode(AGENT_ID)];
+  const DNA_HASH = "uhC0kWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
+  const MOCK_CELL_ID = [Codec.HoloHash.decode(DNA_HASH), Codec.AgentId.decode(AGENT_ID)];
   const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
 
   let envoy;
