@@ -73,7 +73,7 @@
   resolved "https://registry.yarnpkg.com/@holo-host/data-translator/-/data-translator-0.1.1.tgz#aefab77086e2a65d88e77f32b1f6a7f18352fdd9"
   integrity sha512-WIg0RDj+VT2yCJPAWJWJdq5e7mfU2Xm3sSc1s6jyT+DlPzKynZ1QeE282DuwuMWeqhNyyW2haGtADTnom5oKuw==
 
-"@holo-host/mock-conductor@0.3.0", "@holo-host/mock-conductor@^0.3.0":
+"@holo-host/mock-conductor@^0.3.0":
   version "0.3.0"
   resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.3.0.tgz#921dc80def329f19537f69528ae2e899dd64996e"
   integrity sha512-ZjeRuLsKNiUvGYpsTC3USiNfT77mrl4PGGZAjAAgUC/z3z1gP00FAK+BanvffSRlHYE4zRtqLnhiGy0gLsVJYQ==
@@ -99,10 +99,21 @@
     tmp "^0.2.1"
     yargs "^16.1.1"
 
-"@holochain/conductor-api@0.0.1-dev.16", "@holochain/conductor-api@^0.0.1-dev.16":
+"@holochain/conductor-api@0.0.1-dev.16":
   version "0.0.1-dev.16"
   resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.1-dev.16.tgz#c9da19859dbab0caec0cdbb6da04b8bf999dc04b"
   integrity sha512-MGBj/vnmnzf5RYZnpCjmj+d+OAScNTzNd4TuNZ1eeHnnX08rLa2UPavXtEkNxS4Vkg8PdRfDXX40Imilbup01A==
+  dependencies:
+    "@msgpack/msgpack" "^2.1.0"
+    "@types/ws" "^7.2.4"
+    isomorphic-ws "^4.0.1"
+    nanoid "^3.1.9"
+    ws "^7.3.0"
+
+"@holochain/conductor-api@^0.0.1-dev.17":
+  version "0.0.1-dev.17"
+  resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.1-dev.17.tgz#ec082b6f5da7d867d3f2c089a5e1ccfac0af0e54"
+  integrity sha512-HuZDN2c8r3JpIHLNoSFv2QeR8d0w8qR0ewNrR4uRR3t9JXBsnMLpW3UiFt++R4tFJNp9GB337HxmK5h7kbxWbA==
   dependencies:
     "@msgpack/msgpack" "^2.1.0"
     "@types/ws" "^7.2.4"
@@ -1684,6 +1695,11 @@ readdirp@~3.5.0:
   integrity sha512-cMhu7c/8rdhkHXWsY+osBhfSy0JikwpHK/5+imo+LpeasTF8ouErHrlYkwT0++njiyuDvc7OFY5T3ukvZ8qmFQ==
   dependencies:
     picomatch "^2.2.1"
+
+reconnecting-websocket@^4.4.0:
+  version "4.4.0"
+  resolved "https://registry.yarnpkg.com/reconnecting-websocket/-/reconnecting-websocket-4.4.0.tgz#3b0e5b96ef119e78a03135865b8bb0af1b948783"
+  integrity sha512-D2E33ceRPga0NvTDhJmphEgJ7FUYF0v4lr1ki0csq06OdlxKfugGzN0dSkxM/NfqCxYELK4KcaTOUOjTV6Dcng==
 
 regenerator-runtime@^0.11.0:
   version "0.11.1"
