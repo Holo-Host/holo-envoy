@@ -379,7 +379,7 @@ class Envoy {
       const response_hash = digest(appInfo);
       const response_id = response_hash;
 
-      log.normal("Completed AppInfo call for installed_app_id (%s) with response_id (%s)", installed_app_id, response_id.substring(0,9));
+      log.normal("Completed AppInfo call for installed_app_id (%s) with response_id (%s)...", installed_app_id, response_id.substring(0,9));
 
       return new Package(appInfo, { "type": "success" }, { response_id });
     }, this.opts.NS);
@@ -514,11 +514,11 @@ class Envoy {
 				// Use response_id to act as waiting ID
 				const response_id = host_response.response_hash;
 
-				log.info("Adding service call ID (%s) to waiting list for client confirmations for agent (%s)", response_id.substring(0,9), agent_id);
+				log.info("Adding service call ID (%s)... to waiting list for client confirmations for agent (%s)", response_id.substring(0,9), agent_id);
 				this.addPendingConfirmation(response_id, request, host_response, agent_id);
 
-				log.normal("Returning host reponse (%s) for request (%s) with signature (%s) as response_id (%s) to chaperone",
-          JSON.stringify(host_response, null, 4), JSON.stringify(request, null, 4), JSON.stringify(service_signature), response_id);
+				log.normal("Returning host reponse (%s) for request (%s) with signature (%s) as response_id (%s)... to chaperone",
+          JSON.stringify(host_response, null, 4), JSON.stringify(request, null, 4), JSON.stringify(service_signature), response_id.substring(0,9));
 
         response_message = new Package({ zomeCall_response }, { "type": "success" }, { response_id, host_response });
       }
@@ -528,7 +528,7 @@ class Envoy {
 
     // Chaperone Call to Envoy Server to confirm service
     this.ws_server.register("holo/service/confirm", async ([response_id, response_signature, confirmation]) => {
-      log.normal("Received confirmation request for call response (%s)", response_id.substring(0,9));
+      log.normal("Received confirmation request for call response (%s)...", response_id.substring(0,9));
       if (typeof response_id !== "string") {
         log.error("Invalid type '%s' for response ID, should be of type 'string'", typeof response_id);
         return false;
@@ -541,7 +541,7 @@ class Envoy {
 
       let service_log;
       try {
-        log.debug("Log service confirmation for Response ID (%s) for agent_id (%s)", response_id.substring(0,9), agent_id);
+        log.debug("Log service confirmation for Response ID (%s)... for agent_id (%s)", response_id.substring(0,9), agent_id);
         service_log = await this.logServiceConfirmation(client_req, host_res, confirmation);
         log.info("Service confirmation log hash: %s", service_log);
       } catch (err) {
@@ -560,7 +560,7 @@ class Envoy {
 
       this.removePendingConfirmation(response_id);
 
-      log.normal("Confirmation for call with response ID (%s) is complete", response_id.substring(0,9));
+      log.normal("Confirmation for call with response ID (%s)... is complete", response_id.substring(0,9));
       // - return success
       // updated to match hhdt success message format
       return new Package(true, { "type": "success" }, { response_id });
@@ -833,7 +833,7 @@ class Envoy {
   // Service Logger Methods
 
   addPendingConfirmation(response_id, client_req, host_res, agent_id) {
-    log.silly("Add response ID (%s) to pending confirmations for Agent (%s) with client request (%s) and host response (%s)", response_id.substring(0,9), agent_id, client_req, host_res);
+    log.silly("Add response ID (%s)... to pending confirmations for Agent (%s) with client request (%s) and host response (%s)", response_id.substring(0,9), agent_id, client_req, host_res);
     this.pending_confirms[response_id] = {
       agent_id,
       client_req,
@@ -842,12 +842,12 @@ class Envoy {
   }
 
   getPendingConfirmation(response_id) {
-    log.info("Get response ID (%s) from pending confirmations", response_id.substring(0,9));
+    log.info("Get response ID (%s)... from pending confirmations", response_id.substring(0,9));
     return this.pending_confirms[response_id];
   }
 
   removePendingConfirmation(response_id) {
-    log.info("Remove response ID (%s) from pending confirmations", response_id.substring(0,9));
+    log.info("Remove response ID (%s)... from pending confirmations", response_id.substring(0,9));
     delete this.pending_confirms[response_id];
   }
 
