@@ -567,10 +567,10 @@ class Envoy {
     }, this.opts.NS);
   }
 
-  async signIn(hha_hash, agent_id): Promise<void> {
+  async signIn(hha_hash, agent_id): Promise<boolean> {
     if (agent_id in this.anonymous_agents) {
       // Nothing to do. Anonymous cell is always active
-      return;
+      return true;
     }
 
     const hosted_agent_instance_app_id = `${hha_hash}:${agent_id}`;
@@ -596,7 +596,7 @@ class Envoy {
           // Check that the appInfo result was not null (would indicate app not installed)
           if (appInfo.installed_app_id !== undefined) {
             log.normal("Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
-            return;
+            return true;
           }
         } catch (appInfoErr) {
           log.error("Failed during 'appInfo': %s", String(appInfoErr));
