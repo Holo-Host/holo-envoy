@@ -177,7 +177,8 @@ describe("Server", () => {
   it.skip("should process signed-in request and respond", async function() {
     this.timeout(60_000);
     try {
-      await client.signIn("someone@example.com", "Passw0rd!");
+      let check = await client.signIn("someone@example.com", "Passw0rd!");
+      expect(check).be.true;
       const agent_id = client.agent_id;
 
       expect(agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");

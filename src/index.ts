@@ -379,7 +379,7 @@ class Envoy {
       const response_hash = digest(appInfo);
       const response_id = response_hash;
 
-      log.normal("Completed AppInfo call for installed_app_id (%s) with response_id (%s)", installed_app_id, response_id);
+      log.normal("Completed AppInfo call for installed_app_id (%s) with response_id (%s)...", installed_app_id, response_id.substring(0,9));
 
       return new Package(appInfo, { "type": "success" }, { response_id });
     }, this.opts.NS);
@@ -428,29 +428,25 @@ class Envoy {
       // ZomeCall to Conductor App Interface
       let zomeCall_response, holo_error
       try {
-        const zomeCallArgs = (typeof call_spec.args === 'object')
-          ? Object.entries(call_spec.args).map(([k, v]) => {
-            if (!k || !v) return {};
-            return `${k} : ${typeof v}`
-          }).join(", ")
-          : call_spec.args
-        log.debug("Calling zome function %s->%s( %s ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
-          call_spec.zome, call_spec.function, zomeCallArgs, call_spec.cell_id, null, agent_id]);
-
-        // In case of no call args, convert empty obj to null
-        if (Object.keys(call_spec.args).length <= 0) {
-          log.debug('No call_spec.args, converting value to null for zomeCall.');
-          call_spec.args = null
-        };
-
         const hosted_app_cell_id = call_spec["cell_id"];
+        let payload = null;
+        if (typeof call_spec["args"] === 'string') {
+          payload = msgpack.decode(Buffer.from(call_spec["args"], 'base64'));
+          if (Object.keys(payload).length <= 0) {
+            log.debug('No call_spec.args, converting value to null for zomeCall.');
+            payload = null
+          };
+          log.debug('Decoded payload for zomeCall:', payload);
+        }
+        log.debug("Calling zome function %s->%s( %s ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
+          call_spec.zome, call_spec.function, payload, call_spec.cell_id, null, agent_id]);
 
         zomeCall_response = await this.callConductor("app", {
           // QUESTION: why we can't just pass directly in the cell_id received back from appInfo call...
           "cell_id": [Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])],
           "zome_name": call_spec["zome"],
           "fn_name": call_spec["function"],
-          "payload": msgpack.decode(Object.values(call_spec["args"])),
+          payload,
           "cap": null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
           "provenance": Codec.AgentId.decodeToHoloHash(agent_id),
         });
@@ -518,11 +514,11 @@ class Envoy {
 				// Use response_id to act as waiting ID
 				const response_id = host_response.response_hash;
 
-				log.info("Adding service call ID (%s) to waiting list for client confirmations for agent (%s)", response_id, agent_id);
+				log.info("Adding service call ID (%s)... to waiting list for client confirmations for agent (%s)", response_id.substring(0,9), agent_id);
 				this.addPendingConfirmation(response_id, request, host_response, agent_id);
 
-				log.normal("Returning host reponse (%s) for request (%s) with signature (%s) as response_id (%s) to chaperone",
-          JSON.stringify(host_response, null, 4), JSON.stringify(request, null, 4), JSON.stringify(service_signature), response_id);
+				log.normal("Returning host reponse (%s) for request (%s) with signature (%s) as response_id (%s)... to chaperone",
+          JSON.stringify(host_response, null, 4), JSON.stringify(request, null, 4), JSON.stringify(service_signature), response_id.substring(0,9));
 
         response_message = new Package({ zomeCall_response }, { "type": "success" }, { response_id, host_response });
       }
@@ -532,7 +528,7 @@ class Envoy {
 
     // Chaperone Call to Envoy Server to confirm service
     this.ws_server.register("holo/service/confirm", async ([response_id, response_signature, confirmation]) => {
-      log.normal("Received confirmation request for call response (%s)", response_id);
+      log.normal("Received confirmation request for call response (%s)...", response_id.substring(0,9));
       if (typeof response_id !== "string") {
         log.error("Invalid type '%s' for response ID, should be of type 'string'", typeof response_id);
         return false;
@@ -545,7 +541,7 @@ class Envoy {
 
       let service_log;
       try {
-        log.debug("Log service confirmation for Response ID (%s) for agent_id (%s)", response_id, agent_id);
+        log.debug("Log service confirmation for Response ID (%s)... for agent_id (%s)", response_id.substring(0,9), agent_id);
         service_log = await this.logServiceConfirmation(client_req, host_res, confirmation);
         log.info("Service confirmation log hash: %s", service_log);
       } catch (err) {
@@ -564,17 +560,17 @@ class Envoy {
 
       this.removePendingConfirmation(response_id);
 
-      log.normal("Confirmation for call with response ID (%s) is complete", response_id);
+      log.normal("Confirmation for call with response ID (%s)... is complete", response_id.substring(0,9));
       // - return success
       // updated to match hhdt success message format
       return new Package(true, { "type": "success" }, { response_id });
     }, this.opts.NS);
   }
 
-  async signIn(hha_hash, agent_id): Promise<void> {
+  async signIn(hha_hash, agent_id): Promise<boolean> {
     if (agent_id in this.anonymous_agents) {
       // Nothing to do. Anonymous cell is always active
-      return;
+      return true;
     }
 
     const hosted_agent_instance_app_id = `${hha_hash}:${agent_id}`;
@@ -600,7 +596,7 @@ class Envoy {
           // Check that the appInfo result was not null (would indicate app not installed)
           if (appInfo.installed_app_id !== undefined) {
             log.normal("Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
-            return;
+            return true;
           }
         } catch (appInfoErr) {
           log.error("Failed during 'appInfo': %s", String(appInfoErr));
@@ -610,6 +606,7 @@ class Envoy {
       log.error("Failed during 'activateApp': %s", String(err));
       throw err;
     }
+    return true
   }
 
   async signOut(agent_id: string): Promise<void> {
@@ -639,7 +636,7 @@ class Envoy {
     log.normal("Wormhole Signing Requested...");
     const payload_id = this.payload_counter++;
     const agent_id = Codec.AgentId.encode(agent);
-    log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, payload);
+    log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, typeof payload);
     const event = `${agent_id}/wormhole/request`;
     log.silly(`Agent id: ${agent_id}`);
     console.log("Event List: ", this.ws_server.eventList(this.opts.NS));
@@ -837,7 +834,7 @@ class Envoy {
   // Service Logger Methods
 
   addPendingConfirmation(response_id, client_req, host_res, agent_id) {
-    log.silly("Add response ID (%s) to pending confirmations for Agent (%s) with client request (%s) and host response (%s)", response_id, agent_id, client_req, host_res);
+    log.silly("Add response ID (%s)... to pending confirmations for Agent (%s) with client request (%s) and host response (%s)", response_id.substring(0,9), agent_id, client_req, host_res);
     this.pending_confirms[response_id] = {
       agent_id,
       client_req,
@@ -846,12 +843,12 @@ class Envoy {
   }
 
   getPendingConfirmation(response_id) {
-    log.info("Get response ID (%s) from pending confirmations", response_id);
+    log.info("Get response ID (%s)... from pending confirmations", response_id.substring(0,9));
     return this.pending_confirms[response_id];
   }
 
   removePendingConfirmation(response_id) {
-    log.info("Remove response ID (%s) from pending confirmations", response_id);
+    log.info("Remove response ID (%s)... from pending confirmations", response_id.substring(0,9));
     delete this.pending_confirms[response_id];
   }
 

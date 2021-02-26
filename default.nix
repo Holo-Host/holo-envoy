@@ -24,7 +24,7 @@ with pkgs;
         mkdir $out
         mv node_modules $out
         cd deps/@holo-host/envoy/
-        mv build websocket-wrappers server.js $out
+        mv build server.js $out
         makeWrapper ${nodejs}/bin/node $out/bin/${name} \
           --add-flags $out/server.js
     '';
