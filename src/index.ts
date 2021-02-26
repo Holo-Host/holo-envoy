@@ -999,7 +999,7 @@ class Envoy {
       // TODO but leave it for now: I am operating under the assumption that each dna_hash can be only in one app (identified by hha_hash)
       // Does this need to change?
       appInfo.cell_data.forEach(cell => {
-        let dna_hash_string = Codec.AgentId.encode(cell[0][0]); // cell[0][0] is binary buffer of dna_hash
+        let dna_hash_string = Codec.HoloHash.encode("dna", cell[0][0]); // cell[0][0] is binary buffer of dna_hash
         this.dna2hha[dna_hash_string] = hha_hash;
       });
     }
@@ -1025,7 +1025,7 @@ class Envoy {
     if (cell_id.length != 2) {
       throw new Error(`Wrong cell id: ${cell_id}`);
     }
-    let dna_hash_string = Codec.AgentId.encode(cell_id[0]); // cell_id[0] is binary buffer of dna_hash
+    let dna_hash_string = Codec.HoloHash.encode("dna", cell_id[0]); // cell_id[0] is binary buffer of dna_hash
     let hha_hash = this.dna2hha[dna_hash_string];
     if (!hha_hash) {
       throw new Error(`Can't find hha_hash for DNA: ${cell_id[0]}`);

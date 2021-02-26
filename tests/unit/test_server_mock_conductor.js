@@ -44,8 +44,8 @@ describe("Server with mock Conductor", () => {
   const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
   const DNA_ALIAS = "dna_alias";
   const AGENT_ID = "uhCAkkeIowX20hXW-9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl_xwq";
-  const DNA_HASH = "uhCEkWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
-  const MOCK_CELL_ID = [Codec.AgentId.decode(DNA_HASH), Codec.AgentId.decode(AGENT_ID)];
+  const DNA_HASH = "uhC0kWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
+  const MOCK_CELL_ID = [Codec.HoloHash.decode(DNA_HASH), Codec.AgentId.decode(AGENT_ID)];
   const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
 
   let envoy;
@@ -245,6 +245,34 @@ describe("Server with mock Conductor", () => {
     // Instance of DNA that is emitting signal
     // has to match DNA registered in envoy's dna2hha during Login and agent's ID
     let cellId = MOCK_CELL_ID;
+
+    client = await setup.client({
+      agent_id: AGENT_ID
+    });
+    client.skip_assign_host = true;
+
+    try {
+      await client.signUp("alice.test.1@holo.host", "Passw0rd!");
+
+      // mock conductor emits signal (has to be the right one)
+      log.debug(`Broadcasting signal via mock conductor`);
+      await appConductor.broadcastAppSignal(cellId, expectedSignalData);
+
+      // wait for signal to propagate all across
+      await delay(1000)
+
+      // client receives this
+      let receivedSignalData = client.signalStore;
+
+      expect(receivedSignalData).to.equal(expectedSignalData);
+    } finally {}
+  });
+
+  it("should forward signal from conductor to client with prefixed DNA hash", async () => {
+    let expectedSignalData = "Hello signal!";
+    // Instance of DNA that is emitting signal
+    // has to match DNA registered in envoy's dna2hha during Login and agent's ID
+    let cellId = [Codec.HoloHash.holoHashFromBuffer("dna", MOCK_CELL_ID[0]), Codec.HoloHash.holoHashFromBuffer("agent", MOCK_CELL_ID[1])]
 
     client = await setup.client({
       agent_id: AGENT_ID
