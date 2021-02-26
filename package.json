@@ -28,7 +28,6 @@
   "dependencies": {
     "@holo-host/cryptolib": "^0.3.0",
     "@holo-host/data-translator": "^0.1.1",
-    "@holo-host/mock-conductor": "^0.3.0",
     "@holochain/conductor-api": "^0.0.1-dev.17",
     "@holochain/lair-client": "^0.1.1",
     "@msgpack/msgpack": "^2.3.0",
@@ -42,6 +41,7 @@
   },
   "devDependencies": {
     "@holo-host/chaperone": "^1.2.2",
+    "@holo-host/mock-conductor": "^0.3.0",
     "@holochain-open-dev/holochain-run-dna": "^0.3.2",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
@@ -51,6 +51,7 @@
     "jsdoc": "^3.6.3",
     "mocha": "^6.2.1",
     "node-fetch": "^2.6.0",
+    "portscanner": "^2.2.0",
     "puppeteer": "^2.1.1",
     "superstruct": "^0.8.3",
     "typescript": "^3.6.4",

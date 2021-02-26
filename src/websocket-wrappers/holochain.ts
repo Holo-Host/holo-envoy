@@ -32,11 +32,11 @@ class HcAdminWebSocket extends AdminWebsocket {
 }
 
 class HcAppWebSocket extends AppWebsocket {
-  constructor(url, ...args) {
+  constructor(url, signalCb, ...args) {
     super(new HolochainWsClient(new ReconnectingWebSocket(url, [], {
       WebSocket: Websocket,
       maxRetries: 300,
-    })), ...args);
+    }), signalCb), ...args);
   };
 
   close(): Promise<void> {
