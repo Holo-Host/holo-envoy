@@ -7,7 +7,7 @@ import { Codec } from '@holo-host/cryptolib';
 import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "./websocket-wrappers/holochain";
 import { Server as WebSocketServer } from './wss';
-import { init as shimInit } from "../build/shim.js";
+import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 const msgpack = require('@msgpack/msgpack');
 
