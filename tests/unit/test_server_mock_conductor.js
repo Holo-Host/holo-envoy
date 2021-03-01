@@ -309,7 +309,7 @@ describe("Server with mock Conductor", () => {
   });
 
   it.skip("should complete wormhole request", async () => {
-    client = await setup.client();
+    client = await setup.client({});
     try {
       conductor.general.once("call", async function(data) {
         const signature = await conductor.wormholeRequest(client.agent_id, "UW1ZVWo1NnJyakFTOHVRQXpkTlFoUHJ3WHhFeUJ4ZkFxdktwZ1g5bnBpOGZOeA==");
@@ -329,7 +329,7 @@ describe("Server with mock Conductor", () => {
   });
 
   it.skip("should fail wormhole request because Agent is anonymous", async () => {
-    client = await setup.client();
+    client = await setup.client({});
     try {
 
       let failed = false;
@@ -372,6 +372,74 @@ describe("Server with mock Conductor", () => {
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
 
+  it("should call deactivate on conductor when client disconnects", async () => {
+    const agent_id = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
+    let activateAppCalled = false;
+    let deactivateAppCalled = false;
+    let onDeactivateApp;
+    const deactivateAppPromise = new Promise((resolve, reject) => onDeactivateApp = resolve);
+
+    adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
+      activateAppCalled = true;
+      return { type: "success" }
+    });
+
+    adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
+      deactivateAppCalled = true;
+      onDeactivateApp();
+      return { type: "success" }
+    });
+
+
+    client = await setup.client({});
+
+    expect(activateAppCalled).to.be.false;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.signIn("alice.test.1@holo.host", "Passw0rd!");
+
+    expect(activateAppCalled).to.be.true;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.close();
+    await deactivateAppPromise;
+    expect(deactivateAppCalled).to.be.true;
+  });
+
+  it("should call deactivate on conductor when client signs out", async () => {
+    const agent_id = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
+    let activateAppCalled = false;
+    let deactivateAppCalled = false;
+    let onDeactivateApp;
+    const deactivateAppPromise = new Promise((resolve, reject) => onDeactivateApp = resolve);
+
+    adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
+      activateAppCalled = true;
+      return { type: "success" }
+    });
+
+    adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
+      deactivateAppCalled = true;
+      onDeactivateApp();
+      return { type: "success" }
+    });
+
+
+    client = await setup.client({});
+
+    expect(activateAppCalled).to.be.false;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.signIn("alice.test.1@holo.host", "Passw0rd!");
+
+    expect(activateAppCalled).to.be.true;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.signOut();
+    await deactivateAppPromise;
+    expect(deactivateAppCalled).to.be.true;
+  });
+  
   function delay(t) {
     return new Promise(function(resolve) {
       setTimeout(function() {
@@ -388,10 +456,7 @@ describe("Server with mock Conductor", () => {
     const callAppInfo = () => client.processCOMBRequest("appInfo");
 
     const res1 = await callAppInfo();
-    expect(res1)
-      .to.have.property("type", "success");
-    expect(res1).to.have.property("payload")
-      .which.has.property("cell_data");
+    expect(res1).to.have.property("cell_data");
 
     await appConductor.close();
     await adminConductor.close();
@@ -400,10 +465,8 @@ describe("Server with mock Conductor", () => {
     expect(res2).to.deep.equal({
       type: "error",
       payload: {
-        source: "HoloError",
-        error: "HoloError",
-        message: "Failed during Conductor AppInfo call",
-        stack: []
+        "error": "Error",
+        "message": "Error while calling envoy app_info: {\"type\":\"error\",\"payload\":{\"source\":\"HoloError\",\"error\":\"HoloError\",\"message\":\"Failed during Conductor AppInfo call\",\"stack\":[]}}"
       }
     });
 
