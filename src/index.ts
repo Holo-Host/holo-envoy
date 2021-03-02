@@ -448,12 +448,14 @@ class Envoy {
       let request;
 
       log.debug("Log service request (%s) from Agent (%s)", service_signature, agent_id);
+      log.debug(">>>>>>>>>>>>>> LOG TEST: ");
       request = await this.logServiceRequest(agent_id, payload, service_signature);
 
-      log.debug("Received response");
+      log.debug(">>>>>>>>>>>>>> SUCCESSFULLY LOGGED REQUEST : ", request);
       // ZomeCall to Conductor App Interface
       let zomeCall_response, holo_error
       try {
+        log.debug(">>>>>>>>>>>>>> going to set payload to null...");
         const hosted_app_cell_id = call_spec["cell_id"];
         let payload = null;
         if (typeof call_spec["args"] === 'string') {
