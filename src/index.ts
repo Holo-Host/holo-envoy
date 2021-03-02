@@ -877,7 +877,7 @@ class Envoy {
     log.normal("Processing service logger request (%s)", signature);
 
     const call_spec = payload.call_spec;
-    const args_hash = digest(call_spec["args"]);
+    const args_hash = call_spec["args"] == null ? "null" : digest(call_spec["args"]);
 
     log.debug("Using argument digest: %s", args_hash);
     const request_payload = {
