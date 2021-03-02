@@ -454,15 +454,8 @@ class Envoy {
       let zomeCall_response, holo_error
       try {
         const hosted_app_cell_id = call_spec["cell_id"];
-        let payload = null;
-        if (typeof call_spec["args"] === 'string') {
-          payload = msgpack.decode(Buffer.from(call_spec["args"], 'base64'));
-          if (Object.keys(payload).length <= 0) {
-            log.debug('No call_spec.args, converting value to null for zomeCall.');
-            payload = null
-          };
-          log.debug('Decoded payload for zomeCall:', payload);
-        }
+        const payload = msgpack.decode(Buffer.from(call_spec["args"], 'base64'));
+        log.debug('Decoded payload for zomeCall:', payload);
         log.debug("Calling zome function %s->%s( %s ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
           call_spec.zome, call_spec.function, payload, call_spec.cell_id, null, agent_id]);
 
