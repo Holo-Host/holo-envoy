@@ -138,7 +138,6 @@ describe("Server", () => {
     this.timeout(300_000);
 
     try {
-      let response;
       const page_url = `${http_url}/html/chaperone.html`
       const page = await create_page(page_url);
       const pageTestUtils = new PageTestUtils(page)
@@ -192,8 +191,8 @@ describe("Server", () => {
         const hhaBuffer = Buffer.from(buf);
         return Codec.HoloHash.encode(type, hhaBuffer);
       });
-      let zomeCallPayload = Buffer.from(msgpack.encode({'value': "This is the returned value"})).toString('base64');
-      response = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash, zomeCallPayload) {
+      let zomeCallPayload = Buffer.from(msgpack.encode({'value': "This is the returnedOne value"})).toString('base64');
+      const {responseOne, responseTwo} = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash, zomeCallPayload) {
         console.log("Registered Happ Hash: %s", registered_happ_hash);
 
         const client = new Chaperone({
@@ -239,7 +238,7 @@ describe("Server", () => {
         try {
           // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
           // Ideally we would have a nick like test or chat or elemental-chat
-          // responseOne =  await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", zomeCallPayload);
+          responseOne =  await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", zomeCallPayload);
           responseTwo =  await client.callZomeFunction(`test.dna.gz`, "test", "returns_obj", null);
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
@@ -271,16 +270,14 @@ describe("Server", () => {
         console.log("BOB Anonymous AFTER: ", client.anonymous);
 
         return {
-          // responseOne,
+          responseOne,
           responseTwo}
       }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH, zomeCallPayload);
 
-      // log.info("Completed evaluation: %s", responseOne);
-      // expect(Object.keys(responseOne)).to.have.members(["value"]);
-      // expect(responseOne.value).to.equal("This is the returnedOne value");
+      log.info("Completed evaluation: %s", responseOne);
+      expect(responseOne).to.have.property("value").which.equals("This is the returnedOne value");
       log.info("Completed evaluation: %s", responseTwo);
-      expect(Object.keys(responseTwo)).to.have.members(["value"]);
-      expect(responseTwo.value).to.equal("This is the returnedTwo value");
+      expect(responseTwo).to.have.property("value").which.equals("This is the returned value");
     } finally {
 
     }

@@ -649,7 +649,7 @@ class Envoy {
   // WORMHOLE Signing function
   // Note: we need to figure out a better way to manage this timeout.
   // One idea is to make it based on the payload_counter and every 10 requests we increase the timeout by 10sec
-  wormhole(agent: Buffer, payload: any, timeout = WORMHOLE_TIMEOUT) {
+  wormhole(agent: Buffer, payload: Buffer, timeout = WORMHOLE_TIMEOUT) {
     log.normal("Wormhole Signing Requested...");
     const payload_id = this.payload_counter++;
     const agent_id = Codec.AgentId.encode(agent);
@@ -689,7 +689,7 @@ class Envoy {
       log.info("Adding signature request #%s to pending signatures", payload_id);
       this.pending_signatures[payload_id] = [payload, f, r, toid];
 
-      this.ws_server.emit(event, [payload_id, payload]);
+      this.ws_server.emit(event, [payload_id, payload.toString("base64")]);
       log.normal("Sent signing request #%s to Agent (%s)", payload_id, agent_id);
     });
   }

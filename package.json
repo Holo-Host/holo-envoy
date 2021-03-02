@@ -40,7 +40,7 @@
     "rpc-websockets": "^7.4.8"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "^1.3.0",
+    "@holo-host/chaperone": "git://github.com/Holo-Host/chaperone.git#b81a1f15eea7e485073dbe13961e23900ecf8cff",
     "@holo-host/mock-conductor": "^0.3.0",
     "@holochain-open-dev/holochain-run-dna": "^0.3.2",
     "@types/node": "^12.11.1",
