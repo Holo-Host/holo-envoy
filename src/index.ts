@@ -413,10 +413,6 @@ class Envoy {
       //
 
       const call_spec = payload.call_spec;
-      const call_spec_args = (typeof call_spec.args === "object") ? Object.keys(call_spec.args).join(", ") : call_spec.args;
-      log.normal("Received zome call request from Agent (%s) with spec: %s::%s->%s( %s )",
-        agent_id, call_spec.cell_id, call_spec.zome, call_spec.function, call_spec_args);
-
       // - Servicelogger request. If the servicelogger.log_{request/response} fail (eg. due
       // to bad signatures, wrong host_id, or whatever), then the request cannot proceed, and
       // we'll immediately return an error w/o a response_id or result.
