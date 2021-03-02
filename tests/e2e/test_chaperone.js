@@ -235,11 +235,12 @@ describe("Server", () => {
           console.log(typeof err.stack, err.stack.toString());
           throw err;
         }
-        let response
+        let responseOne, responseTwo;
         try {
           // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
           // Ideally we would have a nick like test or chat or elemental-chat
-          response =  await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", zomeCallPayload);
+          // responseOne =  await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", zomeCallPayload);
+          responseTwo =  await client.callZomeFunction(`test.dna.gz`, "test", "returns_obj", null);
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
@@ -269,12 +270,17 @@ describe("Server", () => {
         }
         console.log("BOB Anonymous AFTER: ", client.anonymous);
 
-        return response
+        return {
+          // responseOne,
+          responseTwo}
       }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH, zomeCallPayload);
 
-      log.info("Completed evaluation: %s", response);
-      expect(Object.keys(response)).to.have.members(["value"]);
-      expect(response.value).to.equal("This is the returned value");
+      // log.info("Completed evaluation: %s", responseOne);
+      // expect(Object.keys(responseOne)).to.have.members(["value"]);
+      // expect(responseOne.value).to.equal("This is the returnedOne value");
+      log.info("Completed evaluation: %s", responseTwo);
+      expect(Object.keys(responseTwo)).to.have.members(["value"]);
+      expect(responseTwo.value).to.equal("This is the returnedTwo value");
     } finally {
 
     }
