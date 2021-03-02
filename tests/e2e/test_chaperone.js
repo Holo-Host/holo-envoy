@@ -191,7 +191,8 @@ describe("Server", () => {
         const hhaBuffer = Buffer.from(buf);
         return Codec.HoloHash.encode(type, hhaBuffer);
       });
-      let zomeCallPayload = Buffer.from(msgpack.encode({'value': "This is the returned value"})).toString('base64');
+      const zomeCallPayload = Buffer.from(msgpack.encode({'value': "This is the returned value"})).toString('base64');
+      const nullPayload = Buffer.from(msgpack.encode(null)).toString('base64');
       const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash, zomeCallPayload) {
         console.log("Registered Happ Hash: %s", registered_happ_hash);
 
@@ -239,7 +240,7 @@ describe("Server", () => {
           // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
           // Ideally we would have a nick like test or chat or elemental-chat
           responseOne = await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", zomeCallPayload);
-          responseTwo = await client.callZomeFunction(`test.dna.gz`, "test", "returns_obj", Buffer.from(msgpack.encode(null)).toString('base64'));
+          responseTwo = await client.callZomeFunction(`test.dna.gz`, "test", "returns_obj", nullPayload);
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
