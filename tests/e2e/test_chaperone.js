@@ -138,7 +138,6 @@ describe("Server", () => {
     this.timeout(300_000);
 
     try {
-      let response;
       const page_url = `${http_url}/html/chaperone.html`
       const page = await create_page(page_url);
       const pageTestUtils = new PageTestUtils(page)
@@ -192,8 +191,9 @@ describe("Server", () => {
         const hhaBuffer = Buffer.from(buf);
         return Codec.HoloHash.encode(type, hhaBuffer);
       });
-      let zomeCallPayload = Buffer.from(msgpack.encode({'value': "This is the returned value"})).toString('base64');
-      response = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash, zomeCallPayload) {
+      const zomeCallPayload = Buffer.from(msgpack.encode({'value': "This is the returned value"})).toString('base64');
+      const nullPayload = Buffer.from(msgpack.encode(null)).toString('base64');
+      const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash, zomeCallPayload, nullPayload) {
         console.log("Registered Happ Hash: %s", registered_happ_hash);
 
         const client = new Chaperone({
@@ -235,11 +235,12 @@ describe("Server", () => {
           console.log(typeof err.stack, err.stack.toString());
           throw err;
         }
-        let response
+        let responseOne, responseTwo;
         try {
           // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
           // Ideally we would have a nick like test or chat or elemental-chat
-          response =  await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", zomeCallPayload);
+          responseOne = await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", zomeCallPayload);
+          responseTwo = await client.callZomeFunction(`test.dna.gz`, "test", "returns_obj", nullPayload);
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
@@ -269,12 +270,13 @@ describe("Server", () => {
         }
         console.log("BOB Anonymous AFTER: ", client.anonymous);
 
-        return response
-      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH, zomeCallPayload);
+        return { responseOne, responseTwo }
+      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH, zomeCallPayload, nullPayload);
 
-      log.info("Completed evaluation: %s", response);
-      expect(Object.keys(response)).to.have.members(["value"]);
-      expect(response.value).to.equal("This is the returned value");
+      log.info("Completed evaluation: %s", responseOne);
+      log.info("Completed evaluation: %s", responseTwo);
+      expect(responseOne).to.have.property("value").which.equals("This is the returned value");
+      expect(responseTwo).to.have.property("value").which.equals("This is the returned value");
     } finally {
 
     }
