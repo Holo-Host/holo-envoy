@@ -7,7 +7,7 @@ import { Codec } from '@holo-host/cryptolib';
 import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "./websocket-wrappers/holochain";
 import { Server as WebSocketServer } from './wss';
-import { init as shimInit } from "../build/shim.js";
+import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 const msgpack = require('@msgpack/msgpack');
 
@@ -113,6 +113,7 @@ class Envoy {
   agent_wormhole_num_timeouts: Record<string, number> = {};
 
   hcc_clients: { app?: HcAppWebSocket, admin?: HcAdminWebSocket } = {};
+  dna2hha: any = {};
 
   static PRODUCT_MODE: number = 0;
   static DEVELOP_MODE: number = 1;
@@ -135,7 +136,8 @@ class Envoy {
       },
     };
 
-    this.connections();
+    this.connected = this.connections();
+    this.connected.then(() => log.normal("All Conductor clients are in a 'CONNECTED' state"));
     this.startWebsocketServer();
     this.startWormhole();
   }
@@ -144,21 +146,19 @@ class Envoy {
     this.shim = await shimInit(LAIR_SOCKET, WH_SERVER_PORT, this.wormhole.bind(this));
   }
 
-  connections() {
+  async connections() {
     const ifaces = this.conductor_opts.interfaces;
     this.hcc_clients.admin = new HcAdminWebSocket(`ws://localhost:${ifaces.admin_port}`);
-    this.hcc_clients.app = new HcAppWebSocket(`ws://localhost:${ifaces.app_port}`);
+    this.hcc_clients.app = new HcAppWebSocket(`ws://localhost:${ifaces.app_port}`, this.signalHandler.bind(this));
 
     const clients = Object.entries(this.hcc_clients);
-    this.connected = Promise.all(
+    return Promise.all(
       clients.map(async (pair) => {
         const [name, client] = pair;
         await client.opened();
         log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", name, client.client.socket.readyState);
       })
     );
-
-    this.connected.then(() => log.normal("All Conductor clients are in a 'CONNECTED' state"));
   }
 
   // --------------------------------------------------------------------------------------------
@@ -171,7 +171,9 @@ class Envoy {
       "host": "0.0.0.0", // "localhost",
     });
 
-    this.ws_server.on("connection", async (socket: Websocket, request: http.IncomingMessage) => {
+    await this.connected;
+
+    this.ws_server.on("connection", async (socket, request) => {
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
       // client-side if something is not right.
       log.silly("Incoming connection from %s", request.url);
@@ -191,13 +193,36 @@ class Envoy {
       log.normal("%s (%s) connection for HHA ID: %s", anonymous ? "Anonymous" : "Agent", agent_id, hha_hash);
 
       if (anonymous) {
-        log.debug("Adding Agent (%s) to anonymous list with HHA ID %s", agent_id, hha_hash);
+        log.debug(`Adding Agent ${agent_id} to anonymous list with HHA ID ${hha_hash}`);
         this.anonymous_agents[agent_id] = hha_hash;
       } else {
         if (this.agent_connections[agent_id] === undefined) {
           this.agent_connections[agent_id] = [];
         }
         this.agent_connections[agent_id].push(socket);
+      }
+
+      // Signal is a message initiated in conductor which is sent to UI. In case to be able to route signals
+      // to appropriate agents UIs we need to be able to identify connection based on agent_id and hha_hash.
+
+      // make sure dna2hha entry exists for given hha
+      await this.recordHha(hha_hash);
+      let event_id = this.createEventId(agent_id, hha_hash);
+
+      // Create event with unique id so that chaperone can subscribe to it.
+      // Events can be passed only to logged-in users, otherwise there's no way to map
+      // signal -> agent+app combo
+      // On login connection is re-established with new agent.
+      // Don't panic if event already created (might happen on reconnecting)
+      if (anonymous) {
+        log.debug(`Skipping creating signal event - anonymous user`);
+      } else {
+        log.debug(`Creating signal event ${event_id}`);
+        try {
+          this.ws_server.event(event_id, this.opts.NS);
+        } catch(e) {
+          log.debug(`Event ${event_id} already created`);
+        }
       }
 
       socket.on("close", async () => {
@@ -331,8 +356,8 @@ class Envoy {
       }
 
       if (failed === true) {
-				// TODO: Rollback cells that were already created
-				// ^^ check to see if is already being done in RSM.
+        // Should rollback cells that were already created
+        // ^^ check to see if is already being done in RSM.
         log.error("Failed during sign-up process for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, failure_response);
 
         return failure_response;
@@ -951,9 +976,66 @@ class Envoy {
     }
   }
 
+
+  // --------------------------------------------------------------------------------------------
+
+  // Functions handling translation of dna_hash to hha_hash
+
+  async recordHha(hha_hash) {
+    // dna2hha is add-only
+    if (!this.hhaExists(hha_hash)) {
+      log.info("Retrieve the hosted app cell_data using the anonymous installed_app_id: '%s'", hha_hash);
+
+      const appInfo = await this.callConductor("app", { installed_app_id: hha_hash });
+
+      if (!appInfo) {
+        throw new Error(`No app found with installed_app_id: ${hha_hash}`);
+      }
+
+      // TODO but leave it for now: I am operating under the assumption that each dna_hash can be only in one app (identified by hha_hash)
+      // Does this need to change?
+      appInfo.cell_data.forEach(cell => {
+        let dna_hash_string = Codec.HoloHash.encode("dna", cell[0][0]); // cell[0][0] is binary buffer of dna_hash
+        this.dna2hha[dna_hash_string] = hha_hash;
+      });
+    }
+  }
+
+  hhaExists(hha_hash) {
+    return (Object.values(this.dna2hha).includes(hha_hash));
+  }
+
+  async signalHandler(signal) {
+    let cell_id = signal.data.cellId; // const signal: AppSignal = { type: msg.type , data: { cellId: [dna_hash, agent_id], payload: decodedPayload }};
+
+    // translate CellId->eventId
+    let event_id = this.cellId2eventId(cell_id);
+
+    log.debug(`Signal handler is emitting event ${event_id}`);
+    log.debug(`Signal content: ${signal.data.payload}`);
+    this.ws_server.emit(event_id, signal)
+  }
+
+  // takes cell_id in binary (buffer) format
+  cellId2eventId(cell_id) {
+    if (cell_id.length != 2) {
+      throw new Error(`Wrong cell id: ${cell_id}`);
+    }
+    let dna_hash_string = Codec.HoloHash.encode("dna", cell_id[0]); // cell_id[0] is binary buffer of dna_hash
+    let hha_hash = this.dna2hha[dna_hash_string];
+    if (!hha_hash) {
+      throw new Error(`Can't find hha_hash for DNA: ${cell_id[0]}`);
+    }
+    let agent_id_string = Codec.AgentId.encode(cell_id[1]); // cell_id[1] is binary buffer of agent_id
+    return this.createEventId(agent_id_string, hha_hash);
+  }
+
+  createEventId(agent_id, hha_hash) {
+    return `signal:${agent_id}:${hha_hash}`;
+  }
 }
 
-async function httpRequestStream(req): Promise<string> {
+async function httpRequestStream(req): Promise<any> {
   return new Promise((f, r) => {
     req.pipe(concat_stream(async (buffer) => {
       try {

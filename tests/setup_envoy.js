@@ -66,7 +66,9 @@ async function create_client({ mode, port, hha_hash, agent_id, web_user_legend, 
     completeConfig = Object.assign({}, {
       "agent_id": agent_id
     }, rawConfig);
-  };
+  } else {
+    completeConfig = rawConfig;
+  }
 
   const client = new Chaperone(completeConfig);
   await client.ready(timeout);
