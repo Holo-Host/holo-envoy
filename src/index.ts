@@ -450,12 +450,14 @@ class Envoy {
       log.debug("Log service request (%s) from Agent (%s)", service_signature, agent_id);
       request = await this.logServiceRequest(agent_id, payload, service_signature);
 
+      log.debug("Received response");
       // ZomeCall to Conductor App Interface
       let zomeCall_response, holo_error
       try {
         const hosted_app_cell_id = call_spec["cell_id"];
         let payload = null;
         if (typeof call_spec["args"] === 'string') {
+          log.debug("Checked type...");
           payload = msgpack.decode(Buffer.from(call_spec["args"], 'base64'));
           log.debug('Decoded payload for zomeCall:', payload);
         }
