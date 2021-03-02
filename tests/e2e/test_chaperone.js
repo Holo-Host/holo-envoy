@@ -193,7 +193,7 @@ describe("Server", () => {
       });
       const zomeCallPayload = Buffer.from(msgpack.encode({'value': "This is the returned value"})).toString('base64');
       const nullPayload = Buffer.from(msgpack.encode(null)).toString('base64');
-      const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash, zomeCallPayload) {
+      const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash, zomeCallPayload, nullPayload) {
         console.log("Registered Happ Hash: %s", registered_happ_hash);
 
         const client = new Chaperone({
@@ -271,7 +271,7 @@ describe("Server", () => {
         console.log("BOB Anonymous AFTER: ", client.anonymous);
 
         return { responseOne, responseTwo }
-      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH, zomeCallPayload);
+      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH, zomeCallPayload, nullPayload);
 
       log.info("Completed evaluation: %s", responseOne);
       log.info("Completed evaluation: %s", responseTwo);
