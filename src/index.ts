@@ -552,7 +552,7 @@ class Envoy {
     }, this.opts.NS);
 
     // Temporary "state dump" logic for checking Holochain network peer consistency
-    this.ws_server.register("holo/tmp/state_dump", async ({ installed_app_id, cell_nick }) => {
+    this.ws_server.register("holo/tmp/state_dump", async ({ installed_app_id, dna_alias }) => {
       let appInfo
       try {
         log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
@@ -569,7 +569,7 @@ class Envoy {
       let result
       try {
         const cell_data: Array<[Buffer, Buffer]> = appInfo.cell_data;
-        const [cell_id,] = cell_data.find(([_cell_id, installed_cell_nick]) => cell_nick === installed_cell_nick);
+        const [cell_id,] = cell_data.find(([_cell_id, installed_dna_alias]) => dna_alias === installed_dna_alias);
         result = await this.callConductor("admin", "dumpState", { cell_id });
       } catch (err) {
         log.error("Failed during Conductor StateDump call: %s", String(err));
