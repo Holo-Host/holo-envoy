@@ -449,6 +449,7 @@ class Envoy {
 
       log.debug("Log service request (%s) from Agent (%s)", service_signature, agent_id);
       log.debug(">>>>>>>>>>>>>> LOG TEST: ");
+      log.debug("Temp logs LOG TEST: ");
       request = await this.logServiceRequest(agent_id, payload, service_signature);
 
       log.debug(">>>>>>>>>>>>>> SUCCESSFULLY LOGGED REQUEST : ", request);
