@@ -234,8 +234,13 @@ class Envoy {
         } else {
           const idx = this.agent_connections[agent_id].indexOf(socket);
           delete this.agent_connections[agent_id][idx];
-          this.callConductor("admin", "deactivateApp", { installed_app_id: `${hha_hash}:${agent_id}` }).catch(err => {
-            log.error("Failed to sign out Agent (%s): %s", agent_id, String(err));
+          const installed_app_id = `${hha_hash}:${agent_id}`;
+          this.callConductor("admin", "deactivateApp", { installed_app_id }).catch(err => {
+            if (err.toString().includes("AppNotActive")) {
+              log.warn(`Tried to sign out user who has not signed in. installed_app_id: ${installed_app_id}`)
+            } else {
+              log.error("Failed to sign out Agent (%s): %s", agent_id, String(err));
+            }
           });
         }
       });
@@ -633,7 +638,13 @@ class Envoy {
     const activeApps = await this.callConductor("admin", "listActiveApps");
     await Promise.all(activeApps.map(async (installed_app_id: string) => {
       if (regex.test(installed_app_id)) {
-        await this.callConductor("admin", "deactivateApp", { installed_app_id });
+        try {
+          await this.callConductor("admin", "deactivateApp", { installed_app_id });
+        } catch (err) {
+          if (!err.toString().includes("AppNotActive")) {
+            log.error(`Failed to deactivate app ${installed_app_id}: ${err}`);
+          }
+        }
       }
     }));
 
