@@ -6,7 +6,7 @@ yarn.lock: package.json
 node_modules: yarn.lock
 	yarn install
 
-build/index.js:		src/*.ts
+build/index.js:		src/*.ts src/shim.js
 	yarn run build
 docs/index.html:	build/index.js
 	npx jsdoc --verbose -c ./docs/.jsdoc.json --private --destination ./docs build/index.js

@@ -16,7 +16,7 @@ const {
 } = require('@holochain/conductor-api');
 const setup_conductor = require("../setup_conductor.js");
 const { Codec, KeyManager } = require('@holo-host/cryptolib');
-const { init } = require("../../build/shim.js");
+const { init } = require("../../src/shim.js");
 const crypto = require('crypto')
 const WH_SERVER_PORT = path.resolve(__dirname, '../tmp/shim/socket');
 const LAIR_SOCKET = path.resolve(__dirname, '../tmp/keystore/socket');

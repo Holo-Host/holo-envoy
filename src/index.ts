@@ -7,7 +7,7 @@ import { Codec } from '@holo-host/cryptolib';
 import { Package } from '@holo-host/data-translator';
 import { HcAdminWebSocket, HcAppWebSocket } from "./websocket-wrappers/holochain";
 import { Server as WebSocketServer } from './wss';
-import { init as shimInit } from "../build/shim.js";
+import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 const msgpack = require('@msgpack/msgpack');
 
@@ -234,8 +234,13 @@ class Envoy {
         } else {
           const idx = this.agent_connections[agent_id].indexOf(socket);
           delete this.agent_connections[agent_id][idx];
-          this.callConductor("admin", "deactivateApp", { installed_app_id: `${hha_hash}:${agent_id}` }).catch(err => {
-            log.error("Failed to sign out Agent (%s): %s", agent_id, String(err));
+          const installed_app_id = `${hha_hash}:${agent_id}`;
+          this.callConductor("admin", "deactivateApp", { installed_app_id }).catch(err => {
+            if (err.toString().includes("AppNotActive")) {
+              log.warn(`Tried to sign out user who has not signed in. installed_app_id: ${installed_app_id}`)
+            } else {
+              log.error("Failed to sign out Agent (%s): %s", agent_id, String(err));
+            }
           });
         }
       });
@@ -411,36 +416,32 @@ class Envoy {
 
 
     // Chaperone ZomeCall to Envoy Server
-    this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }) => {
+    this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }: {
+      anonymous: boolean
+      agent_id: string
+      payload: {
+        timestamp: string
+        host_id: string
+        call_spec: {
+          hha_hash: string
+          dna_alias: string
+          cell_id: string
+          zome: string
+          function: string
+          // Base 64 + MessagePack encoded
+          args: string
+        }
+      }
+      service_signature: string
+    }) => {
       log.silly("Received request: %s", payload.call_spec);
       // calcuate the cpuUsage prior to zomeCall to create a baseline
       const baselineCpu = process.cpuUsage()
 
-      // Example of request package
-      //
-      //     {
-      //         "anonymous"            : boolean,
-      //         "agent_id"             : string,
-      //         "payload": {
-      //             "timestamp"        : string,
-      //             "host_id"          : string,
-      //             "call_spec": {
-      //                 "hha_hash"     : string,
-      //				         "dna_alias"	  : string,
-      //                 "cell_id"  	  : string,
-      //                 "zome"         : string,
-      //                 "function"     : string,
-      //                 "args"         : array
-      //             }
-      //         }
-      //         "service_signature"    : string,
-      //     }
-      //
-
       const call_spec = payload.call_spec;
-      const call_spec_args = (typeof call_spec.args === "object") ? Object.keys(call_spec.args).join(", ") : call_spec.args;
-      log.normal("Received zome call request from Agent (%s) with spec: %s::%s->%s( %s )",
-        agent_id, call_spec.cell_id, call_spec.zome, call_spec.function, call_spec_args);
+      const decodedArgs = msgpack.decode(Buffer.from(call_spec.args, 'base64'));
+      log.normal("Received zome call request from Agent (%s) with spec: %s::%s->%s( %j )",
+        agent_id, call_spec.cell_id, call_spec.zome, call_spec.function, decodedArgs);
 
       // - Servicelogger request. If the servicelogger.log_{request/response} fail (eg. due
       // to bad signatures, wrong host_id, or whatever), then the request cannot proceed, and
@@ -454,24 +455,15 @@ class Envoy {
       let zomeCall_response, holo_error
       try {
         const hosted_app_cell_id = call_spec["cell_id"];
-        let payload = null;
-        if (typeof call_spec["args"] === 'string') {
-          payload = msgpack.decode(Buffer.from(call_spec["args"], 'base64'));
-          if (Object.keys(payload).length <= 0) {
-            log.debug('No call_spec.args, converting value to null for zomeCall.');
-            payload = null
-          };
-          log.debug('Decoded payload for zomeCall:', payload);
-        }
-        log.debug("Calling zome function %s->%s( %s ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
-          call_spec.zome, call_spec.function, payload, call_spec.cell_id, null, agent_id]);
+        log.debug("Calling zome function %s->%s( %j ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
+          call_spec.zome, call_spec.function, decodedArgs, call_spec.cell_id, null, agent_id]);
 
         zomeCall_response = await this.callConductor("app", {
           // QUESTION: why we can't just pass directly in the cell_id received back from appInfo call...
           "cell_id": [Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])],
           "zome_name": call_spec["zome"],
           "fn_name": call_spec["function"],
-          payload,
+          "payload": decodedArgs,
           "cap": null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
           "provenance": Codec.AgentId.decodeToHoloHash(agent_id),
         });
@@ -673,7 +665,13 @@ class Envoy {
     const activeApps = await this.callConductor("admin", "listActiveApps");
     await Promise.all(activeApps.map(async (installed_app_id: string) => {
       if (regex.test(installed_app_id)) {
-        await this.callConductor("admin", "deactivateApp", { installed_app_id });
+        try {
+          await this.callConductor("admin", "deactivateApp", { installed_app_id });
+        } catch (err) {
+          if (!err.toString().includes("AppNotActive")) {
+            log.error(`Failed to deactivate app ${installed_app_id}: ${err}`);
+          }
+        }
       }
     }));
 
@@ -692,7 +690,6 @@ class Envoy {
     const event = `${agent_id}/wormhole/request`;
     log.silly(`Agent id: ${agent_id}`);
     console.log("Event List: ", this.ws_server.eventList(this.opts.NS));
-    // Note: remove this log is we dont see the need for it because it is using msgpack which will make envoy larger
     log.silly("Payload to be signed: %s", msgpack.decode(payload));
     if (this.ws_server.eventList(this.opts.NS).includes(event) === false) {
       log.warn("Trying to get signature from unknown Agent (%s)", agent_id);
