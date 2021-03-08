@@ -674,9 +674,6 @@ class Envoy {
         return null
       }
     }
-    // if( msgpack.decode(payload).type == "InitZomesComplete") {
-    //   return new Promise((f, r) => r("FAILED...."))
-    // }
     return new Promise((f, r) => {
       let toid = setTimeout(() => {
         log.error("Failed during signing request #%s with timeout (%sms)", payload_id, timeout);
