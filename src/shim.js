@@ -49,7 +49,7 @@ async function init (lair_socket, shim_socket, signing_handler) {
           }
         } catch(e) {
            // TODO: need to pass the write struct for error to lair
-          log.dubug("The wormhole timeouts and we have nothing to send you ... Sorry holochain!!!");
+          log.normal("The wormhole timeouts and we have nothing to send you ... Sorry holochain!!!");
           // conductor_stream.write("Shim Error: Failed to sign")
           continue
         }
