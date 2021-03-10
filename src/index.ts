@@ -748,7 +748,7 @@ class Envoy {
       } else {
         // Reason: we are creating a new connection is to avoid the issues in https://github.com/holochain/holochain-conductor-api/issues/55
         // Not we also do not need to add a signal-handler to this because it would cause users to get double signals since we still have `hcc_clients.app` that receives signals
-        client = new HcAppWebSocket(`ws://localhost:${this.conductor_opts.interfaces.app_port}`);;
+        client = new HcAppWebSocket(`ws://localhost:${this.conductor_opts.interfaces.app_port}`, ()=>{});;
         pleaseCloseClient = true;
       }
     }
