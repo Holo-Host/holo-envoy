@@ -212,4 +212,10 @@ describe("Server", () => {
     } finally {}
   });
 
+  it("should support state dump", async () => {
+    const stateDump = await client.getHolochainStateDump("test.dna.gz");
+    expect(stateDump).to.have.lengthOf(2);
+    expect(stateDump[1]).to.match(/^--- Cell State Dump Summary ---/);
+  })
+
 });

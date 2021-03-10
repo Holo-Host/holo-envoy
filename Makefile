@@ -64,7 +64,9 @@ conductor:
 stop-conductor:
 	yarn run stop-conductor
 
-test-integration:	build DNAs stop-lair lair
+test-integration:	build DNAs
+	make stop-lair
+	make lair
 	yarn run stop-conductor
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
 test-integration-debug:	build DNAs stop-lair lair
