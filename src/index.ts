@@ -746,13 +746,15 @@ class Envoy {
       if (client === "admin") {
         client = this.hcc_clients[client];
       } else {
-        client = new HcAppWebSocket(`ws://localhost:${this.conductor_opts.interfaces.app_port}`, this.signalHandler.bind(this));;
+        // Reason: we are creating a new connection is to avoid the issues in https://github.com/holochain/holochain-conductor-api/issues/55
+        // Not we also do not need to add a signal-handler to this because it would cause users to get double signals since we still have `hcc_clients.app` that receives signals
+        client = new HcAppWebSocket(`ws://localhost:${this.conductor_opts.interfaces.app_port}`);;
         pleaseCloseClient = true;
       }
     }
 
     await Promise.race([client.opened(), delay(1000)]);
-    let ready_state = await client.client.socket.readyState;
+    let ready_state = client.client.socket.readyState;
     if (ready_state !== 1) {
       throw new HoloError("Conductor disconnected");
     }
@@ -783,7 +785,9 @@ class Envoy {
         args = call_spec;
       }
     } catch (err) {
-      if (pleaseCloseClient) await client.close()
+      if (pleaseCloseClient) {
+        await client.close()
+      }
       log.debug("CallConductor preamble threw error: ", err);
       throw new HoloError(`callConductor preamble threw error: ${String(err)}}`, );
     }
