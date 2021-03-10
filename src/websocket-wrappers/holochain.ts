@@ -27,8 +27,19 @@ class HcAdminWebSocket extends AdminWebsocket {
     return this.closed();
   }
 
-  opened = () => new Promise<void>((resolve, reject) => this.client.socket.addEventListener("open", () => resolve()));
-  closed = () => new Promise<void>((resolve, reject) => this.client.socket.addEventListener("close", () => resolve()));
+  opened = () => new Promise<void>((resolve, reject) => {
+    this.client.socket.addEventListener("open", () => resolve());
+    if (this.client.socket.readyState === Websocket.OPEN) {
+      resolve();
+    }
+  });
+
+  closed = () => new Promise<void>((resolve, reject) => {
+    this.client.socket.addEventListener("close", () => resolve());
+    if (this.client.socket.readyState === Websocket.CLOSED || this.client.socket.readyState === Websocket.CONNECTING) {
+      resolve();
+    }
+  });
 }
 
 class HcAppWebSocket extends AppWebsocket {
@@ -44,9 +55,19 @@ class HcAppWebSocket extends AppWebsocket {
     return this.closed();
   }
 
-  opened = () => new Promise<void>((resolve, reject) => this.client.socket.addEventListener("open", () => resolve()));
-  closed = () => new Promise<void>((resolve, reject) => this.client.socket.addEventListener("close", () => resolve()));
-}
+  opened = () => new Promise<void>((resolve, reject) => {
+    this.client.socket.addEventListener("open", () => resolve());
+    if (this.client.socket.readyState === Websocket.OPEN) {
+      resolve();
+    }
+  });
+
+  closed = () => new Promise<void>((resolve, reject) => {
+    this.client.socket.addEventListener("close", () => resolve());
+    if (this.client.socket.readyState === Websocket.CLOSED || this.client.socket.readyState === Websocket.CONNECTING) {
+      resolve();
+    }
+  });}
 
 export {
   HcAdminWebSocket, HcAppWebSocket
