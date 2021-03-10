@@ -29,7 +29,7 @@ build:		node_modules build/index.js
 docs:			node_modules docs/index.html
 DNAs:			dnas/test.dna.gz dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz
 
-MOCHA_OPTS		= --timeout 10000
+MOCHA_OPTS		= --timeout 10000 --exit
 
 test:			build
 	make test-unit;

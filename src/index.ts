@@ -33,7 +33,7 @@ const RPC_CLIENT_OPTS = {
 const CONDUCTOR_TIMEOUT = RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
 const NAMESPACE = "/hosting/";
 const READY_STATES = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
-const WORMHOLE_TIMEOUT = 20_000
+const WORMHOLE_TIMEOUT = 20_000;
 const CALL_CONDUCTOR_TIMEOUT = WORMHOLE_TIMEOUT + 10_000
 
 interface CallSpec {
@@ -768,8 +768,17 @@ class Envoy {
   async callConductor(client, call_spec, args: any = {}, timeout = CALL_CONDUCTOR_TIMEOUT) {
     log.normal("Received request to call Conductor using client '%s' with call spec of type '%s'", client, typeof call_spec);
     let interfaceMethod, methodName, callAgent;
-    if (typeof client === "string")
-      client = this.hcc_clients[client];
+    let pleaseCloseClient = false;
+    if (typeof client === "string") {
+      if (client === "admin") {
+        client = this.hcc_clients[client];
+      } else {
+        // Reason: we are creating a new connection is to avoid the issues in https://github.com/holochain/holochain-conductor-api/issues/55
+        // Not we also do not need to add a signal-handler to this because it would cause users to get double signals since we still have `hcc_clients.app` that receives signals
+        client = new HcAppWebSocket(`ws://localhost:${this.conductor_opts.interfaces.app_port}`, (_)=>{/* do not do anything */});;
+        pleaseCloseClient = true;
+      }
+    }
 
     await Promise.race([client.opened(), delay(1000)]);
     let ready_state = client.client.socket.readyState;
@@ -803,6 +812,9 @@ class Envoy {
         args = call_spec;
       }
     } catch (err) {
+      if (pleaseCloseClient) {
+        await client.close()
+      }
       log.debug("CallConductor preamble threw error: ", err);
       throw new HoloError(`callConductor preamble threw error: ${String(err)}}`, );
     }
@@ -815,7 +827,7 @@ class Envoy {
       } catch (error) {
         console.log("CONDUCTOR CALL ERROR: ");
         console.log(error);
-        throw new Error(`CONDUCTOR CALL ERROR: ${JSON.stringify(error)}`);
+        throw new Error(`CONDUCTOR CALL ERROR: ${error}`);
       }
 
       if (callAgent === "app") {
@@ -854,7 +866,7 @@ class Envoy {
       //     Internal errorInternal JSON-RPC error.
       // -32000 to -32099
       //     Server errorReserved for implementation-defined server-errors.
-
+      if (pleaseCloseClient) await client.close()
       if (err.code === -32000) {
         if (err.data.includes("response from service is not success")) {
           log.error("Failed during Conductor call because of a signing request error: %s", err.data);
@@ -872,7 +884,7 @@ class Envoy {
         throw new HoloError(`Unknown RPC Error: ${JSON.stringify(err)}`);
       }
     }
-
+    if (pleaseCloseClient) await client.close()
     log.normal("Conductor call returned successful '%s' response: %s ", typeof resp, resp);
     return resp;
   }
