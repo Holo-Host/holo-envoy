@@ -780,7 +780,7 @@ class Envoy {
       else {
         // NOTE: call_spec.payload should be null when the zome function accepts no payload
         const payload_log = (typeof call_spec.args === 'object') ? Object.entries(call_spec.payload).map(([k, v]) => `${k} : ${typeof v}`).join(", ") : call_spec.payload;
-        log.debug("\nZome Call spec details - called with cap token (%s), provenance (%s), cell_id(%s), and zome fn call: %s->%s( %s )", () => [
+        log.debug("Zome Call spec details - called with cap token (%s), provenance (%s), cell_id(%s), and zome fn call: %s->%s( %s )", () => [
           call_spec.cap, call_spec.provenance, call_spec.cell_id, call_spec.zome_name, call_spec.fn_name, payload_log]);
 
         args = call_spec;
@@ -933,7 +933,8 @@ class Envoy {
   }
 
   async logServiceConfirmation(client_request, host_response, confirmation) {
-    log.normal("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response);
+    log.info("Processing service logger confirmation");
+    log.silly("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response);
 
     const hha_hash = client_request.request.call_spec.hha_hash;
 
