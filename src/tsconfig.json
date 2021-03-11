@@ -4,7 +4,7 @@
     "esModuleInterop": true,
     "target": "ES6",
     "moduleResolution": "node",
-    "lib": ["ES7", "DOM"],
+    "lib": ["ES7", "ES2015", "DOM"],
     "module": "CommonJS",
   }
 }
