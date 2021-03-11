@@ -441,8 +441,9 @@ class Envoy {
 
       const call_spec = payload.call_spec;
       const decodedArgs = msgpack.decode(Buffer.from(call_spec.args, 'base64'));
-      log.normal("Received zome call request from Agent (%s) with spec: %s::%s->%s( %j )",
-        agent_id, call_spec.cell_id, call_spec.zome, call_spec.function, decodedArgs);
+      log.normal("Received zome call request from Agent (%s) with spec: %s::%s->%s",
+        agent_id, call_spec.cell_id, call_spec.zome, call_spec.function);
+      log.silly("agrs: ( %j )", decodedArgs);
 
       // - Servicelogger request. If the servicelogger.log_{request/response} fail (eg. due
       // to bad signatures, wrong host_id, or whatever), then the request cannot proceed, and
@@ -456,7 +457,7 @@ class Envoy {
       let zomeCall_response, holo_error
       try {
         const hosted_app_cell_id = call_spec["cell_id"];
-        log.debug("Calling zome function %s->%s( %j ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
+        log.silly("Calling zome function %s->%s( %j ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
           call_spec.zome, call_spec.function, decodedArgs, call_spec.cell_id, null, agent_id]);
 
         zomeCall_response = await this.callConductor("app", {
@@ -868,6 +869,7 @@ class Envoy {
   // Service Logger Methods
 
   addPendingConfirmation(response_id, client_req, host_res, agent_id) {
+    log.info("Add response ID (%s)... from pending confirmations", response_id);
     log.silly("Add response ID (%s)... to pending confirmations for Agent (%s) with client request (%s) and host response (%s)", response_id, agent_id, client_req, host_res);
     this.pending_confirms[response_id] = {
       agent_id,
@@ -978,8 +980,8 @@ class Envoy {
 
     if (resp) {
       log.silly('\nFinished Servicelogger confirmation: ', resp);
-
-      log.info("Returning success response for confirmation log (%s): typeof '%s, %s'", confirmation, typeof resp, resp);
+      log.silly("Returning success response for confirmation log (%s): typeof '%s, %s'", confirmation, typeof resp, resp);
+      log.info("Returning success response for confirmation log");
       return resp;
     }
     else {
@@ -1024,7 +1026,7 @@ class Envoy {
     // translate CellId->eventId
     let event_id = this.cellId2eventId(cell_id);
 
-    log.debug(`Signal handler is emitting event ${event_id}`);
+    log.info(`Signal handler is emitting event ${event_id}`);
     log.debug(`Signal content: ${signal.data.payload}`);
     this.ws_server.emit(event_id, signal)
   }
