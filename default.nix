@@ -17,7 +17,7 @@ with pkgs;
     yarnLock = "${src}/yarn.lock";
 
     buildPhase = ''
-      yarn build
+      LOG_LEVEL=debug yarn build
     '';
 
     installPhase = ''
