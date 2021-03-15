@@ -440,7 +440,7 @@ describe("Server with mock Conductor", () => {
     expect(deactivateAppCalled).to.be.true;
   });
 
-it.only('should return a useful error message when a conductor call fails', async () => {
+it('should return a useful error message when a conductor call fails', async () => {
   client = await setup.client({})
 
   const callZomeData = {
