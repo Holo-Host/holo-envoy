@@ -81,6 +81,14 @@
     lodash "^4.17.20"
     ws "^7.4.0"
 
+"@holo-host/mock-conductor@git://github.com/Holo-Host/mock-conductor.git#29cd64a2dbdb20d1377983ea7546f3e1e667361d":
+  version "0.2.0"
+  resolved "git://github.com/Holo-Host/mock-conductor.git#29cd64a2dbdb20d1377983ea7546f3e1e667361d"
+  dependencies:
+    "@msgpack/msgpack" "^2.3.0"
+    lodash "^4.17.20"
+    ws "^7.4.0"
+
 "@holo-host/wasm-key-manager@1.0.0":
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/@holo-host/wasm-key-manager/-/wasm-key-manager-1.0.0.tgz#32e5365ddc4518a01c17d2aba09d11bf3a042429"

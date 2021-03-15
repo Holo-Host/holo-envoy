@@ -439,7 +439,65 @@ describe("Server with mock Conductor", () => {
     await deactivateAppPromise;
     expect(deactivateAppCalled).to.be.true;
   });
-  
+
+it.only('should return a useful error message when a conductor call fails', async () => {
+  client = await setup.client({})
+
+  const callZomeData = {
+    cell_id: MOCK_CELL_ID,
+    zome_name: 'zome',
+    fn_name: 'zome_fn'
+  }
+  const expected_response = {
+    type: 'error',
+    data: {
+      type: 'fake conductor error type',
+      data: 'fake conductor error data'
+    }
+  }
+  appConductor.once(
+    MockConductor.ZOME_CALL_TYPE,
+    callZomeData,
+    expected_response.data,
+    { returnError: true }
+  )
+
+  const servicelogData = {
+    cell_id: MOCK_CELL_ID,
+    zome_name: 'service',
+    fn_name: 'log_activity'
+  }
+  const activity_log_response = 'Activity Log Success Hash'
+  appConductor.once(
+    MockConductor.ZOME_CALL_TYPE,
+    servicelogData,
+    activity_log_response
+  )
+
+  const response = await client.callZomeFunction(
+    'dna_alias',
+    'zome',
+    'zome_fn',
+    {
+      zomeFnArgs: 'String Input'
+    }
+  )
+
+  log.debug('Response: %s', response)
+
+  delete response._metadata
+  expect(response).to.deep.equal({
+    type: 'error',
+    payload: {
+      source: 'HoloError',
+      error: 'HoloError',
+      message:
+        'Error: CONDUCTOR CALL ERROR: {"type":"fake conductor error type","data":"fake conductor error data"}',
+      stack: []
+    }
+  })
+})
+
   function delay(t) {
     return new Promise(function(resolve) {
       setTimeout(function() {
