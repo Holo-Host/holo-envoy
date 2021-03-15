@@ -322,17 +322,18 @@ class Envoy {
           if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
             dnas = this.opts.hosted_app.dnas;
 					} else {
-            const installedDnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0]}));
+            dnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0], membrane_proof }));
 
-            if (membrane_proof) {
-              log.normal("App includes membrane_proof: %s", membrane_proof);
-              dnas = { ...installedDnas, membrane_proof }
-            } else {
-              dnas = installedDnas;
-            }
-
-            log.debug('installedDnas : %s', installedDnas);
 					}
+
+          if (membrane_proof) {
+            log.normal("App includes membrane_proof: %s", membrane_proof);
+            for (const dnaIdx in dnas) {
+              dnas[dnaIdx].membrane_proof = membrane_proof
+            }
+          }
+
+          log.debug('dnas : %j', dnas);
 
           adminResponse = await this.callConductor("admin", 'installApp', {
             installed_app_id: hosted_agent_instance_app_id,

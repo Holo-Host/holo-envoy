@@ -43,7 +43,8 @@ describe("Server with mock Conductor", () => {
   // ** must match the hha_hash pased to the chaperone server (in setup_envoy.js)
   const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
   const DNA_ALIAS = "dna_alias";
-  const AGENT_ID = "uhCAkkeIowX20hXW-9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl_xwq";
+  // alice@test1.holo.host Passw0rd!
+  const AGENT_ID = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
   const DNA_HASH = "uhC0kWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
   const MOCK_CELL_ID = [Codec.HoloHash.decode(DNA_HASH), Codec.AgentId.decode(AGENT_ID)];
   const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
@@ -82,8 +83,30 @@ describe("Server with mock Conductor", () => {
     appConductor.any({ cell_data: MOCK_CELL_DATA })
   });
   afterEach("Close client", async () => {
-    log.info("Closing client...");
-    if (client) await client.close();
+    if (client && client.opened) {
+      if (!client.anonymous) {
+        let onDeactivateApp
+        const appDeactivated = new Promise((resolve, reject) => onDeactivateApp = resolve)
+        const installed_app_id = `${client.hha_hash}:${client.agent_id}`
+        adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id }, onDeactivateApp)
+        log.info("Closing client...");
+        await client.close();
+        await appDeactivated
+      } else {
+        log.info("Closing client...");
+        await client.close();
+      }
+      const unusedAdminResponses = Object.entries(adminConductor.responseQueues).filter(([fn, queue]) => queue.length !== 0)
+      if (unusedAdminResponses.length) {
+        log.warn("Mock admin conductor contains unused responses: %j", unusedAdminResponses)
+      }
+      adminConductor.clearResponses()
+      const unusedAppResponses = Object.entries(appConductor.responseQueues).filter(([fn, queue]) => queue.length !== 0)
+      if (unusedAppResponses.length) {
+        log.warn("Mock app conductor contains unused responses: %j", unusedAppResponses)
+      }
+      appConductor.clearResponses()
+    }
   });
   after("Close mock conductor with envoy", async () => {
     log.info("Stopping Envoy...");
@@ -141,9 +164,7 @@ describe("Server with mock Conductor", () => {
 
   it("should sign-up on this Host without membrane_proof", async () => {
     const agentId = AGENT_ID;
-    client = await setup.client({
-      agent_id: AGENT_ID
-    });
+    client = await setup.client({});
     client.skip_assign_host = true;
 
     try {
@@ -172,14 +193,22 @@ describe("Server with mock Conductor", () => {
       };
       appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_1_details_response);
 
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${agentId}`
+
       const appInfo = {
-        installed_app_id: HOSTED_INSTALLED_APP_ID,
-        agent_key: Buffer.from(AGENT_ID),
-        dnas: envoyOpts.hosted_app.dnas,
+        installed_app_id,
+        agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
+        dnas: envoyOpts.hosted_app.dnas
       }
-      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, { type: "success" });
-      adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, { type: "success" });
-      adminConductor.once(MockConductor.ATTACH_APP_INTERFACE_TYPE, { port: 0 }, { type: "success" });
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
+        type: 'success'
+      })
+      adminConductor.once(
+        MockConductor.ACTIVATE_APP_TYPE,
+        { installed_app_id },
+        { type: 'success' }
+      )
+
 
       await client.signUp("alice.test.1@holo.host", "Passw0rd!");
 
@@ -189,9 +218,7 @@ describe("Server with mock Conductor", () => {
   });
 
   it("should sign-up on this Host with membrane_proof", async () => {
-    client = await setup.client({
-      agent_id: AGENT_ID
-    });
+    client = await setup.client({});
     client.skip_assign_host = true;
 
     try {
@@ -220,20 +247,33 @@ describe("Server with mock Conductor", () => {
       };
       appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_2_details_response);
 
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
+
       const appInfo = {
-        installed_app_id: HOSTED_INSTALLED_APP_ID,
-
-        agent_key: Buffer.from(AGENT_ID),
-        dnas: {
-          ...envoyOpts.hosted_app.dnas,
-          membrane_proof: 'the unique joining code'
-        }
+        installed_app_id,
+        agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
+        dnas: [
+          {
+            ...envoyOpts.hosted_app.dnas[0],
+            membrane_proof: 'the unique joining code'
+          }
+        ]
       }
-      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, { type: "success" });
-      adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, { type: "success" });
-      adminConductor.once(MockConductor.ATTACH_APP_INTERFACE_TYPE, { port: 0 }, { type: "success" });
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
+        type: 'success'
+      })
+      adminConductor.once(
+        MockConductor.ACTIVATE_APP_TYPE,
+        { installed_app_id },
+        { type: 'success' }
+      )
 
-      await client.signUp("alice.test.1@holo.host", "Passw0rd!");
+      await client.signUp(
+        'alice.test.1@holo.host',
+        'Passw0rd!',
+        'the unique joining code'
+      )
+
 
       expect(client.anonymous).to.be.false;
       expect(client.agent_id).to.equal(AGENT_ID);
@@ -246,12 +286,26 @@ describe("Server with mock Conductor", () => {
     // has to match DNA registered in envoy's dna2hha during Login and agent's ID
     let cellId = MOCK_CELL_ID;
 
-    client = await setup.client({
-      agent_id: AGENT_ID
-    });
+    client = await setup.client({});
     client.skip_assign_host = true;
 
     try {
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
+
+      const appInfo = {
+        installed_app_id,
+        agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
+        dnas: envoyOpts.hosted_app.dnas
+      }
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
+        type: 'success'
+      })
+      adminConductor.once(
+        MockConductor.ACTIVATE_APP_TYPE,
+        { installed_app_id },
+        { type: 'success' }
+      )
+
       await client.signUp("alice.test.1@holo.host", "Passw0rd!");
 
       // mock conductor emits signal (has to be the right one)
@@ -274,12 +328,26 @@ describe("Server with mock Conductor", () => {
     // has to match DNA registered in envoy's dna2hha during Login and agent's ID
     let cellId = [Codec.HoloHash.holoHashFromBuffer("dna", MOCK_CELL_ID[0]), Codec.HoloHash.holoHashFromBuffer("agent", MOCK_CELL_ID[1])]
 
-    client = await setup.client({
-      agent_id: AGENT_ID
-    });
+    client = await setup.client({});
     client.skip_assign_host = true;
 
     try {
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
+
+      const appInfo = {
+        installed_app_id,
+        agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
+        dnas: envoyOpts.hosted_app.dnas
+      }
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
+        type: 'success'
+      })
+      adminConductor.once(
+        MockConductor.ACTIVATE_APP_TYPE,
+        { installed_app_id },
+        { type: 'success' }
+      )
+
       await client.signUp("alice.test.1@holo.host", "Passw0rd!");
 
       // mock conductor emits signal (has to be the right one)
@@ -407,18 +475,17 @@ describe("Server with mock Conductor", () => {
   });
 
   it("should call deactivate on conductor when client signs out", async () => {
-    const agent_id = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
     let activateAppCalled = false;
     let deactivateAppCalled = false;
     let onDeactivateApp;
     const deactivateAppPromise = new Promise((resolve, reject) => onDeactivateApp = resolve);
 
-    adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
+    adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, () => {
       activateAppCalled = true;
       return { type: "success" }
     });
 
-    adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
+    adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, () => {
       deactivateAppCalled = true;
       onDeactivateApp();
       return { type: "success" }
