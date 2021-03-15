@@ -827,7 +827,7 @@ class Envoy {
       } catch (error) {
         console.log("CONDUCTOR CALL ERROR: ");
         console.log(error);
-        throw new Error(`CONDUCTOR CALL ERROR: ${error}`);
+        throw new Error(`CONDUCTOR CALL ERROR: ${JSON.stringify(error.data)}`);
       }
 
       if (callAgent === "app") {
