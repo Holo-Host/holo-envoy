@@ -481,13 +481,13 @@ class Envoy {
         fn_name: call_spec.function,
         payload: decodedArgs,
         cap: null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
-        provenance: Buffer.from(call_spec.cell_id[0]),
+        provenance: Buffer.from(call_spec.cell_id[1]),
       }
 
       const prettyZomeCallArgs = {
         ...zomeCallArgs,
         cell_id: [Codec.HoloHash.encode("dna", zomeCallArgs.cell_id[0]), Codec.AgentId.encode(zomeCallArgs.cell_id[1])],
-        provenance: Codec.AgentId.encode(zomeCallArgs.cell_id[1]),
+        provenance: Codec.AgentId.encode(zomeCallArgs.provenance),
       }
       let zomeCallResponse, holo_error
 
