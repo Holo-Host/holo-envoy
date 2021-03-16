@@ -37,11 +37,11 @@
     "json-stable-stringify": "^1.0.1",
     "reconnecting-websocket": "^4.4.0",
     "request": "^2.88.2",
-    "rpc-websockets": "^7.4.8",
+    "rpc-websockets": "^4.6.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "git://github.com/Holo-Host/chaperone.git#620c84181efff68ea30eec8e2c3fdd94692c3921",
+    "@holo-host/chaperone": "^3.0.0",
     "@holo-host/mock-conductor": "^0.3.0",
     "@holochain-open-dev/holochain-run-dna": "^0.3.2",
     "@types/node": "^12.11.1",
