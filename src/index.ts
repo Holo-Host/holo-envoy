@@ -397,16 +397,35 @@ class Envoy {
     // NOTE: we have decided as a team to charge for app_info calls, but after release and user feedback
     this.ws_server.register("holo/app_info", async ({ installed_app_id }) => {
       let appInfo
-      try {
-        log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
-        appInfo = await this.callConductor("app", { installed_app_id });
-        if (!appInfo) {
-          log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo);
-          throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
+
+      let retryCall = true
+      let triedCallingActivateApp = false
+
+      while (retryCall) {
+        retryCall = false
+        
+        try {
+          log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
+          appInfo = await this.callConductor("app", { installed_app_id });
+          if (!appInfo) {
+            log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo);
+            throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
+          }
+        } catch (err) {
+          if (!triedCallingActivateApp && (String(err).includes("CellMissing") || String(err).includes("AppNotActive"))) {
+            triedCallingActivateApp = true
+            log.debug("AppInfo call failed with CellMissing (%s); trying to activate the app", err)
+            try {
+              await this.callConductor("admin", "activateApp", { installed_app_id })
+              retryCall = true
+              continue
+            } catch (errActivatingApp) {
+              log.info("Failed to activate app: %s", errActivatingApp)
+            }
+          }
+          log.error("Failed during Conductor AppInfo call: %s", String(err));
+          return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
         }
-      } catch (err) {
-        log.error("Failed during Conductor AppInfo call: %s", String(err));
-        return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
       }
 
       const response_id = uuid();
@@ -455,45 +474,65 @@ class Envoy {
       request = await this.logServiceRequest(agent_id, payload, service_signature);
 
       // ZomeCall to Conductor App Interface
-      let zomeCall_response, holo_error
-      try {
-        const hosted_app_cell_id = call_spec["cell_id"];
-        log.silly("Calling zome function %s->%s( %j ) on cell_id (%s), cap token (%s), and provenance (%s):", () => [
-          call_spec.zome, call_spec.function, decodedArgs, call_spec.cell_id, null, agent_id]);
 
-        zomeCall_response = await this.callConductor("app", {
-          // QUESTION: why we can't just pass directly in the cell_id received back from appInfo call...
-          "cell_id": [Buffer.from(hosted_app_cell_id[0]), Buffer.from(hosted_app_cell_id[1])],
-          "zome_name": call_spec["zome"],
-          "fn_name": call_spec["function"],
-          "payload": decodedArgs,
-          "cap": null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
-          "provenance": Buffer.from(hosted_app_cell_id[1]),
-        });
-      } catch (err) {
-        log.error("Failed during Conductor call: %s", String(err));
-        zomeCall_response = {};
+      const zomeCallArgs = {
+        cell_id: [Buffer.from(call_spec.cell_id[0]), Buffer.from(call_spec.cell_id[1])],
+        zome_name: call_spec.zome,
+        fn_name: call_spec.function,
+        payload: decodedArgs,
+        cap: null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
+        provenance: Buffer.from(call_spec.cell_id[1]),
+      }
 
-        if (err.message.includes("Failed to get signatures from Client")) {
-          let new_message = anonymous === true
-            ? "Agent is not signed-in"
-            : "We were unable to contact Chaperone for the Agent signing service.  Please check ...";
+      const prettyZomeCallArgs = {
+        ...zomeCallArgs,
+        cell_id: [Codec.HoloHash.encode("dna", zomeCallArgs.cell_id[0]), Codec.AgentId.encode(zomeCallArgs.cell_id[1])],
+        provenance: Codec.AgentId.encode(zomeCallArgs.provenance),
+      }
+      let zomeCallResponse, holo_error
 
-          log.warn("Setting error response to wormhole error message: %s", new_message);
-          holo_error = (new HoloError(new_message)).toJSON();
+      let retryCall = true
+      let triedCallingActivateApp = false
+      while (retryCall) {
+        retryCall = false
+        try {
+          log.silly("Calling zome function with parameters: %s", prettyZomeCallArgs);
+          zomeCallResponse = await this.callConductor("app", zomeCallArgs);
+        } catch (err) {
+          log.error("Failed during Conductor call: %s", String(err));
+          zomeCallResponse = {};
+  
+          if (err.message.includes("Failed to get signatures from Client")) {
+            let new_message = anonymous === true
+              ? "Agent is not signed-in"
+              : "We were unable to contact Chaperone for the Agent signing service.  Please check ...";
+  
+            log.warn("Setting error response to wormhole error message: %s", new_message);
+            holo_error = (new HoloError(new_message)).toJSON();
+          } else if (!triedCallingActivateApp && (String(err).includes("CellMissing") || String(err).includes("AppNotActive"))) {
+            const installed_app_id = `${call_spec.hha_hash}:${agent_id}`
+            triedCallingActivateApp = true
+            log.debug("Zome call failed with CellMissing (%s); trying to activate the app", err)
+            try {
+              await this.callConductor("admin", "activateApp", { installed_app_id })
+              retryCall = true
+              continue
+            } catch (errActivatingApp) {
+              log.info("Failed to activate app: %s", errActivatingApp)
+            }
+          } else if (err instanceof HoloError) {
+            log.warn("Setting error response to raised HoloError: %s", String(err));
+            holo_error = err.toJSON();
+          } else {
+            log.fatal("Conductor call threw unknown error: %s", String(err));
+            console.error(err);
+            holo_error = {
+              "source": 'HoloError',
+              "message": err.message,
+            };
+          }
         }
-        else if (err instanceof HoloError) {
-          log.warn("Setting error response to raised HoloError: %s", String(err));
-          holo_error = err.toJSON();
-        }
-        else {
-          log.fatal("Conductor call threw unknown error: %s", String(err));
-          console.error(err);
-          holo_error = {
-            "source": 'HoloError',
-            "message": err.message,
-          };
-        }
+
       }
 
       // - return host response
@@ -513,7 +552,7 @@ class Envoy {
         const cpu = cpuUsage.user + cpuUsage.system
 
         // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits)
-        const response_buffer = Buffer.from(JSON.stringify(zomeCall_response));
+        const response_buffer = Buffer.from(JSON.stringify(zomeCallResponse));
         const bandwidth = Buffer.byteLength(response_buffer);
 
 				const host_metrics = {
@@ -527,7 +566,7 @@ class Envoy {
 				}
 
 				log.debug("Form service response for signed request (%s): %s", service_signature, JSON.stringify(request, null, 4));
-				host_response = this.logServiceResponse(zomeCall_response, host_metrics, weblog_compat);
+				host_response = this.logServiceResponse(zomeCallResponse, host_metrics, weblog_compat);
 				log.silly("Service response by Host: %s", JSON.stringify(host_response, null, 4));
 
 				// Use response_id to act as waiting ID
@@ -539,7 +578,7 @@ class Envoy {
 				log.normal("Returning host reponse (%s) for request (%s) with signature (%s) as response_id (%s)... to chaperone",
           JSON.stringify(host_response, null, 4), JSON.stringify(request, null, 4), JSON.stringify(service_signature), response_id);
 
-        response_message = new Package({ zomeCall_response }, { "type": "success" }, { response_id, host_response });
+        response_message = new Package({ zomeCall_response: zomeCallResponse }, { "type": "success" }, { response_id, host_response });
       }
 
       return response_message;
