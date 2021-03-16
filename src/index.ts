@@ -485,9 +485,9 @@ class Envoy {
       }
 
       const prettyZomeCallArgs = {
-        cell_id: zomeCallArgs.cell_id.map((buf) => "u" + buf.toString('base64')),
-        provenance: "u" + zomeCallArgs.provenance.toString('base64'),
-        ...zomeCallArgs
+        ...zomeCallArgs,
+        cell_id: [Codec.HoloHash.encode("dna", zomeCallArgs.cell_id[0]), Codec.AgentId.encode(zomeCallArgs.cell_id[1])],
+        provenance: Codec.AgentId.encode(zomeCallArgs.cell_id[1]),
       }
       let zomeCallResponse, holo_error
 
@@ -496,7 +496,7 @@ class Envoy {
       while (retryCall) {
         retryCall = false
         try {
-          log.silly("Calling zome function with parameters: %", prettyZomeCallArgs);
+          log.silly("Calling zome function with parameters: %s", prettyZomeCallArgs);
           zomeCallResponse = await this.callConductor("app", zomeCallArgs);
         } catch (err) {
           log.error("Failed during Conductor call: %s", String(err));
