@@ -485,8 +485,8 @@ class Envoy {
       }
 
       const prettyZomeCallArgs = {
-        cell_id: zomeCallArgs.cell_id.map((buf) => Codec.HoloHash.encode(buf)),
-        provenance: Codec.HoloHash.encode(zomeCallArgs.provenance),
+        cell_id: zomeCallArgs.cell_id.map((buf) => "u" + buf.toString('base64')),
+        provenance: "u" + zomeCallArgs.provenance.toString('base64'),
         ...zomeCallArgs
       }
       let zomeCallResponse, holo_error
