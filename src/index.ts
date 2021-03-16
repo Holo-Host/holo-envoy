@@ -476,7 +476,7 @@ class Envoy {
           "fn_name": call_spec["function"],
           "payload": decodedArgs,
           "cap": null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
-          "provenance": Codec.AgentId.decodeToHoloHash(agent_id),
+          "provenance": Buffer.from(hosted_app_cell_id[1]),
         });
       } catch (err) {
         log.error("Failed during Conductor call: %s", String(err));
