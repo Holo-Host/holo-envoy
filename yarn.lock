@@ -81,6 +81,15 @@
     lodash "^4.17.20"
     ws "^7.4.0"
 
+"@holo-host/mock-conductor@^0.3.1":
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.3.1.tgz#8e6397cc2f3eabdd7db869d532b1a3e0ed6d4d31"
+  integrity sha512-IaKKYyYAdPaFLOUINa+aU5CltYgZ7VfvwRmJbXBhPL0rHK6FF9P1y9SggGwTPDEUWZMI1w4RmnEG3wP+FCF6gQ==
+  dependencies:
+    "@msgpack/msgpack" "^2.3.0"
+    lodash "^4.17.20"
+    ws "^7.4.0"
+
 "@holo-host/wasm-key-manager@1.0.0":
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/@holo-host/wasm-key-manager/-/wasm-key-manager-1.0.0.tgz#32e5365ddc4518a01c17d2aba09d11bf3a042429"
