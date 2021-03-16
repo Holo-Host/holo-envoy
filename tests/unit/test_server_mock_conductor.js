@@ -522,6 +522,67 @@ describe("Server with mock Conductor", () => {
     expect(deactivateAppCalled).to.be.true;
   });
 
+  it('should retry service logger confirm if it fails with head moved', async () => {
+    client = await setup.client({})
+
+    const callZomeData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'zome',
+      fn_name: 'zome_fn'
+    }
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      callZomeData,
+      "success",
+    )
+
+    const servicelogData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'service',
+      fn_name: 'log_activity'
+    }
+
+    let tries = 0
+
+    // Simulate three head moved failures
+    for (let i = 0; i < 3; i++) {
+      appConductor.once(
+        MockConductor.ZOME_CALL_TYPE,
+        servicelogData,
+        () => {
+          tries += 1
+          return "source chain head has moved"
+        },
+        { returnError: true }
+      )
+    }
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      servicelogData,
+      () => {
+        tries += 1
+        return "service logger sucess"
+      },
+    )
+
+    expect(tries).to.equal(0)
+
+    const response = await client.callZomeFunction(
+      'dna_alias',
+      'zome',
+      'zome_fn',
+      {
+        zomeFnArgs: 'String Input'
+      }
+    )
+
+    expect(tries).to.equal(4)
+
+    log.debug('Response: %s', response)
+
+    expect(response).to.equal("success")
+  })
+
   it('should return a useful error message when a conductor call fails', async () => {
     client = await setup.client({})
 
