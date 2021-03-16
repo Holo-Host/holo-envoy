@@ -41,7 +41,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "git://github.com/Holo-Host/chaperone.git#620c84181efff68ea30eec8e2c3fdd94692c3921",
+    "@holo-host/chaperone": "git://github.com/Holo-Host/chaperone.git#1784abb6087ee3908293243cd76629f9048b5246",
     "@holo-host/mock-conductor": "^0.3.1",
     "@holochain-open-dev/holochain-run-dna": "^0.3.2",
     "@types/node": "^12.11.1",
