@@ -72,18 +72,19 @@
   resolved "https://registry.yarnpkg.com/@holo-host/data-translator/-/data-translator-0.1.1.tgz#aefab77086e2a65d88e77f32b1f6a7f18352fdd9"
   integrity sha512-WIg0RDj+VT2yCJPAWJWJdq5e7mfU2Xm3sSc1s6jyT+DlPzKynZ1QeE282DuwuMWeqhNyyW2haGtADTnom5oKuw==
 
-"@holo-host/mock-conductor@^0.3.0":
-  version "0.3.0"
-  resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.3.0.tgz#921dc80def329f19537f69528ae2e899dd64996e"
-  integrity sha512-ZjeRuLsKNiUvGYpsTC3USiNfT77mrl4PGGZAjAAgUC/z3z1gP00FAK+BanvffSRlHYE4zRtqLnhiGy0gLsVJYQ==
+"@holo-host/mock-conductor@^0.2.1":
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.2.1.tgz#bd9b98e01ea9afac907aa47d04bd9e2374871881"
+  integrity sha512-XRsIkSQ1nTIfeIN5FvjuEGa7wrDKsHFausfupN3vH+MmEYMkng7v0E0QJN1REPfq59XTlMThgSb0HuiH68rnew==
   dependencies:
     "@msgpack/msgpack" "^2.3.0"
     lodash "^4.17.20"
     ws "^7.4.0"
 
-"@holo-host/mock-conductor@git://github.com/Holo-Host/mock-conductor.git#29cd64a2dbdb20d1377983ea7546f3e1e667361d":
-  version "0.2.0"
-  resolved "git://github.com/Holo-Host/mock-conductor.git#29cd64a2dbdb20d1377983ea7546f3e1e667361d"
+"@holo-host/mock-conductor@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.3.0.tgz#921dc80def329f19537f69528ae2e899dd64996e"
+  integrity sha512-ZjeRuLsKNiUvGYpsTC3USiNfT77mrl4PGGZAjAAgUC/z3z1gP00FAK+BanvffSRlHYE4zRtqLnhiGy0gLsVJYQ==
   dependencies:
     "@msgpack/msgpack" "^2.3.0"
     lodash "^4.17.20"
