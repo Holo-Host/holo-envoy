@@ -440,6 +440,21 @@ describe("Server with mock Conductor", () => {
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
 
+  it("should call ActivateApp and retry if a zome call returns CellMissing", async () => {
+    const agent_id = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
+    let activateAppCalled = false
+    adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
+      activateAppCalled = true;
+    });
+    adminConductor.once(MockConductor.ZOME_CALL_TYPE, {}, { type: "internal", data: "CellMissing(...)" }, { returnError: true })
+    adminConductor.once(MockConductor.ZOME_CALL_TYPE, {}, "success")
+    client = await setup.client({})
+    expect(activateAppCalled).to.be.false
+    const result = await client.callZomeFunction("dna_alias", "zome", "zome_fn", "zome args")
+    expect(result).to.equal("success")
+    expect(activateAppCalled).to.be.true
+  })
+
   it("should call deactivate on conductor when client disconnects", async () => {
     const agent_id = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
     let activateAppCalled = false;
