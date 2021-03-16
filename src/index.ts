@@ -178,11 +178,12 @@ class Envoy {
     this.ws_server.on("connection", async (socket, request) => {
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
       // client-side if something is not right.
-      log.silly("Incoming connection from %s", request.url);
+      log.info("Incoming connection from %s", request.url);
       const url = new URL(request.url, "http://localhost");
 
       socket.on("message", (data) => {
         try {
+          log.info("Incoming websocket message");
           log.silly("Incoming websocket message: %s", data);
         } catch (err) {
           console.error(err);
@@ -219,6 +220,14 @@ class Envoy {
       if (anonymous) {
         log.debug(`Skipping creating signal event - anonymous user`);
       } else {
+
+        try {
+          await this.signIn(hha_hash, agent_id);
+          log.normal("On Connection Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
+        } catch (err) {
+          log.normal("On Connection Incompleted sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
+        }
+
         log.debug(`Creating signal event ${event_id}`);
         try {
           this.ws_server.event(event_id, this.opts.NS);
@@ -711,7 +720,7 @@ class Envoy {
           this.agent_wormhole_num_timeouts[agent_id] = 0;
         }
         this.agent_wormhole_num_timeouts[agent_id] += 1;
-        if (this.agent_wormhole_num_timeouts[agent_id] === 3) {
+        if (this.agent_wormhole_num_timeouts[agent_id] === 5) {
           this.signOut(agent_id).catch(err => {
             log.error("Failed to sign out Agent (%s) after they disconnected from wormhole: %s", agent_id, String(err));
           });
@@ -723,6 +732,7 @@ class Envoy {
       this.pending_signatures[payload_id] = [payload, f, r, toid];
 
       this.ws_server.emit(event, [payload_id, payload]);
+      this.agent_wormhole_num_timeouts[agent_id] = undefined
       log.normal("Sent signing request #%s to Agent (%s)", payload_id, agent_id);
     });
   }
