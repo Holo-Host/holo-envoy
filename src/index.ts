@@ -495,6 +495,11 @@ class Envoy {
       let triedCallingActivateApp = false
       while (retryCall) {
         retryCall = false
+        // HACK: holochain-conductor-api mutates the payload argument; save and restore it.
+        //
+        // Once we update to a release that has #57 merged, we can remove this hack.
+        // #57: https://github.com/holochain/holochain-conductor-api/pull/57
+        const payload = zomeCallArgs.payload
         try {
           log.silly("Calling zome function with parameters: %s", prettyZomeCallArgs);
           zomeCallResponse = await this.callConductor("app", zomeCallArgs);
@@ -516,7 +521,6 @@ class Envoy {
             try {
               await this.callConductor("admin", "activateApp", { installed_app_id })
               retryCall = true
-              continue
             } catch (errActivatingApp) {
               log.info("Failed to activate app: %s", errActivatingApp)
             }
@@ -533,6 +537,7 @@ class Envoy {
           }
         }
 
+        zomeCallArgs.payload = payload
       }
 
       // - return host response

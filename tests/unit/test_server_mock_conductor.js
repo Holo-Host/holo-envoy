@@ -7,6 +7,7 @@ const expect = require('chai').expect;
 const fetch = require('node-fetch');
 const why = require('why-is-node-running');
 const portscanner = require('portscanner');
+const msgpack = require('@msgpack/msgpack');
 
 const setup = require("../setup_envoy.js");
 const MockConductor = require('@holo-host/mock-conductor');
@@ -440,14 +441,20 @@ describe("Server with mock Conductor", () => {
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
 
-  it.only("should call ActivateApp and retry if a zome call returns CellMissing", async () => {
+  it("should call ActivateApp and retry if a zome call returns CellMissing", async () => {
     let activateAppCalled = false
     adminConductor.next(({ type, data }) => {
       expect(type).to.equal(MockConductor.ACTIVATE_APP_TYPE)
       activateAppCalled = true;
     });
-    appConductor.once(MockConductor.ZOME_CALL_TYPE, {cell_id: MOCK_CELL_ID, zome_name: "zome", fn_name: "zome_fn" }, { type: "internal", data: "CellMissing(...)" }, { returnError: true })
-    appConductor.once(MockConductor.ZOME_CALL_TYPE, {cell_id: MOCK_CELL_ID, zome_name: "zome", fn_name: "zome_fn" }, "success")
+    appConductor.once(MockConductor.ZOME_CALL_TYPE, {cell_id: MOCK_CELL_ID, zome_name: "zome", fn_name: "zome_fn" }, ({ data }) => {
+      expect(msgpack.decode(Buffer.from(data.payload, 'base64'))).to.equal("zome args")
+      return { type: "internal", data: "CellMissing(...)" };
+    }, { returnError: true })
+    appConductor.once(MockConductor.ZOME_CALL_TYPE, {cell_id: MOCK_CELL_ID, zome_name: "zome", fn_name: "zome_fn" }, ({ data }) => {
+      expect(msgpack.decode(Buffer.from(data.payload, 'base64'))).to.equal("zome args")
+      return "success";
+    })
     client = await setup.client({})
     expect(activateAppCalled).to.be.false
     const result = await client.callZomeFunction("dna_alias", "zome", "zome_fn", "zome args")
