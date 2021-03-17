@@ -561,7 +561,7 @@ describe("Server with mock Conductor", () => {
       servicelogData,
       () => {
         tries += 1
-        return "service logger sucess"
+        return "service logger success"
       },
     )
 
