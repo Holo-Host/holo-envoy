@@ -440,7 +440,7 @@ describe("Server with mock Conductor", () => {
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
 
-  it.only("should call ActivateApp and retry if a zome call returns CellMissing", async () => {
+  it("should call ActivateApp and retry if a zome call returns CellMissing", async () => {
     let activateAppCalled = false
     adminConductor.next(({ type, data }) => {
       expect(type).to.equal(MockConductor.ACTIVATE_APP_TYPE)
