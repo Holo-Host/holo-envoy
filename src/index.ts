@@ -1090,14 +1090,14 @@ class Envoy {
   }
 
   async signalHandler(signal) {
-    let cell_id = signal.data.cellId; // const signal: AppSignal = { type: msg.type , data: { cellId: [dna_hash, agent_id], payload: decodedPayload }};
+    let cell_id = signal.data.cellId; // const signal: AppSignal = { type: "Signal" , data: { cellId: [dna_hash, agent_id], payload: decodedPayload }};
 
     // translate CellId->eventId
     let event_id = this.cellId2eventId(cell_id);
 
     log.info(`Signal handler is emitting event ${event_id}`);
     log.debug(`Signal content: ${signal.data.payload}`);
-    this.ws_server.emit(event_id, signal)
+    this.ws_server.emit(event_id, Buffer.from(msgpack.encode(signal)).toString('base64'))
   }
 
   // takes cell_id in binary (buffer) format
