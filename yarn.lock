@@ -118,10 +118,9 @@
     nanoid "^3.1.9"
     ws "^7.3.0"
 
-"@holochain/conductor-api@^0.0.1-dev.17":
+"@holochain/conductor-api@git://github.com/holochain/holochain-conductor-api.git#a753cee573f55dd220be4fe5c675e3256f0b183c":
   version "0.0.1-dev.17"
-  resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.1-dev.17.tgz#ec082b6f5da7d867d3f2c089a5e1ccfac0af0e54"
-  integrity sha512-HuZDN2c8r3JpIHLNoSFv2QeR8d0w8qR0ewNrR4uRR3t9JXBsnMLpW3UiFt++R4tFJNp9GB337HxmK5h7kbxWbA==
+  resolved "git://github.com/holochain/holochain-conductor-api.git#a753cee573f55dd220be4fe5c675e3256f0b183c"
   dependencies:
     "@msgpack/msgpack" "^2.1.0"
     "@types/ws" "^7.2.4"
