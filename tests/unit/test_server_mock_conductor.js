@@ -522,6 +522,48 @@ describe("Server with mock Conductor", () => {
     expect(deactivateAppCalled).to.be.true;
   });
 
+  it.only('can return a buffer from a zome call', async () => {
+    client = await setup.client({})
+
+    const callZomeData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'zome',
+      fn_name: 'zome_fn'
+    }
+    const expected_response = Buffer.from([1, 3, 3, 7])
+
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      callZomeData,
+      expected_response,
+    )
+
+    const servicelogData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'service',
+      fn_name: 'log_activity'
+    }
+    const activity_log_response = 'Activity Log Success Hash'
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      servicelogData,
+      activity_log_response
+    )
+
+    const response = await client.callZomeFunction(
+      'dna_alias',
+      'zome',
+      'zome_fn',
+      'zome args'
+    )
+
+    console.log('Response:', response)
+
+    expect(response).to.be.a("UInt8Array")
+    expect(Buffer.from(response).compare(expected_response)).to.equal(0)
+
+  })
+
   it('should return a useful error message when a conductor call fails', async () => {
     client = await setup.client({})
 
