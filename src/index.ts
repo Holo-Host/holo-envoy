@@ -551,9 +551,10 @@ class Envoy {
         const cpuUsage = process.cpuUsage(baselineCpu)
         const cpu = cpuUsage.user + cpuUsage.system
 
-        // Note: we're calculating bandwidth by size of zomeCall_response in Bytes (not bits)
-        const response_buffer = Buffer.from(JSON.stringify(zomeCallResponse));
-        const bandwidth = Buffer.byteLength(response_buffer);
+        const responseEncoded = Buffer.from(msgpack.encode(zomeCallResponse)).toString('base64')
+
+        // Note: we're calculating bandwidth by size of zomeCallResponse in Bytes (not bits)
+        const bandwidth = Buffer.byteLength(responseEncoded);
 
 				const host_metrics = {
 					cpu,
@@ -570,7 +571,7 @@ class Envoy {
 				log.silly("Service response by Host: %s", JSON.stringify(host_response, null, 4));
 
 				// Use response_id to act as waiting ID
-				const response_id = uuid();;
+				const response_id = uuid();
 
 				log.info("Adding service call ID (%s)... to waiting list for client confirmations for agent (%s)", response_id, agent_id);
 				this.addPendingConfirmation(response_id, request, host_response, agent_id);
@@ -578,7 +579,7 @@ class Envoy {
 				log.normal("Returning host reponse (%s) for request (%s) with signature (%s) as response_id (%s)... to chaperone",
           JSON.stringify(host_response, null, 4), JSON.stringify(request, null, 4), JSON.stringify(service_signature), response_id);
 
-        response_message = new Package({ zomeCall_response: zomeCallResponse }, { "type": "success" }, { response_id, host_response });
+        response_message = new Package({ zomeCall_response: responseEncoded }, { "type": "success" }, { response_id, host_response });
       }
 
       return response_message;
