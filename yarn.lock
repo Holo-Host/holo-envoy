@@ -118,9 +118,9 @@
     nanoid "^3.1.9"
     ws "^7.3.0"
 
-"@holochain/conductor-api@git://github.com/holochain/holochain-conductor-api.git#a753cee573f55dd220be4fe5c675e3256f0b183c":
+"@holochain/conductor-api@git://github.com/holochain/holochain-conductor-api.git#cc743fd6e1f60e148035d54a05949b9ad7b55dec":
   version "0.0.1-dev.17"
-  resolved "git://github.com/holochain/holochain-conductor-api.git#a753cee573f55dd220be4fe5c675e3256f0b183c"
+  resolved "git://github.com/holochain/holochain-conductor-api.git#cc743fd6e1f60e148035d54a05949b9ad7b55dec"
   dependencies:
     "@msgpack/msgpack" "^2.1.0"
     "@types/ws" "^7.2.4"

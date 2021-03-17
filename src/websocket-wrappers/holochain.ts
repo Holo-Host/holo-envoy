@@ -6,11 +6,11 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 import {
   AdminWebsocket,
   AppWebsocket
-} from '@holochain/conductor-api/src';
+} from '@holochain/conductor-api';
 
 import Websocket from 'ws';
 
-import {WsClient as HolochainWsClient} from '@holochain/conductor-api/src/websocket/client'
+import {WsClient as HolochainWsClient} from '@holochain/conductor-api/lib/websocket/client'
 
 import ReconnectingWebSocket from 'reconnecting-websocket';
 
