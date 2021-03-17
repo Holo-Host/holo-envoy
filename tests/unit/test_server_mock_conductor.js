@@ -522,7 +522,7 @@ describe("Server with mock Conductor", () => {
     expect(deactivateAppCalled).to.be.true;
   });
 
-  it.only('can return a buffer from a zome call', async () => {
+  it('can return a buffer from a zome call', async () => {
     client = await setup.client({})
 
     const callZomeData = {
