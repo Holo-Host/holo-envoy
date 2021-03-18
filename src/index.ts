@@ -1043,14 +1043,28 @@ class Envoy {
     }
 
     log.silly("Recording service confirmation with payload: activity: { request: %s, response: %s, confimation: %s }", client_request, host_response, confirmation);
-    const resp = await this.callConductor("app", {
-      "cell_id": servicelogger_cell_id,
-      "zome_name": "service",
-      "fn_name": "log_activity",
-      payload,
-      cap: null,
-      provenance: buffer_host_agent_servicelogger_id,
-    });
+    let resp
+
+    let retryCall = true
+    while (retryCall) {
+      retryCall = false
+      try {
+        resp = await this.callConductor("app", {
+          "cell_id": servicelogger_cell_id,
+          "zome_name": "service",
+          "fn_name": "log_activity",
+          payload,
+          cap: null,
+          provenance: buffer_host_agent_servicelogger_id,
+        });
+      } catch (e) {
+        if (String(e).includes("source chain head has moved")) {
+          retryCall = true
+        } else {
+          throw e
+        }
+      }
+    }
 
     if (resp) {
       log.silly('\nFinished Servicelogger confirmation: ', resp);

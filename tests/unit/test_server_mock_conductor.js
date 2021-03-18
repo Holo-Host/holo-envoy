@@ -529,6 +529,68 @@ describe("Server with mock Conductor", () => {
     expect(deactivateAppCalled).to.be.true;
   });
 
+  it('should retry service logger confirm if it fails with head moved', async () => {
+    client = await setup.client({})
+
+    const callZomeData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'zome',
+      fn_name: 'zome_fn'
+    }
+
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      callZomeData,
+      "success",
+    )
+
+    const servicelogData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'service',
+      fn_name: 'log_activity'
+    }
+
+    let tries = 0
+
+    // Simulate three head moved failures
+    for (let i = 0; i < 3; i++) {
+      appConductor.once(
+        MockConductor.ZOME_CALL_TYPE,
+        servicelogData,
+        () => {
+          tries += 1
+          return "source chain head has moved"
+        },
+        { returnError: true }
+      )
+    }
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      servicelogData,
+      () => {
+        tries += 1
+        return "service logger success"
+      },
+    )
+
+    expect(tries).to.equal(0)
+
+    const response = await client.callZomeFunction(
+      'dna_alias',
+      'zome',
+      'zome_fn',
+      {
+        zomeFnArgs: 'String Input'
+      }
+    )
+
+    expect(tries).to.equal(4)
+
+    log.debug('Response: %s', response)
+
+    expect(response).to.equal("success")
+  })
+
   it('can return a buffer from a zome call', async () => {
     client = await setup.client({})
 
@@ -550,6 +612,7 @@ describe("Server with mock Conductor", () => {
       zome_name: 'service',
       fn_name: 'log_activity'
     }
+
     const activity_log_response = 'Activity Log Success Hash'
     appConductor.once(
       MockConductor.ZOME_CALL_TYPE,
@@ -568,7 +631,6 @@ describe("Server with mock Conductor", () => {
 
     expect(response).to.be.a("UInt8Array")
     expect(Buffer.from(response).compare(expected_response)).to.equal(0)
-
   })
 
   it('should return a useful error message when a conductor call fails', async () => {
