@@ -25,7 +25,7 @@ dnas/servicelogger.happ:	dnas
 dnas/test.happ:	dnas
 	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.2.0/test.happ' -o $@
 
-build:		node_modules build/index.js
+build:	 build/index.js
 docs:			node_modules docs/index.html
 DNAs:			dnas/test.happ dnas/holo-hosting-app.happ dnas/servicelogger.happ
 
@@ -35,7 +35,7 @@ test:			build
 	make test-unit;
 	make test-integration;
 	make test-e2e;
-	yarn run stop-conductor
+	make stop-conductor
 
 test-nix:		build
 	make test-unit;
@@ -54,34 +54,41 @@ test-unit-debug:	build lair
 lair:
 	rm -rf ./script/install-bundles/keystore
 	mkdir -p ./script/install-bundles/shim
-	RUST_LOG=trace lair-keystore --lair-dir ./script/install-bundles/keystore #&> hc-lair.log &
+	rm -rf ./script/install-bundles/shim/*
+	RUST_LOG=trace lair-keystore --lair-dir ./script/install-bundles/keystore &> hc-lair.log &
 stop-lair:
 	killall lair-keystore &
 
 conductor:
 	rm -rf ./script/install-bundles/.sandbox
-	cd script/install-bundles && cargo run && hc sandbox -f=4444 run -l -p=42233
+	cd script/install-bundles && cargo run && hc sandbox -f=4444 run -l -p=42233 > ../../hc-conductor.log 2>&1 &
 stop-conductor:
 	yarn run stop-conductor
+	yarn run stop-hc
 
 test-integration:	build DNAs
 	make stop-lair
 	make lair
-	yarn run stop-conductor
+	make stop-conductor
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
 test-integration-debug:	build DNAs stop-lair lair
-	yarn run stop-conductor
+	make stop-conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
 
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
-	yarn run stop-conductor
+	make stop-conductor
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e
-test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
-	yarn run stop-conductor
+test-e2e-debug:		build DNAs #dist/holo_hosting_chaperone.js
+	make stop-conductor
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
-	yarn run stop-conductor
+	make stop-conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
+
+clean-tests:
+	rm -rf ./script/install-bundles/.sandbox
+	rm -rf ./script/install-bundles/keystore
+	rm -rf ./script/install-bundles/shim
 
 docs-watch:
 build-watch:

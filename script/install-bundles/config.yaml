@@ -5,7 +5,7 @@ signing_service_uri: ~
 encryption_service_uri: ~
 decryption_service_uri: ~
 dpki: ~
-keystore_path: "./shim"
+keystore_path: "./keystore"
 passphrase_service: ~
 admin_interfaces:
   - driver:

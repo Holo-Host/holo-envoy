@@ -35,7 +35,7 @@ async function start_conductor() {
 
 async function stop_conductor(timeout) {
   console.log("Closing Conductor...");
-  exec("make stop-conductor", (error, stdout, stderr) => {
+  await exec("make stop-conductor", (error, stdout, stderr) => {
       if (error) {
           console.log(`Holochain Conductor Stop error: ${error.message}`);
           return;

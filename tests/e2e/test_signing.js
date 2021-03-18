@@ -18,8 +18,8 @@ const setup_conductor = require("../setup_conductor.js");
 const { Codec, KeyManager } = require('@holo-host/cryptolib');
 const { init } = require("../../src/shim.js");
 const crypto = require('crypto')
-const WH_SERVER_PORT = path.resolve(__dirname, '../../script/install-bundles/socket');
-const LAIR_SOCKET = path.resolve(__dirname, '../../script/install-bundles/socket');
+const WH_SERVER_PORT = path.resolve(__dirname, '../../script/install-bundles/shim/socket');
+const LAIR_SOCKET = path.resolve(__dirname, '../../script/install-bundles/keystore/socket');
 const installedAppIds = yaml.load(fs.readFileSync('./script/app-config.yml'));
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
 const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
@@ -30,7 +30,7 @@ describe("Wormhole tests", () => {
     this.timeout(100_000);
 
     log.info("Waiting for Lair to spin up");
-    setup_conductor.start_lair()
+    await setup_conductor.start_lair()
     await delay(5000);
     seed = crypto.randomBytes(32);
     keys = new KeyManager(seed);
@@ -40,7 +40,7 @@ describe("Wormhole tests", () => {
     await delay(5000);
 
     log.info("Waiting for Conductor to spin up");
-    setup_conductor.start_conductor()
+    await setup_conductor.start_conductor()
     await delay(10000);
 
     appWs = await AppWebsocket.connect('ws://localhost:42233')
@@ -54,15 +54,23 @@ describe("Wormhole tests", () => {
   });
 
   it("test shim signing for zome call", async () => {
+    console.log("Getting payload...");
     const payload = await getPayload(keys);
-    loggedActivity = await appWs.callZome({
-      cell_id: [Buffer.from(slCellId[0]), Buffer.from(slCellId[1])],
-      zome_name: 'service',
-      fn_name: 'log_activity',
-      payload,
-      cap: null,
-      provenance: Buffer.from(slCellId[1])
-    });
+    console.log("Calling zome log_activity...");
+    try {
+      loggedActivity = await appWs.callZome({
+        cell_id: [Buffer.from(slCellId[0]), Buffer.from(slCellId[1])],
+        zome_name: 'service',
+        fn_name: 'log_activity',
+        payload,
+        cap: null,
+        provenance: Buffer.from(slCellId[1])
+      });
+      expect(loggedActivity).to.be.ok
+    } catch(e) {
+      console.log("Failing...", e);
+      expect(false).to.be.ok
+    }
   });
 
 });

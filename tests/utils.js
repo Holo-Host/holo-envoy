@@ -9,10 +9,10 @@ function delay(t, val) {
 }
 
 async function resetTmp() {
-  console.log("Removing /tmp ...");
-  exec("rm -rf tests/tmp", (error, stdout, stderr) => {
+  console.log("Removing tmp files ...");
+  exec("make clean-tests", (error, stdout, stderr) => {
       if (error) {
-          console.log(`Reset tmp error: ${error.message}`);
+          console.log(`Reset tests tmp files error: ${error.message}`);
           return;
       }
   });
