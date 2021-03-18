@@ -31,7 +31,7 @@ const envoyOpts = {
   hosted_app: {
     dnas: [{
       nick: 'test-hha',
-      path: './dnas/elemental-chat.dna.gz'
+      path: './dnas/elemental-chat.dna'
     }],
     usingURL: false
   }

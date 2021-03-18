@@ -15,3 +15,5 @@ holochain-conductor/storage
 hc-conductor.log
 hc-lair.log
 tests/tmp
+.hc
+.sandbox

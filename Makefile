@@ -18,16 +18,16 @@ kill-holochain:
 
 dnas:
 	mkdir -p ./dnas
-dnas/holo-hosting-app.dna.gz:	dnas
-	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.0.1-alpha7/holo-hosting-app.dna.gz' -o $@
-dnas/servicelogger.dna.gz:	dnas
-	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.0.1-alpha5/servicelogger.dna.gz' -o $@
-dnas/test.dna.gz:	dnas
-	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.0.2/test.dna.gz' -o $@
+dnas/holo-hosting-app.happ:	dnas
+	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.1.0-alpha1/holo-hosting-app.happ' -o $@
+dnas/servicelogger.happ:	dnas
+	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.1.0-alpha1/servicelogger.happ' -o $@
+dnas/test.happ:	dnas
+	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.2.0/test.happ' -o $@
 
 build:		node_modules build/index.js
 docs:			node_modules docs/index.html
-DNAs:			dnas/test.dna.gz dnas/holo-hosting-app.dna.gz dnas/servicelogger.dna.gz
+DNAs:			dnas/test.happ dnas/holo-hosting-app.happ dnas/servicelogger.happ
 
 MOCHA_OPTS		= --timeout 10000 --exit
 
@@ -61,6 +61,7 @@ stop-lair:
 
 conductor:
 	RUST_LOG=debug npx holochain-run-dna -c ./tests/app-config.yml -a 4444 -r ./tests/tmp -k shim &> hc-conductor.log &
+	hc sandbox -f 4444
 stop-conductor:
 	yarn run stop-conductor
 
