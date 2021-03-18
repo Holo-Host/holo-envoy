@@ -178,7 +178,7 @@ class Envoy {
     this.ws_server.on("connection", async (socket, request) => {
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
       // client-side if something is not right.
-      log.silly("Incoming connection from %s", request.url);
+      log.info("Incoming connection from %s", request.url);
       const url = new URL(request.url, "http://localhost");
 
       socket.on("message", (data) => {
@@ -701,9 +701,13 @@ class Envoy {
   }
 
   async signOut(agent_id: string): Promise<void> {
+    log.info("Signing out agent after numerous failed wormhole requests (%s)", agent_id)
     const connections = this.agent_connections[agent_id];
     delete this.agent_connections[agent_id];
-    connections.forEach(connection => connection.close());
+    connections.forEach(connection => {
+      log.info("Signing out agent (%s): closing websocket with readyState (%s)", agent_id, connection.readyState);
+      connection.close()
+    });
 
     // Assuming agent is not anonymous, we need to deactivate all their hApps.
 
