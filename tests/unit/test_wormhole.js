@@ -15,8 +15,8 @@ const {
   init
 } = require("../../src/shim.js");
 
-const LAIR_SOCKET = path.resolve(__dirname, '../tmp/keystore/socket');
-const CONDUCTOR_SOCKET = path.resolve(__dirname, '../tmp/shim/socket');
+const LAIR_SOCKET = path.resolve(__dirname, '../script/install-bundles/socket');
+const CONDUCTOR_SOCKET = path.resolve(__dirname, '../script/install-bundles/socket');
 
 describe("Shim tests", () => {
   let shim;

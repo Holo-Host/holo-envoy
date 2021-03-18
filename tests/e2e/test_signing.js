@@ -18,9 +18,9 @@ const setup_conductor = require("../setup_conductor.js");
 const { Codec, KeyManager } = require('@holo-host/cryptolib');
 const { init } = require("../../src/shim.js");
 const crypto = require('crypto')
-const WH_SERVER_PORT = path.resolve(__dirname, '../tmp/shim/socket');
-const LAIR_SOCKET = path.resolve(__dirname, '../tmp/keystore/socket');
-const installedAppIds = yaml.load(fs.readFileSync('./tests/app-config.yml'));
+const WH_SERVER_PORT = path.resolve(__dirname, '../../script/install-bundles/socket');
+const LAIR_SOCKET = path.resolve(__dirname, '../../script/install-bundles/socket');
+const installedAppIds = yaml.load(fs.readFileSync('./script/app-config.yml'));
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
 const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
 

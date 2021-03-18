@@ -10,7 +10,7 @@ const http_servers = require('../setup_http_server.js');
 const setup = require("../setup_envoy.js");
 const setup_conductor = require("../setup_conductor.js");
 const { Codec } = require('@holo-host/cryptolib');
-const installedAppIds = yaml.load(fs.readFileSync('./tests/app-config.yml'));
+const installedAppIds = yaml.load(fs.readFileSync('./script/app-config.yml'));
 const { resetTmp, delay } = require("../utils")
 const msgpack = require('@msgpack/msgpack');
 

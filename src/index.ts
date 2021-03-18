@@ -26,8 +26,8 @@ const digest = (payload) => {
 }
 
 const WS_SERVER_PORT = 4656; // holo
-const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim/socket');
-const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
+const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../script/install-bundles/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim/socket');
+const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../script/install-bundles/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
 const RPC_CLIENT_OPTS = {
   "reconnect_interval": 1000,
   "max_reconnects": 300,
@@ -403,7 +403,7 @@ class Envoy {
 
       while (retryCall) {
         retryCall = false
-        
+
         try {
           log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
           appInfo = await this.callConductor("app", { installed_app_id });
@@ -501,12 +501,12 @@ class Envoy {
         } catch (err) {
           log.error("Failed during Conductor call: %s", String(err));
           zomeCallResponse = {};
-  
+
           if (err.message.includes("Failed to get signatures from Client")) {
             let new_message = anonymous === true
               ? "Agent is not signed-in"
               : "We were unable to contact Chaperone for the Agent signing service.  Please check ...";
-  
+
             log.warn("Setting error response to wormhole error message: %s", new_message);
             holo_error = (new HoloError(new_message)).toJSON();
           } else if (!triedCallingActivateApp && (String(err).includes("CellMissing") || String(err).includes("AppNotActive"))) {

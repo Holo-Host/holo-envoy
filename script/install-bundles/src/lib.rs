@@ -6,9 +6,10 @@ use hc_sandbox::CmdRunner;
 use holochain_cli_sandbox as hc_sandbox;
 use holochain_conductor_api::AdminRequest;
 use holochain_conductor_api::AdminResponse;
-use holochain_p2p::kitsune_p2p::KitsuneP2pConfig;
+use holochain_conductor_api::conductor::ConductorConfig;
 use holochain_types::prelude::AppBundleSource;
 use holochain_types::prelude::InstallAppBundlePayload;
+use std::path::Path;
 
 use structopt::StructOpt;
 
@@ -24,14 +25,22 @@ async fn main() -> anyhow::Result<()> {
     // Get and parse any input.
     let input = Input::from_args();
 
-    // Using the default mem network.
-    let network = KitsuneP2pConfig::default();
+    println!("Starting installation process");
 
-    // Create a conductor config with the network.
-    let path = hc_sandbox::generate::generate(Some(network.clone()), None, None)?;
+    // Using the default mem network.
+    // let network = KitsuneP2pConfig::default();
+
+    // Create a conductor config.
+    let hc_dir =  PathBuf::from(r"./");
+    let config = ConductorConfig::load_yaml(Path::new("./config.yaml"))?;
+    println!("Generating sandbox..");
+    let path = hc_sandbox::generate::generate_with_config(Some(config), Some(hc_dir.clone()), Some(PathBuf::from(r".sandbox")))?;
     // let path = hc_sandbox::generate::generate(Some(network.clone()), Some(PathBuf::from(r"../../")), Some(PathBuf::from(r".sandbox")))?;
-    let hc_dir =  PathBuf::from(r"../../");
+    println!("Saving in .hc s..");
     hc_sandbox::save::save(hc_dir, vec![path.clone()])?;
+
+    println!("update admin port..");
+    hc_sandbox::force_admin_port(PathBuf::from(r"./.sandbox"), 4444)?;
 
     // Create a command runner to run admin commands.
     // This runs the conductor in the background and cleans
@@ -55,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
     let happs = [test_happ, hha_happ, sl_happ];
 
     // Insatalling test happ
-     for i in 0..3 as usize {
+     for i in 0..2 as usize {
          println!(" Installing {} ", ids[i]);
 
          let happ: PathBuf = hc_sandbox::bundles::parse_happ(Some(happs[i].clone()))?;

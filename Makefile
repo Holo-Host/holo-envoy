@@ -52,16 +52,15 @@ test-unit-debug:	build lair
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make stop-lair
 lair:
-	mkdir -p ./tests/tmp
-	rm -rf ./tests/tmp/*
-	mkdir -p ./tests/tmp/shim
-	RUST_LOG=trace lair-keystore --lair-dir tests/tmp/keystore &> hc-lair.log &
+	rm -rf ./script/install-bundles/keystore
+	mkdir -p ./script/install-bundles/shim
+	RUST_LOG=trace lair-keystore --lair-dir ./script/install-bundles/keystore #&> hc-lair.log &
 stop-lair:
 	killall lair-keystore &
 
 conductor:
-	RUST_LOG=debug npx holochain-run-dna -c ./tests/app-config.yml -a 4444 -r ./tests/tmp -k shim &> hc-conductor.log &
-	hc sandbox -f 4444
+	rm -rf ./script/install-bundles/.sandbox
+	cd script/install-bundles && cargo run && hc sandbox -f=4444 run -l -p=42233
 stop-conductor:
 	yarn run stop-conductor
 
