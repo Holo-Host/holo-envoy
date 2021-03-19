@@ -235,10 +235,10 @@ describe("Server", () => {
         }
         let responseOne, responseTwo;
         try {
-          // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
+          // Note: the cell_id is `test` because holochain-run-dna is setting a default nick
           // Ideally we would have a nick like test or chat or elemental-chat
-          responseOne = await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", {'value': "This is the returned value"});
-          responseTwo = await client.callZomeFunction(`test.dna.gz`, "test", "returns_obj", null);
+          responseOne = await client.callZomeFunction(`test`, "test", "pass_obj", {'value': "This is the returned value"});
+          responseTwo = await client.callZomeFunction(`test`, "test", "returns_obj", null);
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err

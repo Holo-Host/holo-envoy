@@ -52,7 +52,7 @@ test-unit-debug:	build lair
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make stop-lair
 lair:
-	# Not clearning because on setup we generaee keys for the host agents, deleting this file deletes all the keys 
+	# Not clearning because on setup we generaee keys for the host agents, deleting this file deletes all the keys
 	#rm -rf ./script/install-bundles/keystore
 	mkdir -p ./script/install-bundles/shim
 	rm -rf ./script/install-bundles/shim/*
@@ -81,12 +81,13 @@ stop-conductor:
 	yarn run stop-hc
 
 test-integration:	build DNAs
-	make stop-lair
-	make lair
 	make stop-conductor
+	make stop-lair
+	make setup-conductor
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
 test-integration-debug:	build DNAs stop-lair lair
 	make stop-conductor
+	make setup-conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
 
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js

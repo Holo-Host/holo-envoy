@@ -602,8 +602,8 @@ class Envoy {
 
       let result
       try {
-        const cell_data: Array<[Buffer, Buffer]> = appInfo.cell_data;
-        const [cell_id,] = cell_data.find(([_cell_id, installed_dna_alias]) => dna_alias === installed_dna_alias);
+        const cell_data: Array<{cell_id: Buffer, cell_nick: Buffer}> = appInfo.cell_data;
+        const {cell_id} = cell_data.find(({cell_id, cell_nick}) => dna_alias === cell_nick);
         result = await this.callConductor("admin", "dumpState", { cell_id });
       } catch (err) {
         log.error("Failed during Conductor StateDump call: %s", String(err));
