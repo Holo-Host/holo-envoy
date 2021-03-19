@@ -324,7 +324,7 @@ class Envoy {
           if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
             dnas = this.opts.hosted_app.dnas;
 					} else {
-            dnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0], membrane_proof }));
+            dnas = appInfo.cell_data.map(({cell_id, cell_nick}) => ({ nick: cell_nick, hash: cell_id[0], membrane_proof }));
 
 					}
 
@@ -1024,7 +1024,8 @@ class Envoy {
     }
 
     log.debug("Servicelogger app_info: '%s'", appInfo);
-    const servicelogger_cell_id = appInfo.cell_data[0][0];
+    // We are assuming that servicelogger is a happ and the first cell is the servicelogger DAN
+    const servicelogger_cell_id = appInfo.cell_data[0].cell_id;
     const buffer_host_agent_servicelogger_id = servicelogger_cell_id[1];
 
     client_request["request_signature"] = Codec.Signature.decode(client_request["request_signature"])
@@ -1079,7 +1080,7 @@ class Envoy {
       // TODO but leave it for now: I am operating under the assumption that each dna_hash can be only in one app (identified by hha_hash)
       // Does this need to change?
       appInfo.cell_data.forEach(cell => {
-        let dna_hash_string = Codec.HoloHash.encode("dna", cell[0][0]); // cell[0][0] is binary buffer of dna_hash
+        let dna_hash_string = Codec.HoloHash.encode("dna", cell.cell_id[0]); // cell.cell_id[0] is binary buffer of dna_hash
         this.dna2hha[dna_hash_string] = hha_hash;
       });
     }
