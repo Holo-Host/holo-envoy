@@ -61,7 +61,7 @@ describe("Wormhole tests", () => {
         payload: null,
         cap: null,
         provenance: Buffer.from(testCellId[1])
-      }, 10000);
+      });
       console.log("return from signing test: ", loggedActivity);
       expect(loggedActivity).to.be.ok
     } catch(e) {
