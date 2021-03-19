@@ -16,7 +16,6 @@ async function start_lair() {
   });
 }
 
-
 async function start_conductor() {
   console.log("Starting Holochain ...");
   console.log("Note: See hc-conductor.log file for logs");

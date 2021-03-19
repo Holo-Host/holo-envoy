@@ -59,9 +59,22 @@ lair:
 stop-lair:
 	killall lair-keystore &
 
-conductor:
+shim:
+	node script/test-shim-init.js &
+
+setup-conductor:
+	make lair
+	sleep 5
+	mkdir -p ./script/install-bundles/shim
+	rm -rf ./script/install-bundles/shim/*
+	make shim
+	sleep 1
 	rm -rf ./script/install-bundles/.sandbox
-	cd script/install-bundles && cargo run && hc sandbox -f=4444 run -l -p=42233 > ../../hc-conductor.log 2>&1 &
+	cd script/install-bundles && cargo run > ../../hc-conductor.log 2>&1 &
+	sleep 5
+	make stop-lair
+conductor:
+	cd script/install-bundles && hc sandbox -f=4444 run -l -p=42233 > ../../hc-conductor.log 2>&1 &
 stop-conductor:
 	yarn run stop-conductor
 	yarn run stop-hc
@@ -77,12 +90,15 @@ test-integration-debug:	build DNAs stop-lair lair
 
 test-e2e:		build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
+	make setup-conductor
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e
 test-e2e-debug:		build DNAs #dist/holo_hosting_chaperone.js
 	make stop-conductor
+	make setup-conductor
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
+	make setup-conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
 
 clean-tests:
