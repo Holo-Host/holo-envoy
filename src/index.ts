@@ -10,6 +10,7 @@ import { Server as WebSocketServer } from './wss';
 import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 import { v4 as uuid } from 'uuid';
+import * as crypto from 'crypto';
 
 const msgpack = require('@msgpack/msgpack');
 
@@ -19,10 +20,10 @@ const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
 
-const digest = (payload) => {
+const hash = (payload) => {
   const serialized_args = typeof payload === "string" ? payload : SerializeJSON(payload);
-  const args_digest = Buffer.from(serialized_args);
-  return Codec.Digest.encode(args_digest);
+  const args_digest = Buffer.from(serialized_args, 'utf8');
+  return Codec.Digest.encode(crypto.createHash('sha256').update(args_digest).digest());
 }
 
 const WS_SERVER_PORT = 4656; // holo
@@ -403,7 +404,7 @@ class Envoy {
 
       while (retryCall) {
         retryCall = false
-        
+
         try {
           log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
           appInfo = await this.callConductor("app", { installed_app_id });
@@ -506,12 +507,12 @@ class Envoy {
         } catch (err) {
           log.error("Failed during Conductor call: %s", String(err));
           zomeCallResponse = {};
-  
+
           if (err.message.includes("Failed to get signatures from Client")) {
             let new_message = anonymous === true
               ? "Agent is not signed-in"
               : "We were unable to contact Chaperone for the Agent signing service.  Please check ...";
-  
+
             log.warn("Setting error response to wormhole error message: %s", new_message);
             holo_error = (new HoloError(new_message)).toJSON();
           } else if (!triedCallingActivateApp && (String(err).includes("CellMissing") || String(err).includes("AppNotActive"))) {
@@ -965,7 +966,7 @@ class Envoy {
     log.normal("Processing service logger request (%s)", signature);
 
     const call_spec = payload.call_spec;
-    const args_hash = digest(call_spec["args"]);
+    const args_hash = hash(call_spec["args"]);
 
     log.debug("Using argument digest: %s", args_hash);
     const request_payload = {
@@ -991,7 +992,7 @@ class Envoy {
   }
 
   logServiceResponse(response, host_metrics, weblog_compat) {
-    const response_hash = digest(response);
+    const response_hash = hash(response);
     log.normal("Processing service logger response (%s)", response_hash);
 
     // NB: The signed_response_hash is added to the response obj when `logServiceConfirmation` is called
