@@ -76,7 +76,7 @@ const getHostAgentKey = async (appClient) => {
   const appInfo = await appClient.appInfo({
     installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
   });
-  const agentPubKey = appInfo.cell_data[0][0][1];
+  const agentPubKey = appInfo.cell_data[0].cell_id[1];
   return {
     decoded: agentPubKey,
     encoded: Codec.AgentId.encode(agentPubKey)
@@ -152,7 +152,7 @@ describe("Server", () => {
           const serviceloggerAppInfo = await envoy.hcc_clients.app.appInfo({
             installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
           });
-          serviceloggerCellId = serviceloggerAppInfo.cell_data[0][0];
+          serviceloggerCellId = serviceloggerAppInfo.cell_data[0].cell_id;
         } catch (error) {
           throw new Error(JSON.stringify(error));
         }
@@ -238,7 +238,7 @@ describe("Server", () => {
           // Note: the cell_id is `test` because holochain-run-dna is setting a default nick
           // Ideally we would have a nick like test or chat or elemental-chat
           responseOne = await client.callZomeFunction(`test`, "test", "pass_obj", {'value': "This is the returned value"});
-          responseTwo = await client.callZomeFunction(`test`, "test", "returns_obj", null);
+          // responseTwo = await client.callZomeFunction(`test`, "test", "returns_obj", null);
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
@@ -268,13 +268,16 @@ describe("Server", () => {
         }
         console.log("BOB Anonymous AFTER: ", client.anonymous);
 
-        return { responseOne, responseTwo }
+        return {
+          responseOne,
+          // responseTwo
+        }
       }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH);
 
       log.info("Completed evaluation: %s", responseOne);
-      log.info("Completed evaluation: %s", responseTwo);
+      // log.info("Completed evaluation: %s", responseTwo);
       expect(responseOne).to.have.property("value").which.equals("This is the returned value");
-      expect(responseTwo).to.have.property("value").which.equals("This is the returned value");
+      // expect(responseTwo).to.have.property("value").which.equals("This is the returned value");
     } finally {
 
     }
