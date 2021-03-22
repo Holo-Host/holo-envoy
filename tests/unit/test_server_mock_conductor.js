@@ -7,6 +7,7 @@ const expect = require('chai').expect;
 const fetch = require('node-fetch');
 const why = require('why-is-node-running');
 const portscanner = require('portscanner');
+const msgpack = require('@msgpack/msgpack');
 
 const setup = require("../setup_envoy.js");
 const MockConductor = require('@holo-host/mock-conductor');
@@ -285,391 +286,460 @@ describe("Server with mock Conductor", () => {
     } finally {}
   });
 
-  // it("should forward signal from conductor to client", async () => {
-  //   let expectedSignalData = "Hello signal!";
-  //   // Instance of DNA that is emitting signal
-  //   // has to match DNA registered in envoy's dna2hha during Login and agent's ID
-  //   let cellId = MOCK_CELL_ID;
-  //
-  //   client = await setup.client({});
-  //   client.skip_assign_host = true;
-  //
-  //   try {
-  //     const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
-  //
-  //     const appInfo = {
-  //       installed_app_id,
-  //       agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
-  //       dnas: envoyOpts.hosted_app.dnas
-  //     }
-  //     adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
-  //       type: 'success'
-  //     })
-  //     adminConductor.once(
-  //       MockConductor.ACTIVATE_APP_TYPE,
-  //       { installed_app_id },
-  //       { type: 'success' }
-  //     )
-  //
-  //     await client.signUp("alice.test.1@holo.host", "Passw0rd!");
-  //
-  //     // mock conductor emits signal (has to be the right one)
-  //     log.debug(`Broadcasting signal via mock conductor`);
-  //     await appConductor.broadcastAppSignal(cellId, expectedSignalData);
-  //
-  //     // wait for signal to propagate all across
-  //     await delay(1000)
-  //
-  //     // client receives this
-  //     let receivedSignalData = client.signalStore;
-  //
-  //     expect(receivedSignalData).to.equal(expectedSignalData);
-  //   } finally {}
-  // });
-  //
-  // it("should forward signal from conductor to client with prefixed DNA hash", async () => {
-  //   let expectedSignalData = "Hello signal!";
-  //   // Instance of DNA that is emitting signal
-  //   // has to match DNA registered in envoy's dna2hha during Login and agent's ID
-  //   let cellId = [Codec.HoloHash.holoHashFromBuffer("dna", MOCK_CELL_ID[0]), Codec.HoloHash.holoHashFromBuffer("agent", MOCK_CELL_ID[1])]
-  //
-  //   client = await setup.client({});
-  //   client.skip_assign_host = true;
-  //
-  //   try {
-  //     const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
-  //
-  //     const appInfo = {
-  //       installed_app_id,
-  //       agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
-  //       dnas: envoyOpts.hosted_app.dnas
-  //     }
-  //     adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
-  //       type: 'success'
-  //     })
-  //     adminConductor.once(
-  //       MockConductor.ACTIVATE_APP_TYPE,
-  //       { installed_app_id },
-  //       { type: 'success' }
-  //     )
-  //
-  //     await client.signUp("alice.test.1@holo.host", "Passw0rd!");
-  //
-  //     // mock conductor emits signal (has to be the right one)
-  //     log.debug(`Broadcasting signal via mock conductor`);
-  //     await appConductor.broadcastAppSignal(cellId, expectedSignalData);
-  //
-  //     // wait for signal to propagate all across
-  //     await delay(1000)
-  //
-  //     // client receives this
-  //     let receivedSignalData = client.signalStore;
-  //
-  //     expect(receivedSignalData).to.equal(expectedSignalData);
-  //   } finally {}
-  // });
-  //
-  // it("should sign-out", async () => {
-  //   client = await setup.client({
-  //     agent_id: AGENT_ID
-  //   });
-  //   try {
-  //     await client.signOut();
-  //
-  //     expect(client.anonymous).to.be.true;
-  //     expect(client.agent_id).to.not.equal(AGENT_ID);
-  //   } finally {}
-  // });
-  //
-  // it.skip("should complete wormhole request", async () => {
-  //   client = await setup.client({});
-  //   try {
-  //     conductor.general.once("call", async function(data) {
-  //       const signature = await conductor.wormholeRequest(client.agent_id, "UW1ZVWo1NnJyakFTOHVRQXpkTlFoUHJ3WHhFeUJ4ZkFxdktwZ1g5bnBpOGZOeA==");
-  //
-  //       expect(signature).to.equal("w/lyO2IipA0sSdGtbg+5pACLoafOkdPRXXuiELis51HVthfhzdP2JZeIDQkwssMccC67mHjOuYsALe5DPQjKDw==");
-  //
-  //       return ZomeAPIResult(true);
-  //     });
-  //
-  //     const response = await client.callZomeFunction("elemental-chat", "chat", "list_channels", {
-  //       category: "General"
-  //     });
-  //     log.debug("Response: %s", response);
-  //
-  //     expect(response).to.be.true;
-  //   } finally {}
-  // });
-  //
-  // it.skip("should fail wormhole request because Agent is anonymous", async () => {
-  //   client = await setup.client({});
-  //   try {
-  //
-  //     let failed = false;
-  //     conductor.general.once("call", async function(data) {
-  //       await conductor.wormholeRequest(client.agent_id, {
-  //         "some": "entry",
-  //         "foo": "bar",
-  //       });
-  //
-  //       return ZomeAPIResult(true);
-  //     });
-  //
-  //     try {
-  //       await client.callZomeFunction("elemental-chat", "chat", "list_channels", {
-  //         category: "General"
-  //       });
-  //     } catch (err) {
-  //       failed = true;
-  //       expect(err.name).to.include("HoloError");
-  //       expect(err.message).to.include("not signed-in");
-  //     }
-  //
-  //     expect(failed).to.be.true;
-  //   } finally {}
-  // });
-  //
-  // it("should have no pending confirmations", async () => {
-  //   try {
-  //     expect(envoy.pending_confirms).to.be.empty;
-  //   } finally {}
-  // });
-  //
-  // it("should fail to sign-up because conductor disconnected");
-  // it("should fail to sign-up because admin/agent/add returned an error");
-  // it("should fail to sign-up because HHA returned an error");
-  // it("should fail to sign-up because Happ Store returned an error");
-  // it("should fail to sign-up because adminInterface call, `installApp`, returned an error");
-  // it("should fail to sign-up because adminInterface call, `activateApp`, returned an error");
-  // it("should fail to sign-in because this host doesn't know this Agent");
-  // it("should handle obscure error from Conductor");
-  // it("should disconnect Envoy's websocket clients on conductor disconnect");
-  //
-  // it.only("should call ActivateApp and retry if a zome call returns CellMissing", async () => {
-  //   let activateAppCalled = false
-  //   adminConductor.next(({ type, data }) => {
-  //     expect(type).to.equal(MockConductor.ACTIVATE_APP_TYPE)
-  //     activateAppCalled = true;
-  //   });
-  //   appConductor.once(MockConductor.ZOME_CALL_TYPE, {cell_id: MOCK_CELL_ID, zome_name: "zome", fn_name: "zome_fn" }, { type: "internal", data: "CellMissing(...)" }, { returnError: true })
-  //   appConductor.once(MockConductor.ZOME_CALL_TYPE, {cell_id: MOCK_CELL_ID, zome_name: "zome", fn_name: "zome_fn" }, "success")
-  //   client = await setup.client({})
-  //   expect(activateAppCalled).to.be.false
-  //   const result = await client.callZomeFunction("dna_alias", "zome", "zome_fn", "zome args")
-  //   expect(result).to.equal("success")
-  //   expect(activateAppCalled).to.be.true
-  // })
-  //
-  // it("should call deactivate on conductor when client disconnects", async () => {
-  //   const agent_id = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
-  //   let activateAppCalled = false;
-  //   let deactivateAppCalled = false;
-  //   let onDeactivateApp;
-  //   const deactivateAppPromise = new Promise((resolve, reject) => onDeactivateApp = resolve);
-  //
-  //   adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
-  //     activateAppCalled = true;
-  //     return { type: "success" }
-  //   });
-  //
-  //   adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
-  //     deactivateAppCalled = true;
-  //     onDeactivateApp();
-  //     return { type: "success" }
-  //   });
-  //
-  //
-  //   client = await setup.client({});
-  //
-  //   expect(activateAppCalled).to.be.false;
-  //   expect(deactivateAppCalled).to.be.false;
-  //
-  //   await client.signIn("alice.test.1@holo.host", "Passw0rd!");
-  //
-  //   expect(activateAppCalled).to.be.true;
-  //   expect(deactivateAppCalled).to.be.false;
-  //
-  //   await client.close();
-  //   await deactivateAppPromise;
-  //   expect(deactivateAppCalled).to.be.true;
-  // });
-  //
-  // it("should call deactivate on conductor when client signs out", async () => {
-  //   let activateAppCalled = false;
-  //   let deactivateAppCalled = false;
-  //   let onDeactivateApp;
-  //   const deactivateAppPromise = new Promise((resolve, reject) => onDeactivateApp = resolve);
-  //
-  //   adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, () => {
-  //     activateAppCalled = true;
-  //     return { type: "success" }
-  //   });
-  //
-  //   adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, () => {
-  //     deactivateAppCalled = true;
-  //     onDeactivateApp();
-  //     return { type: "success" }
-  //   });
-  //
-  //
-  //   client = await setup.client({});
-  //
-  //   expect(activateAppCalled).to.be.false;
-  //   expect(deactivateAppCalled).to.be.false;
-  //
-  //   await client.signIn("alice.test.1@holo.host", "Passw0rd!");
-  //
-  //   expect(activateAppCalled).to.be.true;
-  //   expect(deactivateAppCalled).to.be.false;
-  //
-  //   await client.signOut();
-  //   await deactivateAppPromise;
-  //   expect(deactivateAppCalled).to.be.true;
-  // });
-  //
-  // it('can return a buffer from a zome call', async () => {
-  //   client = await setup.client({})
-  //
-  //   const callZomeData = {
-  //     cell_id: MOCK_CELL_ID,
-  //     zome_name: 'zome',
-  //     fn_name: 'zome_fn'
-  //   }
-  //   const expected_response = Buffer.from([1, 3, 3, 7])
-  //
-  //   appConductor.once(
-  //     MockConductor.ZOME_CALL_TYPE,
-  //     callZomeData,
-  //     expected_response,
-  //   )
-  //
-  //   const servicelogData = {
-  //     cell_id: MOCK_CELL_ID,
-  //     zome_name: 'service',
-  //     fn_name: 'log_activity'
-  //   }
-  //   const activity_log_response = 'Activity Log Success Hash'
-  //   appConductor.once(
-  //     MockConductor.ZOME_CALL_TYPE,
-  //     servicelogData,
-  //     activity_log_response
-  //   )
-  //
-  //   const response = await client.callZomeFunction(
-  //     'dna_alias',
-  //     'zome',
-  //     'zome_fn',
-  //     'zome args'
-  //   )
-  //
-  //   console.log('Response:', response)
-  //
-  //   expect(response).to.be.a("UInt8Array")
-  //   expect(Buffer.from(response).compare(expected_response)).to.equal(0)
-  //
-  // })
-  //
-  // it('should return a useful error message when a conductor call fails', async () => {
-  //   client = await setup.client({})
-  //
-  //   const callZomeData = {
-  //     cell_id: MOCK_CELL_ID,
-  //     zome_name: 'zome',
-  //     fn_name: 'zome_fn'
-  //   }
-  //   const expected_response = {
-  //     type: 'error',
-  //     data: {
-  //       type: 'fake conductor error type',
-  //       data: 'fake conductor error data'
-  //     }
-  //   }
-  //   appConductor.once(
-  //     MockConductor.ZOME_CALL_TYPE,
-  //     callZomeData,
-  //     expected_response.data,
-  //     { returnError: true }
-  //   )
-  //
-  //   const servicelogData = {
-  //     cell_id: MOCK_CELL_ID,
-  //     zome_name: 'service',
-  //     fn_name: 'log_activity'
-  //   }
-  //   const activity_log_response = 'Activity Log Success Hash'
-  //   appConductor.once(
-  //     MockConductor.ZOME_CALL_TYPE,
-  //     servicelogData,
-  //     activity_log_response
-  //   )
-  //
-  //   const response = await client.callZomeFunction(
-  //     'dna_alias',
-  //     'zome',
-  //     'zome_fn',
-  //     {
-  //       zomeFnArgs: 'String Input'
-  //     }
-  //   )
-  //
-  //   log.debug('Response: %s', response)
-  //
-  //   delete response._metadata
-  //   expect(response).to.deep.equal({
-  //     type: 'error',
-  //     payload: {
-  //       source: 'HoloError',
-  //       error: 'HoloError',
-  //       message:
-  //         'Error: CONDUCTOR CALL ERROR: {"type":"fake conductor error type","data":"fake conductor error data"}',
-  //       stack: []
-  //     }
-  //   })
-  // })
-  //
-  // function delay(t) {
-  //   return new Promise(function(resolve) {
-  //     setTimeout(function() {
-  //       resolve();
-  //     }, t);
-  //   });
-  // }
-  //
-  // it("should reconnect and successfully handle app_info", async () => {
-  //   const agentId = AGENT_ID;
-  //   client = await setup.client({
-  //     agent_id: agentId
-  //   });
-  //   const callAppInfo = () => client.processCOMBRequest("appInfo");
-  //
-  //   const res1 = await callAppInfo();
-  //   expect(res1).to.have.property("cell_data");
-  //
-  //   await appConductor.close();
-  //   await adminConductor.close();
-  //
-  //   const res2 = await callAppInfo();
-  //   expect(res2).to.deep.equal({
-  //     type: "error",
-  //     payload: {
-  //       "error": "Error",
-  //       "message": "Error while calling envoy app_info: {\"type\":\"error\",\"payload\":{\"source\":\"HoloError\",\"error\":\"HoloError\",\"message\":\"Failed during Conductor AppInfo call\",\"stack\":[]}}"
-  //     }
-  //   });
-  //
-  //   adminConductor = new MockConductor(ADMIN_PORT);
-  //   appConductor = new MockConductor(APP_PORT);
-  //   appConductor.any(MOCK_CELL_DATA);
-  //
-  //   // Wait for envoy to reconnect
-  //   await Promise.all([
-  //     new Promise(resolve => adminConductor.adminWss.once("connection", resolve)),
-  //     new Promise(resolve => appConductor.adminWss.once("connection", resolve))
-  //   ]);
-  //
-  //   const res3 = await callAppInfo();
-  //   expect(res3).to.deep.equal(res1);
-  // });
+
+  it("should forward signal from conductor to client", async () => {
+    let expectedSignalData = "Hello signal!";
+    // Instance of DNA that is emitting signal
+    // has to match DNA registered in envoy's dna2hha during Login and agent's ID
+    let cellId = MOCK_CELL_ID;
+
+    client = await setup.client({});
+    client.skip_assign_host = true;
+
+    try {
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
+
+      const appInfo = {
+        installed_app_id,
+        agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
+        dnas: envoyOpts.hosted_app.dnas
+      }
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
+        type: 'success'
+      })
+      adminConductor.once(
+        MockConductor.ACTIVATE_APP_TYPE,
+        { installed_app_id },
+        { type: 'success' }
+      )
+
+      await client.signUp("alice.test.1@holo.host", "Passw0rd!");
+
+      // mock conductor emits signal (has to be the right one)
+      log.debug(`Broadcasting signal via mock conductor`);
+      await appConductor.broadcastAppSignal(cellId, expectedSignalData);
+
+      // wait for signal to propagate all across
+      await delay(1000)
+
+      // client receives this
+      let receivedSignalData = client.signalStore;
+
+      expect(receivedSignalData).to.equal(expectedSignalData);
+    } finally {}
+  });
+
+  it("should forward signal from conductor to client with prefixed DNA hash", async () => {
+    let expectedSignalData = "Hello signal!";
+    // Instance of DNA that is emitting signal
+    // has to match DNA registered in envoy's dna2hha during Login and agent's ID
+    let cellId = [Codec.HoloHash.holoHashFromBuffer("dna", MOCK_CELL_ID[0]), Codec.HoloHash.holoHashFromBuffer("agent", MOCK_CELL_ID[1])]
+
+    client = await setup.client({});
+    client.skip_assign_host = true;
+
+    try {
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
+
+      const appInfo = {
+        installed_app_id,
+        agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
+        dnas: envoyOpts.hosted_app.dnas
+      }
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
+        type: 'success'
+      })
+      adminConductor.once(
+        MockConductor.ACTIVATE_APP_TYPE,
+        { installed_app_id },
+        { type: 'success' }
+      )
+
+      await client.signUp("alice.test.1@holo.host", "Passw0rd!");
+
+      // mock conductor emits signal (has to be the right one)
+      log.debug(`Broadcasting signal via mock conductor`);
+      await appConductor.broadcastAppSignal(cellId, expectedSignalData);
+
+      // wait for signal to propagate all across
+      await delay(1000)
+
+      // client receives this
+      let receivedSignalData = client.signalStore;
+
+      expect(receivedSignalData).to.equal(expectedSignalData);
+    } finally {}
+  });
+
+  it("should sign-out", async () => {
+    client = await setup.client({
+      agent_id: AGENT_ID
+    });
+    try {
+      await client.signOut();
+
+      expect(client.anonymous).to.be.true;
+      expect(client.agent_id).to.not.equal(AGENT_ID);
+    } finally {}
+  });
+
+  it.skip("should complete wormhole request", async () => {
+    client = await setup.client({});
+    try {
+      conductor.general.once("call", async function(data) {
+        const signature = await conductor.wormholeRequest(client.agent_id, "UW1ZVWo1NnJyakFTOHVRQXpkTlFoUHJ3WHhFeUJ4ZkFxdktwZ1g5bnBpOGZOeA==");
+
+        expect(signature).to.equal("w/lyO2IipA0sSdGtbg+5pACLoafOkdPRXXuiELis51HVthfhzdP2JZeIDQkwssMccC67mHjOuYsALe5DPQjKDw==");
+
+        return ZomeAPIResult(true);
+      });
+
+      const response = await client.callZomeFunction("elemental-chat", "chat", "list_channels", {
+        category: "General"
+      });
+      log.debug("Response: %s", response);
+
+      expect(response).to.be.true;
+    } finally {}
+  });
+
+  it.skip("should fail wormhole request because Agent is anonymous", async () => {
+    client = await setup.client({});
+    try {
+
+      let failed = false;
+      conductor.general.once("call", async function(data) {
+        await conductor.wormholeRequest(client.agent_id, {
+          "some": "entry",
+          "foo": "bar",
+        });
+
+        return ZomeAPIResult(true);
+      });
+
+      try {
+        await client.callZomeFunction("elemental-chat", "chat", "list_channels", {
+          category: "General"
+        });
+      } catch (err) {
+        failed = true;
+        expect(err.name).to.include("HoloError");
+        expect(err.message).to.include("not signed-in");
+      }
+
+      expect(failed).to.be.true;
+    } finally {}
+  });
+
+  it("should have no pending confirmations", async () => {
+    try {
+      expect(envoy.pending_confirms).to.be.empty;
+    } finally {}
+  });
+
+  it("should fail to sign-up because conductor disconnected");
+  it("should fail to sign-up because admin/agent/add returned an error");
+  it("should fail to sign-up because HHA returned an error");
+  it("should fail to sign-up because Happ Store returned an error");
+  it("should fail to sign-up because adminInterface call, `installApp`, returned an error");
+  it("should fail to sign-up because adminInterface call, `activateApp`, returned an error");
+  it("should fail to sign-in because this host doesn't know this Agent");
+  it("should handle obscure error from Conductor");
+  it("should disconnect Envoy's websocket clients on conductor disconnect");
+
+  it("should call ActivateApp and retry if a zome call returns CellMissing", async () => {
+    let activateAppCalled = false
+    adminConductor.next(({ type, data }) => {
+      expect(type).to.equal(MockConductor.ACTIVATE_APP_TYPE)
+      activateAppCalled = true;
+    });
+    appConductor.once(MockConductor.ZOME_CALL_TYPE, {cell_id: MOCK_CELL_ID, zome_name: "zome", fn_name: "zome_fn" }, ({ data }) => {
+      expect(msgpack.decode(Buffer.from(data.payload, 'base64'))).to.equal("zome args")
+      return { type: "internal", data: "CellMissing(...)" };
+    }, { returnError: true })
+    appConductor.once(MockConductor.ZOME_CALL_TYPE, {cell_id: MOCK_CELL_ID, zome_name: "zome", fn_name: "zome_fn" }, ({ data }) => {
+      expect(msgpack.decode(Buffer.from(data.payload, 'base64'))).to.equal("zome args")
+      return "success";
+    })
+    client = await setup.client({})
+    expect(activateAppCalled).to.be.false
+    const result = await client.callZomeFunction("dna_alias", "zome", "zome_fn", "zome args")
+    expect(result).to.equal("success")
+    expect(activateAppCalled).to.be.true
+  })
+
+  it("should call deactivate on conductor when client disconnects", async () => {
+    const agent_id = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
+    let activateAppCalled = false;
+    let deactivateAppCalled = false;
+    let onDeactivateApp;
+    const deactivateAppPromise = new Promise((resolve, reject) => onDeactivateApp = resolve);
+
+    adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
+      activateAppCalled = true;
+      return { type: "success" }
+    });
+
+    adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
+      deactivateAppCalled = true;
+      onDeactivateApp();
+      return { type: "success" }
+    });
+
+
+    client = await setup.client({});
+
+    expect(activateAppCalled).to.be.false;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.signIn("alice.test.1@holo.host", "Passw0rd!");
+
+    expect(activateAppCalled).to.be.true;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.close();
+    await deactivateAppPromise;
+    expect(deactivateAppCalled).to.be.true;
+  });
+
+  it("should call deactivate on conductor when client signs out", async () => {
+    let activateAppCalled = false;
+    let deactivateAppCalled = false;
+    let onDeactivateApp;
+    const deactivateAppPromise = new Promise((resolve, reject) => onDeactivateApp = resolve);
+
+    adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, () => {
+      activateAppCalled = true;
+      return { type: "success" }
+    });
+
+    adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, () => {
+      deactivateAppCalled = true;
+      onDeactivateApp();
+      return { type: "success" }
+    });
+
+
+    client = await setup.client({});
+
+    expect(activateAppCalled).to.be.false;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.signIn("alice.test.1@holo.host", "Passw0rd!");
+
+    expect(activateAppCalled).to.be.true;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.signOut();
+    await deactivateAppPromise;
+    expect(deactivateAppCalled).to.be.true;
+  });
+
+  it('should retry service logger confirm if it fails with head moved', async () => {
+    client = await setup.client({})
+
+    const callZomeData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'zome',
+      fn_name: 'zome_fn'
+    }
+
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      callZomeData,
+      "success",
+    )
+
+    const servicelogData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'service',
+      fn_name: 'log_activity'
+    }
+
+    let tries = 0
+
+    // Simulate three head moved failures
+    for (let i = 0; i < 3; i++) {
+      appConductor.once(
+        MockConductor.ZOME_CALL_TYPE,
+        servicelogData,
+        () => {
+          tries += 1
+          return "source chain head has moved"
+        },
+        { returnError: true }
+      )
+    }
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      servicelogData,
+      () => {
+        tries += 1
+        return "service logger success"
+      },
+    )
+
+    expect(tries).to.equal(0)
+
+    const response = await client.callZomeFunction(
+      'dna_alias',
+      'zome',
+      'zome_fn',
+      {
+        zomeFnArgs: 'String Input'
+      }
+    )
+
+    expect(tries).to.equal(4)
+
+    log.debug('Response: %s', response)
+
+    expect(response).to.equal("success")
+  })
+
+  it('can return a buffer from a zome call', async () => {
+    client = await setup.client({})
+
+    const callZomeData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'zome',
+      fn_name: 'zome_fn'
+    }
+    const expected_response = Buffer.from([1, 3, 3, 7])
+
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      callZomeData,
+      expected_response,
+    )
+
+    const servicelogData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'service',
+      fn_name: 'log_activity'
+    }
+
+    const activity_log_response = 'Activity Log Success Hash'
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      servicelogData,
+      activity_log_response
+    )
+
+    const response = await client.callZomeFunction(
+      'dna_alias',
+      'zome',
+      'zome_fn',
+      'zome args'
+    )
+
+    console.log('Response:', response)
+
+    expect(response).to.be.a("UInt8Array")
+    expect(Buffer.from(response).compare(expected_response)).to.equal(0)
+  })
+
+  it('should return a useful error message when a conductor call fails', async () => {
+    client = await setup.client({})
+
+    const callZomeData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'zome',
+      fn_name: 'zome_fn'
+    }
+    const expected_response = {
+      type: 'error',
+      data: {
+        type: 'fake conductor error type',
+        data: 'fake conductor error data'
+      }
+    }
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      callZomeData,
+      expected_response.data,
+      { returnError: true }
+    )
+
+    const servicelogData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'service',
+      fn_name: 'log_activity'
+    }
+    const activity_log_response = 'Activity Log Success Hash'
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      servicelogData,
+      activity_log_response
+    )
+
+    const response = await client.callZomeFunction(
+      'dna_alias',
+      'zome',
+      'zome_fn',
+      {
+        zomeFnArgs: 'String Input'
+      }
+    )
+
+    log.debug('Response: %s', response)
+
+    delete response._metadata
+    expect(response).to.deep.equal({
+      type: 'error',
+      payload: {
+        source: 'HoloError',
+        error: 'HoloError',
+        message:
+          'Error: CONDUCTOR CALL ERROR: {"type":"fake conductor error type","data":"fake conductor error data"}',
+        stack: []
+      }
+    })
+  })
+
+  function delay(t) {
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        resolve();
+      }, t);
+    });
+  }
+
+  it("should reconnect and successfully handle app_info", async () => {
+    const agentId = AGENT_ID;
+    client = await setup.client({
+      agent_id: agentId
+    });
+    const callAppInfo = () => client.processCOMBRequest("appInfo");
+
+    const res1 = await callAppInfo();
+    expect(res1).to.have.property("cell_data");
+
+    await appConductor.close();
+    await adminConductor.close();
+
+    const res2 = await callAppInfo();
+    expect(res2).to.deep.equal({
+      type: "error",
+      payload: {
+        "error": "Error",
+        "message": "Error while calling envoy app_info: {\"type\":\"error\",\"payload\":{\"source\":\"HoloError\",\"error\":\"HoloError\",\"message\":\"Failed during Conductor AppInfo call\",\"stack\":[]}}"
+      }
+    });
+
+    adminConductor = new MockConductor(ADMIN_PORT);
+    appConductor = new MockConductor(APP_PORT);
+    appConductor.any({ cell_data: MOCK_CELL_DATA });
+
+    // Wait for envoy to reconnect
+    await Promise.all([
+      new Promise(resolve => adminConductor.adminWss.once("connection", resolve)),
+      new Promise(resolve => appConductor.adminWss.once("connection", resolve))
+    ]);
+
+    const res3 = await callAppInfo();
+    expect(res3).to.deep.equal(res1);
+  });
 });
 
 describe("server without mock conductor to start", () => {

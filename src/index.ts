@@ -10,6 +10,7 @@ import { Server as WebSocketServer } from './wss';
 import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 import { v4 as uuid } from 'uuid';
+import * as crypto from 'crypto';
 
 const msgpack = require('@msgpack/msgpack');
 
@@ -19,10 +20,10 @@ const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
 
-const digest = (payload) => {
+const hash = (payload) => {
   const serialized_args = typeof payload === "string" ? payload : SerializeJSON(payload);
-  const args_digest = Buffer.from(serialized_args);
-  return Codec.Digest.encode(args_digest);
+  const args_digest = Buffer.from(serialized_args, 'utf8');
+  return Codec.Digest.encode(crypto.createHash('sha256').update(args_digest).digest());
 }
 
 const WS_SERVER_PORT = 4656; // holo
@@ -495,6 +496,11 @@ class Envoy {
       let triedCallingActivateApp = false
       while (retryCall) {
         retryCall = false
+        // HACK: holochain-conductor-api mutates the payload argument; save and restore it.
+        //
+        // Once we update to a release that has #57 merged, we can remove this hack.
+        // #57: https://github.com/holochain/holochain-conductor-api/pull/57
+        const payload = zomeCallArgs.payload
         try {
           log.silly("Calling zome function with parameters: %s", prettyZomeCallArgs);
           zomeCallResponse = await this.callConductor("app", zomeCallArgs);
@@ -516,7 +522,6 @@ class Envoy {
             try {
               await this.callConductor("admin", "activateApp", { installed_app_id })
               retryCall = true
-              continue
             } catch (errActivatingApp) {
               log.info("Failed to activate app: %s", errActivatingApp)
             }
@@ -533,6 +538,7 @@ class Envoy {
           }
         }
 
+        zomeCallArgs.payload = payload
       }
 
       // - return host response
@@ -960,7 +966,7 @@ class Envoy {
     log.normal("Processing service logger request (%s)", signature);
 
     const call_spec = payload.call_spec;
-    const args_hash = digest(call_spec["args"]);
+    const args_hash = hash(call_spec["args"]);
 
     log.debug("Using argument digest: %s", args_hash);
     const request_payload = {
@@ -986,7 +992,7 @@ class Envoy {
   }
 
   logServiceResponse(response, host_metrics, weblog_compat) {
-    const response_hash = digest(response);
+    const response_hash = hash(response);
     log.normal("Processing service logger response (%s)", response_hash);
 
     // NB: The signed_response_hash is added to the response obj when `logServiceConfirmation` is called
@@ -1039,14 +1045,28 @@ class Envoy {
     }
 
     log.silly("Recording service confirmation with payload: activity: { request: %s, response: %s, confimation: %s }", client_request, host_response, confirmation);
-    const resp = await this.callConductor("app", {
-      "cell_id": servicelogger_cell_id,
-      "zome_name": "service",
-      "fn_name": "log_activity",
-      payload,
-      cap: null,
-      provenance: buffer_host_agent_servicelogger_id,
-    });
+    let resp
+
+    let retryCall = true
+    while (retryCall) {
+      retryCall = false
+      try {
+        resp = await this.callConductor("app", {
+          "cell_id": servicelogger_cell_id,
+          "zome_name": "service",
+          "fn_name": "log_activity",
+          payload,
+          cap: null,
+          provenance: buffer_host_agent_servicelogger_id,
+        });
+      } catch (e) {
+        if (String(e).includes("source chain head has moved")) {
+          retryCall = true
+        } else {
+          throw e
+        }
+      }
+    }
 
     if (resp) {
       log.silly('\nFinished Servicelogger confirmation: ', resp);
