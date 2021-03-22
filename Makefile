@@ -51,7 +51,7 @@ test-unit-debug:	build lair
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make stop-lair
 lair:
-	# Not clearning because on setup we generaee keys for the host agents, deleting this file deletes all the keys
+	# Not clearning because on setup we generate keys for the host agents, deleting this file deletes all the keys
 	#rm -rf ./script/install-bundles/keystore
 	mkdir -p ./script/install-bundles/shim
 	rm -rf ./script/install-bundles/shim/*
