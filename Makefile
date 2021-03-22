@@ -11,7 +11,6 @@ build/index.js:		src/*.ts src/shim.js
 docs/index.html:	build/index.js
 	npx jsdoc --verbose -c ./docs/.jsdoc.json --private --destination ./docs build/index.js
 
-
 .PRECIOUS:	keystore-%.key
 .PHONY:		src build docs docs-watch build-watch
 kill-holochain:
@@ -25,9 +24,9 @@ dnas/servicelogger.happ:	dnas
 dnas/test.happ:	dnas
 	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.2.0/test.happ' -o $@
 
-build:	 build/index.js
-docs:			node_modules docs/index.html
-DNAs:			dnas/test.happ dnas/holo-hosting-app.happ dnas/servicelogger.happ
+build: node_modules build/index.js
+docs: node_modules docs/index.html
+DNAs: dnas/test.happ dnas/holo-hosting-app.happ dnas/servicelogger.happ
 
 MOCHA_OPTS		= --timeout 10000 --exit
 
