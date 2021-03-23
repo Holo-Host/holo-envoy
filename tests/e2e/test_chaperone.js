@@ -235,10 +235,8 @@ describe("Server", () => {
         }
         let responseOne, responseTwo;
         try {
-          // Note: the cell_id is `test` because holochain-run-dna is setting a default nick
-          // Ideally we would have a nick like test or chat or elemental-chat
           responseOne = await client.callZomeFunction(`test`, "test", "pass_obj", {'value': "This is the returned value"});
-          // responseTwo = await client.callZomeFunction(`test`, "test", "returns_obj", null);
+          responseTwo = await client.callZomeFunction(`test`, "test", "returns_obj", null);
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
@@ -270,14 +268,14 @@ describe("Server", () => {
 
         return {
           responseOne,
-          // responseTwo
+          responseTwo
         }
       }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH);
 
       log.info("Completed evaluation: %s", responseOne);
-      // log.info("Completed evaluation: %s", responseTwo);
+      log.info("Completed evaluation: %s", responseTwo);
       expect(responseOne).to.have.property("value").which.equals("This is the returned value");
-      // expect(responseTwo).to.have.property("value").which.equals("This is the returned value");
+      expect(responseTwo).to.have.property("value").which.equals("This is the returned value");
     } finally {
 
     }
