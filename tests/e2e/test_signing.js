@@ -27,13 +27,12 @@ describe("Wormhole tests", () => {
   let shim, appWs, seed, keys, testCellId;
   before(async function() {
     this.timeout(100_000);
-
+    await setup_conductor.setup_conductor()
     log.info("Waiting for Lair to spin up");
     await setup_conductor.start_lair()
     await delay(5000);
-    seed = crypto.randomBytes(32);
-    keys = new KeyManager(seed);
     shim = await init(LAIR_SOCKET, WH_SERVER_PORT, async function(pubkey, message) {
+      console.log("Test shim...");
       return null;
     });
     await delay(5000);
@@ -41,20 +40,20 @@ describe("Wormhole tests", () => {
     log.info("Waiting for Conductor to spin up");
     await setup_conductor.start_conductor()
     await delay(10000);
-
     appWs = await AppWebsocket.connect('ws://localhost:42233')
     testCellId = await getTestCellID(appWs)
   });
   after(async () => {
     await shim.stop();
     await setup_conductor.stop_conductor();
+    await setup_conductor.stop_lair();
     await resetTmp();
   });
 
   it("test shim signing for zome call", async () => {
     console.log("Calling zome test...", testCellId);
     try {
-      loggedActivity = await appWs.callZome({
+      response = await appWs.callZome({
         cell_id: [Buffer.from(testCellId[0]), Buffer.from(testCellId[1])],
         zome_name: 'test',
         fn_name: 'returns_obj',
@@ -62,8 +61,8 @@ describe("Wormhole tests", () => {
         cap: null,
         provenance: Buffer.from(testCellId[1])
       });
-      console.log("return from signing test: ", loggedActivity);
-      expect(loggedActivity).to.be.ok
+      console.log("return from signing test: ", response);
+      expect(response).to.be.ok
     } catch(e) {
       console.log("Failing...", e);
       expect(false).to.be.ok
@@ -79,6 +78,6 @@ async function getTestCellID(appWs) {
       }, 1000);
       return testAppInfo.cell_data[0].cell_id;
     } catch (error) {
-      throw new Error(`Failed to get appInfo: ${JSON.stringify(error)}`);
+      throw new Error(`Failed to get appInfo: ${error}`);
     }
 }

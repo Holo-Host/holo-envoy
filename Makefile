@@ -70,8 +70,7 @@ setup-conductor:
 	make shim
 	sleep 1
 	rm -rf ./script/install-bundles/.sandbox
-	cd script/install-bundles && cargo run > ../../hc-conductor.log 2>&1 &
-	sleep 5
+	cd script/install-bundles && cargo run
 	make stop-lair
 conductor:
 	cd script/install-bundles && hc sandbox -f=4444 run -l -p=42233 > ../../hc-conductor.log 2>&1 &
@@ -93,7 +92,7 @@ test-e2e:		build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make setup-conductor
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e
-test-e2e-debug:		build DNAs #dist/holo_hosting_chaperone.js
+test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make setup-conductor
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
@@ -102,8 +101,22 @@ test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
 	make setup-conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
 
+# test-e2e-ci:		build DNAs dist/holo_hosting_chaperone.js
+# 	make e2e-1
+# 	make e2e-2
+# e2e-1:
+# 	make clean-tests
+# 	make stop-conductor
+# 	make setup-conductor
+# 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/test_chaperone.js
+# e2e-2:
+# 	make clean-tests
+# 	make stop-conductor
+# 	make setup-conductor
+# 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/test_signing.js
+
 clean-tests:
-	rm -rf ./script/install-bundles/.sandbox
+	#rm -rf ./script/install-bundles/.sandbox
 	rm -rf ./script/install-bundles/keystore
 	rm -rf ./script/install-bundles/shim
 

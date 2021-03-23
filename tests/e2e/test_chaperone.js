@@ -91,7 +91,7 @@ describe("Server", () => {
   let registered_agent;
 
   before(async function() {
-    this.timeout(100_000);
+    this.timeout(150_000);
 
     log.info("Waiting for Lair to spin up");
     setup_conductor.start_lair()
@@ -119,6 +119,7 @@ describe("Server", () => {
 
   after(async () => {
     log.debug("Shutdown cleanly...");
+    await delay(5000);
     log.debug("Close browser...");
     await browser.close();
 
@@ -127,6 +128,9 @@ describe("Server", () => {
 
     log.debug("Close HTTP server...");
     await http_ctrls.close();
+
+    log.debug("Stop lair...");
+    await setup_conductor.stop_lair();
 
     log.info("Stopping Envoy...");
     await setup.stop();
