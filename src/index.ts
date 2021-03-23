@@ -813,7 +813,7 @@ class Envoy {
     return isHoloHash;
   }
 
-  async callConductor(client, call_spec, args: any = {}, timeout = CALL_CONDUCTOR_TIMEOUT) {
+  async callConductor(client, call_spec, args: any = null, timeout = CALL_CONDUCTOR_TIMEOUT) {
     log.normal("Received request to call Conductor using client '%s' with call spec of type '%s'", client, typeof call_spec);
     let interfaceMethod, methodName, callAgent;
     let pleaseCloseClient = false;
