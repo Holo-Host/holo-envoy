@@ -20,7 +20,7 @@ dnas:
 dnas/holo-hosting-app.happ:	dnas
 	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.1.0-alpha1/holo-hosting-app.happ' -o $@
 dnas/servicelogger.happ:	dnas
-	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.1.0-alpha1/servicelogger.happ' -o $@
+	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.1.0-alpha2/servicelogger.happ' -o $@
 dnas/test.happ:	dnas
 	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.2.0/test.happ' -o $@
 
