@@ -729,7 +729,7 @@ describe("Server with mock Conductor", () => {
 
     adminConductor = new MockConductor(ADMIN_PORT);
     appConductor = new MockConductor(APP_PORT);
-    appConductor.any({ cell_data: MOCK_CELL_DATA });
+    appConductor.any(MOCK_CELL_DATA);
 
     // Wait for envoy to reconnect
     await Promise.all([
