@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
     let happs = [test_happ, hha_happ, sl_happ];
 
     // Insatalling test happ
-     for i in 0..3 as usize {
+     for i in 0..3_usize {
          println!(" Installing {} ", ids[i]);
 
          let happ: PathBuf = hc_sandbox::bundles::parse_happ(Some(happs[i].clone()))?;
