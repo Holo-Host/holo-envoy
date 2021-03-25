@@ -42,4 +42,4 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('script/setup-install-bundle.sh') }}
     - name: Run all holo-envoy tests
-      run: nix-shell --run 'make test'
+      run: nix-shell --run 'make setup-conductor'
