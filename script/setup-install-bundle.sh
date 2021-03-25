@@ -1,1 +1,1 @@
-make setup-conductor
+cd ./script/install-bundles && cargo build

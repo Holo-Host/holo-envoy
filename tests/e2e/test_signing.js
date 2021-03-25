@@ -50,7 +50,7 @@ describe("Wormhole tests", () => {
     await resetTmp();
   });
 
-  it("test shim signing for zome call", async () => {
+  it.skip("test shim signing for zome call", async () => {
     console.log("Calling zome test...", testCellId);
     try {
       response = await appWs.callZome({
