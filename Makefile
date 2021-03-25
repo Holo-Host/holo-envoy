@@ -44,7 +44,7 @@ test-debug:		build
 	make test-integration-debug
 	make test-e2e-debug2
 
-test-unit:		build lair
+test-unit:		build DNAs lair
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make stop-lair
 test-unit-debug:	build lair
