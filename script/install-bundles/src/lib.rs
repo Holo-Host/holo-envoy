@@ -35,7 +35,6 @@ async fn main() -> anyhow::Result<()> {
     let config = ConductorConfig::load_yaml(Path::new("./config.yaml"))?;
     println!("Generating sandbox..");
     let path = hc_sandbox::generate::generate_with_config(Some(config), Some(hc_dir.clone()), Some(PathBuf::from(".sandbox")))?;
-    // let path = hc_sandbox::generate::generate(Some(network.clone()), Some(PathBuf::from(r"../../")), Some(PathBuf::from(r".sandbox")))?;
     println!("Saving in .hc s..");
     hc_sandbox::save::save(hc_dir, vec![path.clone()])?;
 
