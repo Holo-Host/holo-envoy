@@ -33,7 +33,7 @@ jobs:
       run: nix-shell --command "echo Completed"
     - name: Check Holochain version
       run: nix-shell --command "holochain -V"
-    - name: Prepare cargo pkgs
+    - name: Cache Rust build artifacts
       uses: actions/cache@v2
       with:
         path: |
