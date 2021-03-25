@@ -57,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
     let test_happ = PathBuf::from(r"../../dnas/test.happ");
     // NB: Make sure the hha app_name matches the harded HHA_INSTALLED_APP_ID value in index.ts
     let hha_id = "holo-hosting-happ".to_string();
-    let hha_happ = PathBuf::from(r"../../dnas/holo-hosting-app.happ");
+    let hha_happ = PathBuf::from("../../dnas/holo-hosting-app.happ");
     let sl_id = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo::servicelogger".to_string();
     let sl_happ = PathBuf::from(r"../../dnas/servicelogger.happ");
     let ids = [test_id, hha_id, sl_id];
