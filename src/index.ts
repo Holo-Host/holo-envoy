@@ -701,8 +701,8 @@ class Envoy {
     const usagePerDna = getDiskUsagePerDna(hashes)
 
     // this fires off a bunch of promises and never waits for them to return
-    hashes.forEach(hash => {
-      const cellId = this.getServiceLoggerCellId(hash)
+    hashes.forEach(async hash => {
+      const cellId = await this.getServiceLoggerCellId(hash)
 
       const payload = {
         source_chains: [],
@@ -902,7 +902,6 @@ class Envoy {
     log.normal("Conductor call returned successful '%s' response: %s ", typeof resp, resp);
     return resp;
   }
-
 
   // --------------------------------------------------------------------------------------------
 
