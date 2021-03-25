@@ -44,4 +44,6 @@ jobs:
     - name: Run all holo-envoy tests
       run: yarn install
     - name: Run all holo-envoy tests
+      run: nix-shell --run 'make test-unit'
+    - name: Run all holo-envoy tests
       run: nix-shell --run 'make setup-conductor'
