@@ -27,7 +27,7 @@ describe("Wormhole tests", () => {
   let shim, appWs, seed, keys, testCellId;
   before(async function() {
     this.timeout(100_000);
-    await setup_conductor.setup_conductor()
+
     log.info("Waiting for Lair to spin up");
     await setup_conductor.start_lair()
     await delay(5000);
@@ -38,9 +38,9 @@ describe("Wormhole tests", () => {
     await delay(5000);
 
     log.info("Waiting for Conductor to spin up");
-    await setup_conductor.start_conductor()
+    await setup_conductor.start_conductor_2()
     await delay(10000);
-    appWs = await AppWebsocket.connect('ws://localhost:42233')
+    appWs = await AppWebsocket.connect('ws://localhost:42244')
     testCellId = await getTestCellID(appWs)
   });
   after(async () => {
@@ -50,7 +50,7 @@ describe("Wormhole tests", () => {
     await resetTmp();
   });
 
-  it.skip("test shim signing for zome call", async () => {
+  it("test shim signing for zome call", async () => {
     console.log("Calling zome test...", testCellId);
     try {
       response = await appWs.callZome({

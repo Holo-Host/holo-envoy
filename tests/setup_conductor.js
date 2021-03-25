@@ -61,9 +61,25 @@ async function start_conductor() {
   });
 }
 
+async function start_conductor_2() {
+  console.log("Starting Holochain ...");
+  console.log("Note: See hc-conductor.log file for logs");
+  exec("make tmp-conductor", (error, stdout, stderr) => {
+      if (error) {
+          console.log(`Holochain Conductor Start Up error: ${error.message}`);
+          return;
+      }
+      if (stderr) {
+          console.log(`Holochain Conductor Start Up stderr: ${stderr}`);
+          return;
+      }
+      console.log(`Holochain Conductor Start Up stdout: ${stdout}`);
+  });
+}
+
 async function stop_conductor(timeout) {
   console.log("Closing Conductor...");
-  exec("make stop-conductor", (error, stdout, stderr) => {
+  execSync("make stop-conductor", (error, stdout, stderr) => {
       if (error) {
           console.log(`Holochain Conductor Stop error: ${error.message}`);
           return;
@@ -78,6 +94,7 @@ async function stop_conductor(timeout) {
 
 module.exports = {
   start_conductor,
+  start_conductor_2,
   setup_conductor,
   stop_conductor,
   start_lair,

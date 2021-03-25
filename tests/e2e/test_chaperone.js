@@ -119,7 +119,6 @@ describe("Server", () => {
 
   after(async () => {
     log.debug("Shutdown cleanly...");
-    await delay(5000);
     log.debug("Close browser...");
     await browser.close();
 
@@ -269,6 +268,7 @@ describe("Server", () => {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
         console.log("BOB Anonymous AFTER: ", client.anonymous);
+        await client.signOut();
 
         return {
           responseOne,

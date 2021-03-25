@@ -34,7 +34,6 @@ test:			build
 	make test-unit;
 	make test-integration;
 	make test-e2e;
-	make stop-conductor
 
 test-nix:		build
 	make test-unit;
@@ -50,33 +49,40 @@ test-unit:		build lair
 test-unit-debug:	build lair
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make stop-lair
+
 lair:
-	# Not clearning because on setup we generate keys for the host agents, deleting this file deletes all the keys
-	#rm -rf ./script/install-bundles/keystore
-	mkdir -p ./script/install-bundles/shim
-	rm -rf ./script/install-bundles/shim/*
 	RUST_LOG=trace lair-keystore --lair-dir ./script/install-bundles/keystore &> hc-lair.log &
 stop-lair:
 	killall lair-keystore &
+clean-lair:
+	rm -rf ./script/install-bundles/keystore
 
-shim:
+tmp-shim:
 	node script/test-shim-init.js &
+clean-tmp-shim:
+	mkdir -p ./script/install-bundles/shim
+	rm -rf ./script/install-bundles/shim/*
 
 setup-conductor:
 	make lair
 	sleep 5
-	mkdir -p ./script/install-bundles/shim
-	rm -rf ./script/install-bundles/shim/*
-	make shim
+	make clean-tmp-shim
+	make tmp-shim
 	sleep 1
 	rm -rf ./script/install-bundles/.sandbox
 	cd script/install-bundles && cargo run
 	make stop-lair
+	make clean-tmp-shim
 conductor:
 	cd script/install-bundles && hc sandbox -f=4444 run -l -p=42233 > ../../hc-conductor.log 2>&1 &
+tmp-conductor:
+	cd script/install-bundles && hc sandbox run -l -p=42244 > ../../hc-conductor.log 2>&1 &
+
 stop-conductor:
 	yarn run stop-conductor
 	yarn run stop-hc
+clean-conductor:
+	rm -rf ./script/install-bundles/.sandbox
 
 test-integration:	build DNAs
 	make stop-conductor
@@ -94,31 +100,13 @@ test-e2e:		build DNAs dist/holo_hosting_chaperone.js
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e
 test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
+	make stop-lair
 	make setup-conductor
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make setup-conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
-
-# test-e2e-ci:		build DNAs dist/holo_hosting_chaperone.js
-# 	make e2e-1
-# 	make e2e-2
-# e2e-1:
-# 	make clean-tests
-# 	make stop-conductor
-# 	make setup-conductor
-# 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/test_chaperone.js
-# e2e-2:
-# 	make clean-tests
-# 	make stop-conductor
-# 	make setup-conductor
-# 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/test_signing.js
-
-clean-tests:
-	#rm -rf ./script/install-bundles/.sandbox
-	rm -rf ./script/install-bundles/keystore
-	rm -rf ./script/install-bundles/shim
 
 docs-watch:
 build-watch:
