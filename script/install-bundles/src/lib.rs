@@ -31,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
     // let network = KitsuneP2pConfig::default();
 
     // Create a conductor config.
-    let hc_dir =  PathBuf::from(r"./");
+    let hc_dir =  PathBuf::from("./");
     let config = ConductorConfig::load_yaml(Path::new("./config.yaml"))?;
     println!("Generating sandbox..");
     let path = hc_sandbox::generate::generate_with_config(Some(config), Some(hc_dir.clone()), Some(PathBuf::from(".sandbox")))?;
