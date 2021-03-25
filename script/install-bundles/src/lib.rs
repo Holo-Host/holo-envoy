@@ -39,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
     hc_sandbox::save::save(hc_dir, vec![path.clone()])?;
 
     println!("update admin port..");
-    hc_sandbox::force_admin_port(PathBuf::from(r"./.sandbox"), 4444)?;
+    hc_sandbox::force_admin_port(PathBuf::from("./.sandbox"), 4444)?;
 
     // Create a command runner to run admin commands.
     // This runs the conductor in the background and cleans
