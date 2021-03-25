@@ -9,7 +9,6 @@ result
 hc-conductor.log
 hc-lair.log
 script/install-bundles/.hc*
-script/install-bundles/Cargo.lock
 script/install-bundles/.sandbox
 script/install-bundles/keystore
 script/install-bundles/target
