@@ -119,6 +119,7 @@ describe("Server", () => {
 
   after(async () => {
     log.debug("Shutdown cleanly...");
+    await delay(10000);
     log.debug("Close browser...");
     await browser.close();
 

@@ -23,6 +23,9 @@ const LAIR_SOCKET = path.resolve(__dirname, '../../script/install-bundles/keysto
 const installedAppIds = yaml.load(fs.readFileSync('./script/app-config.yml'));
 const INSTALLED_APP_ID = installedAppIds[2].app_name;
 
+// This test is skiped because we only needed it to replicate scenatios with the shim
+// This test will pass when its run locally
+// This will fail on the CI for an unknow reason
 describe.skip("Wormhole tests", () => {
   let shim, appWs, seed, keys, testCellId;
   before(async function() {
