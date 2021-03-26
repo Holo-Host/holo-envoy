@@ -261,16 +261,16 @@ describe("Server", () => {
 
         // Test for second agent on same host
         // NEED TO FIX
-        // await client.signUp("bob.test.1@holo.host", "Passsw0rd!");
-        // console.log("Finished sign-up for agent: %s", client.agent_id);
-        // if (client.anonymous === true) {
-        //   throw new Error("Client did not sign-in")
-        // }
-        // if (client.agent_id !== "uhCAkCxDJXYNJtqI3EszLD4DNDiY-k8au1qYbRNZ84eI7a7x76uc1") {
-        //   throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
-        // }
-        // console.log("BOB Anonymous AFTER: ", client.anonymous);
-        // await client.signOut();
+        await client.signUp("bob.test.1@holo.host", "Passsw0rd!");
+        console.log("Finished sign-up for agent: %s", client.agent_id);
+        if (client.anonymous === true) {
+          throw new Error("Client did not sign-in")
+        }
+        if (client.agent_id !== "uhCAkCxDJXYNJtqI3EszLD4DNDiY-k8au1qYbRNZ84eI7a7x76uc1") {
+          throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
+        }
+        console.log("BOB Anonymous AFTER: ", client.anonymous);
+        await client.signOut();
 
         return {
           responseOne,
