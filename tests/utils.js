@@ -10,7 +10,7 @@ function delay(t, val) {
 
 async function resetTmp() {
   console.log("Removing tmp files ...");
-  execSync("make clean-tests", (error, stdout, stderr) => {
+  execSync("make clean-tmp-shim", (error, stdout, stderr) => {
       if (error) {
           console.log(`Reset tests tmp files error: ${error.message}`);
           return;
