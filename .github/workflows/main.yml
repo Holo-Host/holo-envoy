@@ -44,4 +44,4 @@ jobs:
     - name: Check Holochain version
       run: nix-shell --command "holochain -V"
     - name: Run all holo-envoy tests
-      run: nix-shell --run 'make test-debug'
+      run: nix-shell --run 'make test'

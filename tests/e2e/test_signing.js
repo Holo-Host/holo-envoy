@@ -26,7 +26,7 @@ const INSTALLED_APP_ID = installedAppIds[2].app_name;
 // This test is skiped because we only needed it to replicate scenatios with the shim
 // This test will pass when its run locally
 // This will fail on the CI for an unknow reason
-describe.skip("Wormhole tests", () => {
+describe("Wormhole tests", () => {
   let shim, appWs, seed, keys, testCellId;
   before(async function() {
     this.timeout(100_000);
