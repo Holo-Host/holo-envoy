@@ -27,8 +27,8 @@ const hash = (payload) => {
 }
 
 const WS_SERVER_PORT = 4656; // holo
-const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim/socket');
-const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../tests/tmp/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
+const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../script/install-bundles/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim/socket');
+const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../script/install-bundles/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
 const RPC_CLIENT_OPTS = {
   "reconnect_interval": 1000,
   "max_reconnects": 300,
@@ -325,7 +325,7 @@ class Envoy {
           if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
             dnas = this.opts.hosted_app.dnas;
 					} else {
-            dnas = appInfo.cell_data.map(([cell_id, dna_alias]) => ({ nick: dna_alias, hash: cell_id[0], membrane_proof }));
+            dnas = appInfo.cell_data.map(({cell_id, cell_nick}) => ({ nick: cell_nick, hash: cell_id[0], membrane_proof }));
 
 					}
 
@@ -608,8 +608,8 @@ class Envoy {
 
       let result
       try {
-        const cell_data: Array<[Buffer, Buffer]> = appInfo.cell_data;
-        const [cell_id,] = cell_data.find(([_cell_id, installed_dna_alias]) => dna_alias === installed_dna_alias);
+        const cell_data: Array<{cell_id: Buffer, cell_nick: Buffer}> = appInfo.cell_data;
+        const {cell_id} = cell_data.find(({cell_id, cell_nick}) => dna_alias === cell_nick);
         result = await this.callConductor("admin", "dumpState", { cell_id });
       } catch (err) {
         log.error("Failed during Conductor StateDump call: %s", String(err));
@@ -1030,7 +1030,8 @@ class Envoy {
     }
 
     log.debug("Servicelogger app_info: '%s'", appInfo);
-    const servicelogger_cell_id = appInfo.cell_data[0][0];
+    // We are assuming that servicelogger is a happ and the first cell is the servicelogger DAN
+    const servicelogger_cell_id = appInfo.cell_data[0].cell_id;
     const buffer_host_agent_servicelogger_id = servicelogger_cell_id[1];
 
     client_request["request_signature"] = Codec.Signature.decode(client_request["request_signature"])
@@ -1099,7 +1100,7 @@ class Envoy {
       // TODO but leave it for now: I am operating under the assumption that each dna_hash can be only in one app (identified by hha_hash)
       // Does this need to change?
       appInfo.cell_data.forEach(cell => {
-        let dna_hash_string = Codec.HoloHash.encode("dna", cell[0][0]); // cell[0][0] is binary buffer of dna_hash
+        let dna_hash_string = Codec.HoloHash.encode("dna", cell.cell_id[0]); // cell.cell_id[0] is binary buffer of dna_hash
         this.dna2hha[dna_hash_string] = hha_hash;
       });
     }

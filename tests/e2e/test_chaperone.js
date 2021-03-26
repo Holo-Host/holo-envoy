@@ -10,7 +10,7 @@ const http_servers = require('../setup_http_server.js');
 const setup = require("../setup_envoy.js");
 const setup_conductor = require("../setup_conductor.js");
 const { Codec } = require('@holo-host/cryptolib');
-const installedAppIds = yaml.load(fs.readFileSync('./tests/app-config.yml'));
+const installedAppIds = yaml.load(fs.readFileSync('./script/app-config.yml'));
 const { resetTmp, delay } = require("../utils")
 const msgpack = require('@msgpack/msgpack');
 
@@ -76,7 +76,7 @@ const getHostAgentKey = async (appClient) => {
   const appInfo = await appClient.appInfo({
     installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
   });
-  const agentPubKey = appInfo.cell_data[0][0][1];
+  const agentPubKey = appInfo.cell_data[0].cell_id[1];
   return {
     decoded: agentPubKey,
     encoded: Codec.AgentId.encode(agentPubKey)
@@ -119,6 +119,7 @@ describe("Server", () => {
 
   after(async () => {
     log.debug("Shutdown cleanly...");
+    await delay(5000);
     log.debug("Close browser...");
     await browser.close();
 
@@ -127,6 +128,9 @@ describe("Server", () => {
 
     log.debug("Close HTTP server...");
     await http_ctrls.close();
+
+    log.debug("Stop lair...");
+    await setup_conductor.stop_lair();
 
     log.info("Stopping Envoy...");
     await setup.stop();
@@ -152,7 +156,7 @@ describe("Server", () => {
           const serviceloggerAppInfo = await envoy.hcc_clients.app.appInfo({
             installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
           });
-          serviceloggerCellId = serviceloggerAppInfo.cell_data[0][0];
+          serviceloggerCellId = serviceloggerAppInfo.cell_data[0].cell_id;
         } catch (error) {
           throw new Error(JSON.stringify(error));
         }
@@ -235,10 +239,8 @@ describe("Server", () => {
         }
         let responseOne, responseTwo;
         try {
-          // Note: the cell_id is `test.dna.gz` because holochain-run-dna is setting a default nick
-          // Ideally we would have a nick like test or chat or elemental-chat
-          responseOne = await client.callZomeFunction(`test.dna.gz`, "test", "pass_obj", {'value': "This is the returned value"});
-          responseTwo = await client.callZomeFunction(`test.dna.gz`, "test", "returns_obj", null);
+          responseOne = await client.callZomeFunction(`test`, "test", "pass_obj", {'value': "This is the returned value"});
+          responseTwo = await client.callZomeFunction(`test`, "test", "returns_obj", null);
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
@@ -253,11 +255,12 @@ describe("Server", () => {
         }
         // Delay is added so that the zomeCall has time to finish all the signing required
         //and by signing out too soon it would not be able to get all the signature its needs and the test would fail
-        await delay(10000);
+        await delay(15000);
         await client.signOut();
         console.log("Anonymous AFTER: ", client.anonymous);
 
         // Test for second agent on same host
+        // NEED TO FIX
         await client.signUp("bob.test.1@holo.host", "Passw0rd!");
         console.log("Finished sign-up for agent: %s", client.agent_id);
         if (client.anonymous === true) {
@@ -267,8 +270,12 @@ describe("Server", () => {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
         console.log("BOB Anonymous AFTER: ", client.anonymous);
+        await client.signOut();
 
-        return { responseOne, responseTwo }
+        return {
+          responseOne,
+          responseTwo
+        }
       }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH);
 
       log.info("Completed evaluation: %s", responseOne);

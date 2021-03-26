@@ -6,12 +6,10 @@ lib
 build
 docs
 result
-conductor-*.toml
-keystore-*.key
-AGENTID
-conductor.log
-sim2h.log
-holochain-conductor/storage
 hc-conductor.log
 hc-lair.log
-tests/tmp
+script/install-bundles/.hc*
+script/install-bundles/.sandbox
+script/install-bundles/keystore
+script/install-bundles/target
+script/install-bundles/shim

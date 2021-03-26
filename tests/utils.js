@@ -1,4 +1,4 @@
-const { exec } = require("child_process");
+const { execSync } = require("child_process");
 
 function delay(t, val) {
   return new Promise(function(resolve) {
@@ -9,10 +9,10 @@ function delay(t, val) {
 }
 
 async function resetTmp() {
-  console.log("Removing /tmp ...");
-  exec("rm -rf tests/tmp", (error, stdout, stderr) => {
+  console.log("Removing tmp files ...");
+  execSync("make clean-tmp-shim", (error, stdout, stderr) => {
       if (error) {
-          console.log(`Reset tmp error: ${error.message}`);
+          console.log(`Reset tests tmp files error: ${error.message}`);
           return;
       }
   });

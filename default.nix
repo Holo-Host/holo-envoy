@@ -11,6 +11,7 @@ with pkgs;
       nodejs
       makeWrapper
       ps
+      openssl
     ];
 
     packageJSON = "${src}/package.json";

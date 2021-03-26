@@ -1,0 +1,14 @@
+---
+environment_path: ./.sandbox
+use_dangerous_test_keystore: false
+signing_service_uri: ~
+encryption_service_uri: ~
+decryption_service_uri: ~
+dpki: ~
+keystore_path: "./shim"
+passphrase_service: ~
+admin_interfaces:
+  - driver:
+      type: websocket
+      port: 4444
+network: ~

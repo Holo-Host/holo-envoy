@@ -32,7 +32,7 @@ const envoyOpts = {
   hosted_app: {
     dnas: [{
       nick: 'test-hha',
-      path: './dnas/elemental-chat.dna.gz'
+      path: './dnas/elemental-chat.dna'
     }],
     usingURL: false
   }
@@ -48,7 +48,12 @@ describe("Server with mock Conductor", () => {
   const AGENT_ID = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
   const DNA_HASH = "uhC0kWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
   const MOCK_CELL_ID = [Codec.HoloHash.decode(DNA_HASH), Codec.AgentId.decode(AGENT_ID)];
-  const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
+  const MOCK_CELL_DATA = {
+    cell_data: [{
+      cell_id: MOCK_CELL_ID,
+      cell_nick: DNA_ALIAS
+    }]
+  };
 
   let envoy;
   let server;
@@ -81,7 +86,7 @@ describe("Server with mock Conductor", () => {
     await envoy.connected;
   });
   beforeEach('Set-up installed_app_ids for test', async () => {
-    appConductor.any({ cell_data: MOCK_CELL_DATA })
+    appConductor.any(MOCK_CELL_DATA)
   });
   afterEach("Close client", async () => {
     if (client && client.opened) {
@@ -280,6 +285,7 @@ describe("Server with mock Conductor", () => {
       expect(client.agent_id).to.equal(AGENT_ID);
     } finally {}
   });
+
 
   it("should forward signal from conductor to client", async () => {
     let expectedSignalData = "Hello signal!";
@@ -723,7 +729,7 @@ describe("Server with mock Conductor", () => {
 
     adminConductor = new MockConductor(ADMIN_PORT);
     appConductor = new MockConductor(APP_PORT);
-    appConductor.any({ cell_data: MOCK_CELL_DATA });
+    appConductor.any(MOCK_CELL_DATA);
 
     // Wait for envoy to reconnect
     await Promise.all([
