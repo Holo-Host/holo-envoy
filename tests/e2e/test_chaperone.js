@@ -261,7 +261,7 @@ describe("Server", () => {
 
         // Test for second agent on same host
         // NEED TO FIX
-        await client.signUp("bob.test.1@holo.host", "Passsw0rd!");
+        await client.signUp("bob.test.1@holo.host", "Passw0rd!");
         console.log("Finished sign-up for agent: %s", client.agent_id);
         if (client.anonymous === true) {
           throw new Error("Client did not sign-in")
