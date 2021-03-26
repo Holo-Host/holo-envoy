@@ -23,7 +23,7 @@ const LAIR_SOCKET = path.resolve(__dirname, '../../script/install-bundles/keysto
 const installedAppIds = yaml.load(fs.readFileSync('./script/app-config.yml'));
 const INSTALLED_APP_ID = installedAppIds[2].app_name;
 
-describe("Wormhole tests", () => {
+describe.skip("Wormhole tests", () => {
   let shim, appWs, seed, keys, testCellId;
   before(async function() {
     this.timeout(100_000);
