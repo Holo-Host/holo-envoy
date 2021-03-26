@@ -39,7 +39,7 @@ test-nix:		build
 	make test-unit;
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make test-integration
 test-debug:		build clean-tmp-shim
-	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
+	make test-unit-debug;
 	make test-integration-debug
 	make test-e2e-debug2
 
