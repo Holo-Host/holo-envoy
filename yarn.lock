@@ -98,9 +98,10 @@
     nanoid "^3.1.9"
     ws "^7.3.0"
 
-"@holochain/lair-client@git://github.com/holochain/lair-client-js.git#5db54d5560ad2f64b402744fc460a0a5d231d40f":
-  version "0.1.1"
-  resolved "git://github.com/holochain/lair-client-js.git#5db54d5560ad2f64b402744fc460a0a5d231d40f"
+"@holochain/lair-client@^0.1.2":
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/@holochain/lair-client/-/lair-client-0.1.2.tgz#8bd218c873b3dbc7b195b85879a0beefeccef8d5"
+  integrity sha512-qVxfNMd+dlLsN6oNSV+sD/VrAa05P8DkiYxtaIsbAJenvq2yaq8uK4LgaNLAHlSWa3s2JfCD+oJU+yxTjhy45g==
   dependencies:
     "@whi/stdlog" "^0.3.4"
 
