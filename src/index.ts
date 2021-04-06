@@ -11,6 +11,7 @@ import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 import { v4 as uuid } from 'uuid';
 import * as crypto from 'crypto';
+import { getDiskUsagePerDna } from './utils';
 
 const msgpack = require('@msgpack/msgpack');
 
@@ -143,6 +144,7 @@ class Envoy {
     this.connected.then(() => log.normal("All Conductor clients are in a 'CONNECTED' state"));
     this.startWebsocketServer();
     this.startWormhole();
+    this.startStoragePolling();
   }
 
   async startWormhole() {
@@ -726,6 +728,35 @@ class Envoy {
     delete this.agent_wormhole_num_timeouts[agent_id];
   }
 
+  startStoragePolling () {
+    setInterval(this.updateStorageUsage.bind(this), 60 * 60 * 1000)
+  }
+
+  updateStorageUsage () {
+    const hashes = []
+    const usagePerDna = getDiskUsagePerDna(hashes)
+
+    // this fires off a bunch of promises and never waits for them to return
+    hashes.forEach(async hash => {
+      const cellId = await this.getServiceLoggerCellId(hash)
+
+      const payload = {
+        source_chains: [],
+        integrated_entries: [],
+        total_disk_usage: usagePerDna[hash]
+      }
+
+      this.callConductor("service", {
+        cell_id: cellId,
+        zome_name: "service",
+        fn_name: "log_disk_usage",
+        payload,
+        cap: null,
+        provenance: cellId[1]
+      })
+    })
+  }
+
   // --------------------------------------------------------------------------------------------
   // WORMHOLE Signing function
   // Note: we need to figure out a better way to manage this timeout.
@@ -937,7 +968,6 @@ class Envoy {
     return resp;
   }
 
-
   // --------------------------------------------------------------------------------------------
 
   // Service Logger Methods
@@ -1004,6 +1034,10 @@ class Envoy {
 
     log.silly("Set service response (%s) with metrics (%s) and weblog_compat (%s)", response_hash, host_metrics, weblog_compat);
     return resp;
+  }
+
+  async getServiceLoggerCellId(hha_hash) {
+    
   }
 
   async logServiceConfirmation(client_request, host_response, confirmation) {
