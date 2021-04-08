@@ -332,7 +332,7 @@ class Envoy {
           if (membrane_proof) {
             log.normal("App includes membrane_proof: %s", membrane_proof);
             for (const dnaIdx in dnas) {
-              dnas[dnaIdx].membrane_proof = membrane_proof
+              dnas[dnaIdx].membrane_proof = Buffer.from(membrane_proof, 'base64')
             }
           }
 
