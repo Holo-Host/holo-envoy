@@ -261,7 +261,7 @@ describe("Server with mock Conductor", () => {
         dnas: [
           {
             ...envoyOpts.hosted_app.dnas[0],
-            membrane_proof: 'the unique joining code'
+            membrane_proof: Buffer.from('dGhlIHVuaXF1ZSBqb2luaW5nIGNvZGU=', 'base64') // 'the unique joining code'
           }
         ]
       }
@@ -277,7 +277,7 @@ describe("Server with mock Conductor", () => {
       await client.signUp(
         'alice.test.1@holo.host',
         'Passw0rd!',
-        'the unique joining code'
+        'dGhlIHVuaXF1ZSBqb2luaW5nIGNvZGU='
       )
 
 
