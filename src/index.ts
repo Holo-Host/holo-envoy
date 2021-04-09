@@ -17,6 +17,8 @@ const msgpack = require('@msgpack/msgpack');
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+const superlog = (...rest) => console.log('$$$$$$$$', ...rest)
+
 const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
@@ -171,26 +173,27 @@ class Envoy {
   // ENVOY WEBSOCKET SERVER
 
   async startWebsocketServer() {
+    console.log('******** 1')
     this.ws_server = new WebSocketServer({
       "port": this.opts.port,
       "host": "0.0.0.0", // "localhost",
     });
 
+    console.log('******** 2')
+
+
     await this.connected;
 
+    console.log('******** 3')
+
+
     this.ws_server.on("connection", async (socket, request) => {
+      console.log('******** 4')
+
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
       // client-side if something is not right.
-      log.silly("Incoming connection from %s", request.url);
+      console.log("******************** Incoming connection from %s", request.url);
       const url = new URL(request.url, "http://localhost");
-
-      socket.on("message", (data) => {
-        try {
-          log.silly("Incoming websocket message: %s", data);
-        } catch (err) {
-          console.error(err);
-        }
-      });
 
       const anonymous = url.searchParams.get('anonymous') === "true" ? true : false;
       const agent_id = url.searchParams.get('agent_id');
@@ -263,7 +266,7 @@ class Envoy {
           log.warn("RPC WebSocket event '%s' is already registered for Agent (%s)", event, agent_id);
         else {
           log.error("Failed during RPC WebSocket event registration: %s", String(e));
-          console.error(e);
+          log.error(e);
         }
       }
 
@@ -532,7 +535,7 @@ class Envoy {
             holo_error = err.toJSON();
           } else {
             log.fatal("Conductor call threw unknown error: %s", String(err));
-            console.error(err);
+            log.error(err);
             holo_error = {
               "source": 'HoloError',
               "message": err.message,
@@ -641,7 +644,7 @@ class Envoy {
       } catch (err) {
         const error = `servicelogger.log_service threw: ${String(err)}`
         log.error("Failed during service confirmation log: %s", error);
-        console.error(err);
+        log.error(err);
 
         this.removePendingConfirmation(response_id);
 
@@ -649,7 +652,6 @@ class Envoy {
         log.normal('Returning error: ', errorPack);
 
         return errorPack;
-
       }
 
       this.removePendingConfirmation(response_id);
@@ -729,31 +731,51 @@ class Envoy {
   }
 
   startStoragePolling () {
-    setInterval(this.updateStorageUsage.bind(this), 60 * 60 * 1000)
+    this.updateStorageUsage()
+    setInterval(this.updateStorageUsage.bind(this), 60 * 1000)
   }
 
   updateStorageUsage () {
-    const hashes = []
-    const usagePerDna = getDiskUsagePerDna(hashes)
+    superlog('updateStorageUsage')
+    const dnaHashes = this.getHostedDnaHashes()
+    superlog('dnaHashes', dnaHashes)
+    let usagePerDna
+    try {
+      usagePerDna = getDiskUsagePerDna(dnaHashes)
+    } catch (e) {
+      log.error('failed to get disk usage for dnas:', e.toString())
+      return
+    }
+
+    superlog('usagePerDna', usagePerDna)
 
     // this fires off a bunch of promises and never waits for them to return
-    hashes.forEach(async hash => {
-      const cellId = await this.getServiceLoggerCellId(hash)
+    dnaHashes.forEach(async dnaHash => {
+      try {
+        const hhaHash = this.dna2hha[dnaHash]
+        superlog('dnaHash', dnaHash)
+        superlog('hhaHash', hhaHash)
 
-      const payload = {
-        source_chains: [],
-        integrated_entries: [],
-        total_disk_usage: usagePerDna[hash]
+        const cellId = await this.getServiceLoggerCellId(hhaHash)
+        superlog('cellId', cellId)
+        const payload = {
+          source_chains: [],
+          integrated_entries: [],
+          total_disk_usage: usagePerDna[dnaHash]
+        }
+  
+        await this.callConductor("service", {
+          cell_id: cellId,
+          zome_name: "service",
+          fn_name: "log_disk_usage",
+          payload,
+          cap: null,
+          provenance: cellId[1]
+        })
+      } catch (e) {
+        log.error(`error updating disk usage for ${hash}`, e.toString())
+        return 
       }
-
-      this.callConductor("service", {
-        cell_id: cellId,
-        zome_name: "service",
-        fn_name: "log_disk_usage",
-        payload,
-        cap: null,
-        provenance: cellId[1]
-      })
     })
   }
 
@@ -775,7 +797,7 @@ class Envoy {
       if (Object.keys(this.anonymous_agents).includes(agent_id))
         throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
       else {
-        console.error(`Agent ${agent_id} is not registered.  It must be a host call`);
+        log.error(`Agent ${agent_id} is not registered.  It must be a host call`);
         // Returning null will let the shim redirect to the local lair instance
         return null
       }
@@ -865,7 +887,7 @@ class Envoy {
       throw new HoloError("Conductor disconnected");
     }
     try {
-      // Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a function (admin client).
+      // Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a string (admin client).
       interfaceMethod = client.callZome;
       methodName = 'callZome'
       callAgent = 'app'
@@ -1037,15 +1059,6 @@ class Envoy {
   }
 
   async getServiceLoggerCellId(hha_hash) {
-    
-  }
-
-  async logServiceConfirmation(client_request, host_response, confirmation) {
-    log.info("Processing service logger confirmation");
-    log.silly("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response);
-
-    const hha_hash = client_request.request.call_spec.hha_hash;
-
     let servicelogger_installed_app_id;
 
     if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
@@ -1055,17 +1068,31 @@ class Envoy {
       servicelogger_installed_app_id = `${hha_hash}::servicelogger`;
     }
 
+    superlog('servicelogger_installed_app_id', servicelogger_installed_app_id)
+
     log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
     const appInfo = await this.callConductor("app", { installed_app_id: servicelogger_installed_app_id });
 
     if (!appInfo) {
       log.error("Failed during Servicelogger AppInfo lookup: %s", appInfo);
-      return (new HoloError("Failed to fetch AppInfo for Servicelogger")).toJSON();
+      throw new HoloError("Failed to fetch AppInfo for Servicelogger")
     }
 
     log.debug("Servicelogger app_info: '%s'", appInfo);
     // We are assuming that servicelogger is a happ and the first cell is the servicelogger DAN
-    const servicelogger_cell_id = appInfo.cell_data[0].cell_id;
+    return appInfo.cell_data[0].cell_id;
+  }
+
+  async logServiceConfirmation(client_request, host_response, confirmation) {
+    log.info("Processing service logger confirmation");
+    log.silly("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response);
+
+    const hha_hash = client_request.request.call_spec.hha_hash;
+
+    let servicelogger_cell_id
+
+    servicelogger_cell_id = this.getServiceLoggerCellId(hha_hash)
+
     const buffer_host_agent_servicelogger_id = servicelogger_cell_id[1];
 
     client_request["request_signature"] = Codec.Signature.decode(client_request["request_signature"])
@@ -1141,7 +1168,12 @@ class Envoy {
   }
 
   hhaExists(hha_hash) {
-    return (Object.values(this.dna2hha).includes(hha_hash));
+    return Object.values(this.dna2hha).includes(hha_hash);
+  }
+
+
+  getHostedDnaHashes () {
+    return Object.keys(this.dna2hha)
   }
 
   async signalHandler(signal) {

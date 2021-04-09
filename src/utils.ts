@@ -1,9 +1,9 @@
-// import getFolderSize from 'get-folder-size';
 import { readdirSync } from 'fs'
 
-const getFolderSize = path => 1
+// This is a temporary mock solution because holochain will soon be switching to sqlite
+const getFolderSize = _ => 1
 
-const HOLOCHAIN_DATABASE_DIRECTORY = '/var/lib/holochain-rsm/databases/'
+const HOLOCHAIN_DATABASE_DIRECTORY = '/var/lib/holochain-rsm/databases_lmdb2/'
 
 export function getDiskUsagePerDna (hhaHashes) {
   const filenames = readdirSync(HOLOCHAIN_DATABASE_DIRECTORY)
