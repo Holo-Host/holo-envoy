@@ -171,26 +171,16 @@ class Envoy {
   // ENVOY WEBSOCKET SERVER
 
   async startWebsocketServer() {
-    console.log('******** 1')
     this.ws_server = new WebSocketServer({
       "port": this.opts.port,
       "host": "0.0.0.0", // "localhost",
     });
 
-    console.log('******** 2')
-
-
     await this.connected;
 
-    console.log('******** 3')
-
-
     this.ws_server.on("connection", async (socket, request) => {
-      console.log('******** 4')
-
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
       // client-side if something is not right.
-      console.log("******************** Incoming connection from %s", request.url);
       const url = new URL(request.url, "http://localhost");
 
       const anonymous = url.searchParams.get('anonymous') === "true" ? true : false;
@@ -730,7 +720,7 @@ class Envoy {
 
   startStoragePolling () {
     this.updateStorageUsage()
-    setInterval(this.updateStorageUsage.bind(this), 60 * 1000)
+    setInterval(this.updateStorageUsage.bind(this), 60 * 60 * 1000)
   }
 
   updateStorageUsage () {
