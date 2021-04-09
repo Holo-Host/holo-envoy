@@ -17,8 +17,6 @@ const msgpack = require('@msgpack/msgpack');
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const superlog = (...rest) => console.log('$$$$$$$$', ...rest)
-
 const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
@@ -736,9 +734,7 @@ class Envoy {
   }
 
   updateStorageUsage () {
-    superlog('updateStorageUsage')
     const dnaHashes = this.getHostedDnaHashes()
-    superlog('dnaHashes', dnaHashes)
     let usagePerDna
     try {
       usagePerDna = getDiskUsagePerDna(dnaHashes)
@@ -747,23 +743,17 @@ class Envoy {
       return
     }
 
-    superlog('usagePerDna', usagePerDna)
-
     // this fires off a bunch of promises and never waits for them to return
     dnaHashes.forEach(async dnaHash => {
       try {
         const hhaHash = this.dna2hha[dnaHash]
-        superlog('dnaHash', dnaHash)
-        superlog('hhaHash', hhaHash)
-
         const cellId = await this.getServiceLoggerCellId(hhaHash)
-        superlog('cellId', cellId)
         const payload = {
           source_chains: [],
           integrated_entries: [],
           total_disk_usage: usagePerDna[dnaHash]
         }
-  
+        
         await this.callConductor("service", {
           cell_id: cellId,
           zome_name: "service",
@@ -1068,10 +1058,6 @@ class Envoy {
       servicelogger_installed_app_id = `${hha_hash}::servicelogger`;
     }
 
-    superlog('getServiceLoggercellid')
-    superlog('hhahash', hha_hash)
-    superlog('servicelogger_installed_app_id', servicelogger_installed_app_id)
-
     log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
     const appInfo = await this.callConductor("app", { installed_app_id: servicelogger_installed_app_id });
 
@@ -1091,7 +1077,7 @@ class Envoy {
 
     const hha_hash = client_request.request.call_spec.hha_hash;
 
-    // todo, replace this with getServiceLoggerId
+    // This code should be replaceable with this.getServiceLoggerCellId, but for some reason it breaks.
     let servicelogger_installed_app_id;
 
     if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
@@ -1100,11 +1086,6 @@ class Envoy {
       // NB: There will be a new servicelogger app for each hosted happ (should happen at the time of self-hosted install - prompted in host console.)
       servicelogger_installed_app_id = `${hha_hash}::servicelogger`;
     }
-
-    superlog('logservice confirmatoin')
-    superlog('hhahash', hha_hash)
-    superlog('servicelogger_installed_app_id', servicelogger_installed_app_id)
-
 
     log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
     const appInfo = await this.callConductor("app", { installed_app_id: servicelogger_installed_app_id });
