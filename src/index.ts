@@ -1068,6 +1068,8 @@ class Envoy {
       servicelogger_installed_app_id = `${hha_hash}::servicelogger`;
     }
 
+    superlog('getServiceLoggercellid')
+    superlog('hhahash', hha_hash)
     superlog('servicelogger_installed_app_id', servicelogger_installed_app_id)
 
     log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
@@ -1089,12 +1091,34 @@ class Envoy {
 
     const hha_hash = client_request.request.call_spec.hha_hash;
 
-    let servicelogger_cell_id
+    // todo, replace this with getServiceLoggerId
+    let servicelogger_installed_app_id;
 
-    servicelogger_cell_id = this.getServiceLoggerCellId(hha_hash)
+    if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
+      servicelogger_installed_app_id = this.opts.hosted_app.servicelogger_id;
+    } else {
+      // NB: There will be a new servicelogger app for each hosted happ (should happen at the time of self-hosted install - prompted in host console.)
+      servicelogger_installed_app_id = `${hha_hash}::servicelogger`;
+    }
 
+    superlog('logservice confirmatoin')
+    superlog('hhahash', hha_hash)
+    superlog('servicelogger_installed_app_id', servicelogger_installed_app_id)
+
+
+    log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
+    const appInfo = await this.callConductor("app", { installed_app_id: servicelogger_installed_app_id });
+
+    if (!appInfo) {
+      log.error("Failed during Servicelogger AppInfo lookup: %s", appInfo);
+      return (new HoloError("Failed to fetch AppInfo for Servicelogger")).toJSON();
+    }
+
+    log.debug("Servicelogger app_info: '%s'", appInfo);
+    // We are assuming that servicelogger is a happ and the first cell is the servicelogger DAN
+    const servicelogger_cell_id = appInfo.cell_data[0].cell_id;
     const buffer_host_agent_servicelogger_id = servicelogger_cell_id[1];
-
+    
     client_request["request_signature"] = Codec.Signature.decode(client_request["request_signature"])
     host_response["signed_response_hash"] = Codec.Signature.decode(host_response["signed_response_hash"])
     confirmation["confirmation_signature"] = Codec.Signature.decode(confirmation["confirmation_signature"])
