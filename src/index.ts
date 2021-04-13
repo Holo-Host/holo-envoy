@@ -121,8 +121,15 @@ class Envoy {
   agent_wormhole_num_timeouts: Record<string, number> = {};
 
   hcc_clients: { app?: HcAppWebSocket, admin?: HcAdminWebSocket } = {};
+
   dna2hha: any = {};
-  app_states: any = {};
+
+  app_states: Record<string, {
+    activation_state: 'deactivated' | 'activated' | 'deactivating' | 'activating',
+    desired_activation_state: 'activated' | 'deactivated',
+    activation_state_changed_at: number,
+    desired_activation_state_changed_at: number
+  }> = {};
 
   static PRODUCT_MODE: number = 0;
   static DEVELOP_MODE: number = 1;
@@ -201,6 +208,14 @@ class Envoy {
       const hha_hash = url.searchParams.get('hha_hash');
       log.normal("%s (%s) connection for HHA ID: %s", anonymous ? "Anonymous" : "Agent", agent_id, hha_hash);
 
+      const installed_app_id = getInstalledAppId(hha_hash, agent_id)
+      this.app_states[installed_app_id] = {
+        activation_state: 'deactivated',
+        activation_state_changed_at: 0,
+        desired_activation_state: 'deactivated',
+        desired_activation_state_changed_at: 0
+      }
+
       if (anonymous) {
         log.debug(`Adding Agent ${agent_id} to anonymous list with HHA ID ${hha_hash}`);
         this.anonymous_agents[agent_id] = hha_hash;
@@ -209,12 +224,6 @@ class Envoy {
           this.agent_connections[agent_id] = [];
         }
         this.agent_connections[agent_id].push(socket);
-
-        const installed_app_id = getInstalledAppId(agent_id, hha_hash)
-        if (!this.app_states[installed_app_id].connected) {
-          this.app_states[installed_app_id].connected = true
-          this.app_states[installed_app_id].connection_state_changed_at = Date.now()
-        }
       }
 
       // Signal is a message initiated in conductor which is sent to UI. In case to be able to route signals
