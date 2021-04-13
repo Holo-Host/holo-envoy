@@ -2,69 +2,18 @@ const path = require('path');
 const log = require('@whi/stdlog')(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
-const fs = require('fs');
-const yaml = require('js-yaml');
 const expect = require('chai').expect;
 const puppeteer = require('puppeteer');
 const http_servers = require('../setup_http_server.js');
 const setup = require("../setup_envoy.js");
 const setup_conductor = require("../setup_conductor.js");
-const { Codec } = require('@holo-host/cryptolib');
-const installedAppIds = yaml.load(fs.readFileSync('./script/app-config.yml'));
-const { resetTmp, delay } = require("../utils")
-const msgpack = require('@msgpack/msgpack');
-
-// NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
-const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
-
-let browser;
-
-async function create_page(url) {
-  const page = await browser.newPage();
-
-  log.info("Go to: %s", url);
-  await page.goto(url, {
-    "waitUntil": "networkidle0"
-  });
-
-  return page;
-}
-
-class PageTestUtils {
-  constructor(page) {
-    this.logPageErrors = () => page.on('pageerror', async error => {
-      if (error instanceof Error) {
-        log.silly(error.message);
-      } else
-        log.silly(error);
-    });
-
-    this.describeJsHandleLogs = () => page.on('console', async msg => {
-      const args = await Promise.all(msg.args().map(arg => this.describeJsHandle(arg)))
-        .catch(error => console.log(error.message));
-      console.log(args);
-    });
-
-    this.describeJsHandle = (jsHandle) => {
-      return jsHandle.executionContext().evaluate(arg => {
-        if (arg instanceof Error)
-          return arg.message;
-        else
-          return arg;
-      }, jsHandle);
-    };
-  }
-}
+const { create_page, fetchServiceloggerCellId, setupServiceLoggerSettings, PageTestUtils, envoy_mode_map, resetTmp, delay } = require("../utils")
 
 // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
-const host_agent_id = 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k'
+const HOST_AGENT_ID = 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k'
+log.info("Host Agent ID: %s", HOST_AGENT_ID);
 
-log.info("Host Agent ID: %s", host_agent_id);
-
-const envoy_mode_map = {
-  production: 0,
-  develop: 1,
-}
+const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
 
 // Note: All envoyOpts.dnas will be registered via admin interface with the paths provided here
 const envoyOpts = {
@@ -72,25 +21,11 @@ const envoyOpts = {
   app_port_number: 0,
 }
 
-const getHostAgentKey = async (appClient) => {
-  const appInfo = await appClient.appInfo({
-    installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
-  });
-  const agentPubKey = appInfo.cell_data[0].cell_id[1];
-  return {
-    decoded: agentPubKey,
-    encoded: Codec.AgentId.encode(agentPubKey)
-  }
-}
-const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
-
-describe("Server", () => {
-  let envoy;
-  let server;
+describe("Server and client", () => {
+  let envoy, server, browser;
   let http_ctrls, http_url;
-  let registered_agent;
 
-  before(async function() {
+  before('Spin up lair, envoy, conductor, chaperone, and the browser, then sign-in', async function() {
     this.timeout(100_000);
 
     log.info("Waiting for Lair to spin up");
@@ -117,7 +52,7 @@ describe("Server", () => {
     http_url = `http://localhost:${http_ctrls.ports.chaperone}`;
   });
 
-  after(async () => {
+  after('Shut down all servers', async () => {
     log.debug("Shutdown cleanly...");
     await delay(5000);
     log.debug("Close browser...");
@@ -143,61 +78,28 @@ describe("Server", () => {
 
     try {
       const page_url = `${http_url}/html/chaperone.html`
-      const page = await create_page(page_url);
+      const page = await create_page(page_url, browser);
       const pageTestUtils = new PageTestUtils(page)
 
       pageTestUtils.logPageErrors();
       pageTestUtils.describeJsHandleLogs();
 
-      await page.exposeFunction('fetchServiceloggerCellId', async () => {
-        let serviceloggerCellId;
-        try {
-          // REMINDER: there is one servicelogger instance per installed hosted app, each with their own installed_app_id
-          const serviceloggerAppInfo = await envoy.hcc_clients.app.appInfo({
-            installed_app_id: HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID
-          });
-          serviceloggerCellId = serviceloggerAppInfo.cell_data[0].cell_id;
-        } catch (error) {
-          throw new Error(JSON.stringify(error));
-        }
-        return serviceloggerCellId;
-      });
+      await page.exposeFunction('delay', delay);
 
-      // Note: the host must set servicelogger settings prior to any activity logs being issued (otherwise, the activity log call will fail).
-      await page.exposeFunction('setupServiceLoggerSettings', async (servicelogger_cell_id) => {
-        const settings = {
-          // Note: for the purposes of simplifying the test, the host is also the provider
-          provider_pubkey: Codec.AgentId.encode(servicelogger_cell_id[1]),
-          max_fuel_before_invoice: 3,
-          price_compute: 1,
-          price_storage: 1,
-          price_bandwidth: 1,
-          max_time_before_invoice: [604800, 0]
-        }
-        let logger_settings;
-        try {
-          logger_settings = await envoy.hcc_clients.app.callZome({
-            // Note: Cell ID content MUST BE passed in as a Byte Buffer, not a u8int Byte Array
-            cell_id: [Buffer.from(servicelogger_cell_id[0]), Buffer.from(servicelogger_cell_id[1])],
-            zome_name: 'service',
-            fn_name: 'set_logger_settings',
-            payload: settings,
-            cap: null,
-            provenance: Buffer.from(servicelogger_cell_id[1])
-          });
-        } catch (error) {
-          throw new Error(JSON.stringify(error));
-        }
-        return logger_settings;
-      });
+      // Set logger settings for hosted app (in real word scenario - will be done when host installs app):
+      try {
+        const servicelogger_cell_id = await fetchServiceloggerCellId(envoy.hcc_clients.app);
+        console.log("Found servicelogger cell_id: %s", servicelogger_cell_id);
+        // NOTE: The host settings must be set prior to creating a service activity log with servicelogger (eg: when making a zome call from web client)...
+        const logger_settings = await setupServiceLoggerSettings(envoy.hcc_clients.app, servicelogger_cell_id);
+        console.log("happ service preferences set in servicelogger as: %s", logger_settings);
+      } catch (err) {
+        console.log(typeof err.stack, err.stack.toString());
+        throw err;
+      }
 
-      await page.exposeFunction('encodeHhaHash', (type, buf) => {
-        const hhaBuffer = Buffer.from(buf);
-        return Codec.HoloHash.encode(type, hhaBuffer);
-      });
-      const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash) {
+      const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_happ_hash) {
         console.log("Registered Happ Hash: %s", registered_happ_hash);
-
         const client = new Chaperone({
           "mode": Chaperone.DEVELOP,
           "web_user_legend": {},
@@ -206,10 +108,8 @@ describe("Server", () => {
             "host": "localhost",
             "port": 4656,
           },
-
           host_agent_id, // used to assign host (id generated by hpos-seed)
           app_id: registered_happ_hash, // NOT RANDOM: this needs to match the hash of app in hha
-
           "timeout": 50000,
           "debug": true,
         });
@@ -225,18 +125,6 @@ describe("Server", () => {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
 
-        // Set logger settings for hosted app (in real word scenario - will be done when host installs app):
-        try {
-          const servicelogger_cell_id = await window.fetchServiceloggerCellId();
-          console.log("Found servicelogger cell_id: %s", servicelogger_cell_id);
-
-          // NOTE: The host settings must be set prior to creating a service activity log with servicelogger (eg: when making a zome call from web client)...
-          const logger_settings = await window.setupServiceLoggerSettings(servicelogger_cell_id);
-          console.log("happ service preferences set in servicelogger as: %s", logger_settings);
-        } catch (err) {
-          console.log(typeof err.stack, err.stack.toString());
-          throw err;
-        }
         let responseOne, responseTwo;
         try {
           responseOne = await client.callZomeFunction(`test`, "test", "pass_obj", {'value': "This is the returned value"});
@@ -246,13 +134,6 @@ describe("Server", () => {
           throw err
         }
 
-        function delay(t, val) {
-          return new Promise(function(resolve) {
-            setTimeout(function() {
-              resolve(val);
-            }, t);
-          });
-        }
         // Delay is added so that the zomeCall has time to finish all the signing required
         //and by signing out too soon it would not be able to get all the signature its needs and the test would fail
         await delay(15000);
@@ -276,7 +157,7 @@ describe("Server", () => {
           responseOne,
           responseTwo
         }
-      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH);
+      }, HOST_AGENT_ID, REGISTERED_HAPP_HASH);
 
       log.info("Completed evaluation: %s", responseOne);
       log.info("Completed evaluation: %s", responseTwo);
@@ -291,4 +172,5 @@ describe("Server", () => {
   it("should sign-out");
   it("should process signed-in request and respond");
   it("should have no pending confirmations");
+
 });
