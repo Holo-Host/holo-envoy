@@ -26,6 +26,11 @@ const hash = (payload) => {
   return Codec.Digest.encode(crypto.createHash('sha256').update(args_digest).digest());
 }
 
+// Not ever used for anonymous installed_app_ids, which are just the hha_hash
+const getInstalledAppId = (hha_hash, agent_id) => {
+  return `${hha_hash}:${agent_id}`
+}
+
 const WS_SERVER_PORT = 4656; // holo
 const WH_SERVER_PORT = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../script/install-bundles/shim/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim/socket');
 const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '../script/install-bundles/keystore/socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
@@ -117,6 +122,7 @@ class Envoy {
 
   hcc_clients: { app?: HcAppWebSocket, admin?: HcAdminWebSocket } = {};
   dna2hha: any = {};
+  app_states: any = {};
 
   static PRODUCT_MODE: number = 0;
   static DEVELOP_MODE: number = 1;
@@ -203,6 +209,12 @@ class Envoy {
           this.agent_connections[agent_id] = [];
         }
         this.agent_connections[agent_id].push(socket);
+
+        const installed_app_id = getInstalledAppId(agent_id, hha_hash)
+        if (!this.app_states[installed_app_id].connected) {
+          this.app_states[installed_app_id].connected = true
+          this.app_states[installed_app_id].connection_state_changed_at = Date.now()
+        }
       }
 
       // Signal is a message initiated in conductor which is sent to UI. In case to be able to route signals
@@ -237,14 +249,40 @@ class Envoy {
         } else {
           const idx = this.agent_connections[agent_id].indexOf(socket);
           delete this.agent_connections[agent_id][idx];
-          const installed_app_id = `${hha_hash}:${agent_id}`;
-          this.callConductor("admin", "deactivateApp", { installed_app_id }).catch(err => {
-            if (err.toString().includes("AppNotActive")) {
-              log.warn(`Tried to sign out user who has not signed in. installed_app_id: ${installed_app_id}`)
-            } else {
-              log.error("Failed to sign out Agent (%s): %s", agent_id, String(err));
+          const installed_app_id = getInstalledAppId(hha_hash, agent_id);
+          const app_state = this.app_states[installed_app_id]
+
+          let deactivationInterval = setInterval(() => {
+            if (app_state.desired_activation_state === 'activated') {
+              clearInterval(deactivationInterval)
+              return
             }
-          });
+
+            if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state !== 'activated') return
+
+            app_state.activation_state = 'deactivating'
+            app_state.activation_state_changed_at = Date.now()
+
+            this.callConductor("admin", "deactivateApp", { installed_app_id })
+            .then(() => {
+              app_state.activation_state = 'deactivated'
+              app_state.activation_state_changed_at = Date.now()
+              clearInterval(deactivationInterval)
+            })
+            .catch(err => {
+              clearInterval(deactivationInterval)
+              if (err.toString().includes("AppNotActive")) {
+                app_state.activation_state = 'deactivated'
+                app_state.activation_state_changed_at = Date.now()
+                log.warn(`Tried to deactivate non active app with installed_app_id: ${installed_app_id}`)
+              } else {
+                app_state.activation_state = 'activated'
+                app_state.activation_state_changed_at = Date.now()
+                log.error("Failed to deactivate app with installed_app_id (%s): %o", installed_app_id, err);
+              }
+            });
+
+          }, 5000)
         }
       });
     });
@@ -295,7 +333,7 @@ class Envoy {
       const failure_response = (new HoloError("Failed to create a new hosted agent")).toJSON();
 
       const anonymous_instance_app_id = hha_hash;
-      const hosted_agent_instance_app_id = `${hha_hash}:${agent_id}`;
+      const hosted_agent_instance_app_id = getInstalledAppId(hha_hash, agent_id);
 
       log.info("Retrieve the hosted app cell_data using the anonymous installed_app_id: '%s'", anonymous_instance_app_id);
       const appInfo = await this.callConductor("app", { installed_app_id: anonymous_instance_app_id });
@@ -399,34 +437,16 @@ class Envoy {
     this.ws_server.register("holo/app_info", async ({ installed_app_id }) => {
       let appInfo
 
-      let retryCall = true
-      let triedCallingActivateApp = false
-
-      while (retryCall) {
-        retryCall = false
-
-        try {
-          log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
-          appInfo = await this.callConductor("app", { installed_app_id });
-          if (!appInfo) {
-            log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo);
-            throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
-          }
-        } catch (err) {
-          if (!triedCallingActivateApp && (String(err).includes("CellMissing") || String(err).includes("AppNotActive"))) {
-            triedCallingActivateApp = true
-            log.debug("AppInfo call failed with CellMissing (%s); trying to activate the app", err)
-            try {
-              await this.callConductor("admin", "activateApp", { installed_app_id })
-              retryCall = true
-              continue
-            } catch (errActivatingApp) {
-              log.info("Failed to activate app: %s", errActivatingApp)
-            }
-          }
-          log.error("Failed during Conductor AppInfo call: %s", String(err));
-          return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
+      try {
+        log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
+        appInfo = await this.callConductor("app", { installed_app_id });
+        if (!appInfo) {
+          log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo);
+          throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
         }
+      } catch (err) {
+        log.error("Failed during Conductor AppInfo call: %s", String(err));
+        return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
       }
 
       const response_id = uuid();
@@ -435,7 +455,6 @@ class Envoy {
 
       return new Package(appInfo, { "type": "success" }, { response_id });
     }, this.opts.NS);
-
 
     // Chaperone ZomeCall to Envoy Server
     this.ws_server.register("holo/call", async ({ anonymous, agent_id, payload, service_signature }: {
@@ -492,53 +511,31 @@ class Envoy {
       }
       let zomeCallResponse, holo_error
 
-      let retryCall = true
-      let triedCallingActivateApp = false
-      while (retryCall) {
-        retryCall = false
-        // HACK: holochain-conductor-api mutates the payload argument; save and restore it.
-        //
-        // Once we update to a release that has #57 merged, we can remove this hack.
-        // #57: https://github.com/holochain/holochain-conductor-api/pull/57
-        const payload = zomeCallArgs.payload
-        try {
-          log.silly("Calling zome function with parameters: %s", prettyZomeCallArgs);
-          zomeCallResponse = await this.callConductor("app", zomeCallArgs);
-        } catch (err) {
-          log.error("Failed during Conductor call: %s", String(err));
-          zomeCallResponse = {};
+      try {
+        log.silly("Calling zome function with parameters: %s", prettyZomeCallArgs);
+        zomeCallResponse = await this.callConductor("app", zomeCallArgs);
+      } catch (err) {
+        log.error("Failed during Conductor call: %s", String(err));
+        zomeCallResponse = {};
 
-          if (err.message.includes("Failed to get signatures from Client")) {
-            let new_message = anonymous === true
-              ? "Agent is not signed-in"
-              : "We were unable to contact Chaperone for the Agent signing service.  Please check ...";
+        if (err.message.includes("Failed to get signatures from Client")) {
+          let new_message = anonymous === true
+            ? "Agent is not signed-in"
+            : "We were unable to contact Chaperone for the Agent signing service.  Please check ...";
 
-            log.warn("Setting error response to wormhole error message: %s", new_message);
-            holo_error = (new HoloError(new_message)).toJSON();
-          } else if (!triedCallingActivateApp && (String(err).includes("CellMissing") || String(err).includes("AppNotActive"))) {
-            const installed_app_id = `${call_spec.hha_hash}:${agent_id}`
-            triedCallingActivateApp = true
-            log.debug("Zome call failed with CellMissing (%s); trying to activate the app", err)
-            try {
-              await this.callConductor("admin", "activateApp", { installed_app_id })
-              retryCall = true
-            } catch (errActivatingApp) {
-              log.info("Failed to activate app: %s", errActivatingApp)
-            }
-          } else if (err instanceof HoloError) {
-            log.warn("Setting error response to raised HoloError: %s", String(err));
-            holo_error = err.toJSON();
-          } else {
-            log.fatal("Conductor call threw unknown error: %s", String(err));
-            console.error(err);
-            holo_error = {
-              "source": 'HoloError',
-              "message": err.message,
-            };
-          }
+          log.warn("Setting error response to wormhole error message: %s", new_message);
+          holo_error = (new HoloError(new_message)).toJSON();
+        } else if (err instanceof HoloError) {
+          log.warn("Setting error response to raised HoloError: %s", String(err));
+          holo_error = err.toJSON();
+        } else {
+          log.fatal("Conductor call threw unknown error: %s", String(err));
+          console.error(err);
+          holo_error = {
+            "source": 'HoloError',
+            "message": err.message,
+          };
         }
-
-        zomeCallArgs.payload = payload
       }
 
       // - return host response
@@ -659,22 +656,16 @@ class Envoy {
     }, this.opts.NS);
   }
 
-  async signIn(hha_hash, agent_id): Promise<boolean> {
-    if (agent_id in this.anonymous_agents) {
-      // Nothing to do. Anonymous cell is always active
-      return true;
-    }
-
-    const hosted_agent_instance_app_id = `${hha_hash}:${agent_id}`;
-
-    // Activate App - Tell Holochain to begin gossiping and be ready for zome calls on this app.
+  // Activate App - Tell Holochain to begin gossiping and be ready for zome calls on this app.
+  async activateApp (installed_app_id) {
     try {
-      log.info("Activating Installed App (%s)", hosted_agent_instance_app_id);
-      const adminResponse = await this.callConductor("admin", 'activateApp', { installed_app_id: hosted_agent_instance_app_id });
+      log.info("Activating Installed App (%s)", installed_app_id);
+
+      const adminResponse = await this.callConductor("admin", "activateApp", { installed_app_id });
 
       if (adminResponse.type !== "success") {
         log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse);
-        throw (new HoloError(`Failed to complete 'activateApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
+        throw new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`).toJSON()
       }
     } catch (err) {
       if (err.message.includes("AppNotInstalled")) {
@@ -684,19 +675,68 @@ class Envoy {
 
         // Check for the second case using appInfo
         try {
-          const appInfo = await this.callConductor("app", { installed_app_id: hosted_agent_instance_app_id });
+          const appInfo = await this.callConductor("app", { installed_app_id: installed_app_id });
           // Check that the appInfo result was not null (would indicate app not installed)
           if (appInfo.installed_app_id !== undefined) {
-            log.normal("Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
-            return true;
+            log.normal("Completed sign-in process for installed_app_id (%s)", installed_app_id);
+            return
           }
         } catch (appInfoErr) {
           log.error("Failed during 'appInfo': %s", String(appInfoErr));
-          throw (new HoloError(`Failed to complete 'appInfo' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
+          throw new HoloError(`Failed to complete 'appInfo' for installed_app_id'${installed_app_id}'.`).toJSON()
         }
       }
       log.error("Failed during 'activateApp': %s", String(err));
-      throw err;
+      throw err
+    }
+  }
+
+  async signIn(hha_hash, agent_id): Promise<boolean> {
+    if (agent_id in this.anonymous_agents) {
+      // Nothing to do. Anonymous cell is always active
+      return true;
+    }
+
+    const installed_app_id = getInstalledAppId(hha_hash, agent_id);
+    const app_state = this.app_states[installed_app_id]
+
+    let activation_interval
+
+    // let the record show, we're not happy with this code.
+    try {
+      await new Promise<void>((resolve, reject) => {
+        app_state.desired_activation_state = 'activated'
+
+        const tryToActivate = async () => {
+          if (app_state.desired_activation_state === 'deactivated') {
+            // nobody should ever see this error, because chaperone is disconnected
+            reject('App already trying to deactivate')
+            return
+          }
+          // don't try and change state too soon
+          if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state !== 'deactivated') return
+
+          try {
+            app_state.activation_state = 'activating'
+            app_state.activation_state_changed_at = Date.now()
+            await this.activateApp(installed_app_id)
+            app_state.activation_state = 'activated'
+            app_state.activation_state_changed_at = Date.now()
+            resolve()
+          } catch (e) {
+            app_state.activation_state = 'deactivated'
+            app_state.activation_state_changed_at = Date.now()
+
+            reject(e)
+          }
+        }
+
+        tryToActivate()
+
+        activation_interval = setInterval(tryToActivate, 5000)
+      })
+    } finally {
+      clearInterval(activation_interval)
     }
     return true
   }
@@ -705,24 +745,6 @@ class Envoy {
     const connections = this.agent_connections[agent_id];
     delete this.agent_connections[agent_id];
     connections.forEach(connection => connection.close());
-
-    // Assuming agent is not anonymous, we need to deactivate all their hApps.
-
-    const regex = new RegExp(`:${agent_id}$`);
-
-    const activeApps = await this.callConductor("admin", "listActiveApps");
-    await Promise.all(activeApps.map(async (installed_app_id: string) => {
-      if (regex.test(installed_app_id)) {
-        try {
-          await this.callConductor("admin", "deactivateApp", { installed_app_id });
-        } catch (err) {
-          if (!err.toString().includes("AppNotActive")) {
-            log.error(`Failed to deactivate app ${installed_app_id}: ${err}`);
-          }
-        }
-      }
-    }));
-
     delete this.agent_wormhole_num_timeouts[agent_id];
   }
 
