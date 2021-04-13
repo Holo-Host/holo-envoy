@@ -725,6 +725,7 @@ class Envoy {
 
   updateStorageUsage () {
     const dnaHashes = this.getHostedDnaHashes()
+
     let usagePerDna
     try {
       usagePerDna = getDiskUsagePerDna(dnaHashes)
