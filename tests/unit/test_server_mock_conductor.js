@@ -28,7 +28,6 @@ const envoy_mode_map = {
 
 const envoyOpts = {
   mode: envoy_mode_map.develop,
-  app_port_number: 0,
   hosted_app: {
     dnas: [{
       nick: 'test-hha',

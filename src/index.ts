@@ -70,7 +70,6 @@ interface EnvoyConfig {
   port?: number;
   NS?: string;
   hosted_app?: HostedAppConfig;
-  app_port_number?: number;
 }
 
 class HoloError extends Error {
@@ -186,8 +185,6 @@ class Envoy {
       "port": this.opts.port,
       "host": "0.0.0.0", // "localhost",
     });
-
-    await this.connected;
 
     this.ws_server.on("connection", async (socket, request) => {
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
@@ -361,7 +358,6 @@ class Envoy {
       const buffer_agent_id = Codec.AgentId.decodeToHoloHash(agent_id);
       log.info("Encoded Agent ID (%s) into buffer form: %s", agent_id, buffer_agent_id);
 
-      let failed = false;
       try {
         let adminResponse;
         // - Install App - This admin function creates cells for each dna with associated nick, under the hood.
@@ -393,7 +389,6 @@ class Envoy {
 
           if (adminResponse.type !== "success") {
             log.error("Conductor 'installApp' returned non-success response: %s", adminResponse);
-            failed = true
             throw (new HoloError(`Failed to complete 'installApp' for installed_app_id'${hosted_agent_instance_app_id}'.`)).toJSON();
           }
         } catch (err) {
@@ -407,16 +402,8 @@ class Envoy {
 
         await this.signIn(hha_hash, agent_id);
       } catch (err) {
-        failed = true;
         log.error("Failed during DNA processing for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, String(err));
-      }
-
-      if (failed === true) {
-        // Should rollback cells that were already created
-        // ^^ check to see if is already being done in RSM.
-        log.error("Failed during sign-up process for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, failure_response);
-
-        return failure_response;
+        return new HoloError(err).toJSON()
       }
 
       // - return success
