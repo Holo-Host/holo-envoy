@@ -24,7 +24,7 @@ const installedAppIds = yaml.load(fs.readFileSync('./script/app-config.yml'));
 const INSTALLED_APP_ID = installedAppIds[2].app_name;
 
 describe("Wormhole tests", () => {
-  let shim, appWs, seed, keys, testCellId;
+  let shim, appWs, testCellId;
   before(async function() {
     this.timeout(100_000);
 
@@ -38,8 +38,9 @@ describe("Wormhole tests", () => {
     await delay(5000);
 
     log.info("Waiting for Conductor to spin up");
-    await setup_conductor.start_conductor_2()
-    await delay(10000);
+    setup_conductor.start_conductor_2();
+
+    await delay(25_000)
     appWs = await AppWebsocket.connect('ws://localhost:42244')
     testCellId = await getTestCellID(appWs)
   });
