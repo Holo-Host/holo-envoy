@@ -49,7 +49,7 @@ async function init (lair_socket, shim_socket, signing_handler) {
             continue
           }
         } catch (e) {
-          log.normal("Wormhole failure: %O", e)
+          log.normal("Wormhole failure: %s", inspect(e))
           const response = new structs.ErrorResponse(`Failed to fulfill hosted signing request: ${inspect(e)}`)
           conductor_stream.write(response.toMessage(header.id))
           continue
