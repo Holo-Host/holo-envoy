@@ -87,7 +87,8 @@ describe("Server with mock Conductor", () => {
   beforeEach('Set-up installed_app_ids for test', async () => {
     appConductor.any(MOCK_CELL_DATA)
   });
-  afterEach("Close client", async () => {
+  afterEach("Close client", async function() {
+    this.timeout(20_000)
     if (client && client.opened) {
       if (!client.anonymous) {
         let onDeactivateApp
@@ -482,7 +483,8 @@ describe("Server with mock Conductor", () => {
     expect(deactivateAppCalled).to.be.true;
   });
 
-  it("should call deactivate on conductor when client signs out", async () => {
+  it("should call deactivate on conductor when client signs out", async function() {
+    this.timeout(20_000)
     let activateAppCalled = false;
     let deactivateAppCalled = false;
     let onDeactivateApp;
@@ -511,6 +513,9 @@ describe("Server with mock Conductor", () => {
     expect(deactivateAppCalled).to.be.false;
 
     await client.signOut();
+    await delay(2500);
+    // shouldn't deactivate too soon after activating
+    expect(deactivateAppCalled).to.be.false;
     await deactivateAppPromise;
     expect(deactivateAppCalled).to.be.true;
   });
