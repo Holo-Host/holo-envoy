@@ -181,7 +181,16 @@ class Envoy {
     this.ws_server.on("connection", async (socket, request) => {
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
       // client-side if something is not right.
+      log.silly("Incoming connection from %s", request.url);
       const url = new URL(request.url, "http://localhost");
+
+      socket.on("message", (data) => {
+        try {
+          log.silly("Incoming websocket message: %s", data);
+        } catch (err) {
+          console.error(err);
+        }
+      });
 
       const anonymous = url.searchParams.get('anonymous') === "true" ? true : false;
       const agent_id = url.searchParams.get('agent_id');
@@ -744,7 +753,7 @@ class Envoy {
           integrated_entries: [],
           total_disk_usage: usagePerDna[dnaHash]
         }
-        
+
         await this.callConductor("service", {
           cell_id: cellId,
           zome_name: "service",
@@ -755,7 +764,7 @@ class Envoy {
         })
       } catch (e) {
         log.error(`error updating disk usage for ${hash}`, e.toString())
-        return 
+        return
       }
     })
   }
@@ -1090,7 +1099,7 @@ class Envoy {
     // We are assuming that servicelogger is a happ and the first cell is the servicelogger DAN
     const servicelogger_cell_id = appInfo.cell_data[0].cell_id;
     const buffer_host_agent_servicelogger_id = servicelogger_cell_id[1];
-    
+
     client_request["request_signature"] = Codec.Signature.decode(client_request["request_signature"])
     host_response["signed_response_hash"] = Codec.Signature.decode(host_response["signed_response_hash"])
     confirmation["confirmation_signature"] = Codec.Signature.decode(confirmation["confirmation_signature"])
