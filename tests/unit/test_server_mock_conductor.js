@@ -464,7 +464,6 @@ describe("Server with mock Conductor", () => {
       return { type: "success" }
     });
 
-
     client = await setup.client({});
 
     expect(activateAppCalled).to.be.false;
@@ -476,6 +475,9 @@ describe("Server with mock Conductor", () => {
     expect(deactivateAppCalled).to.be.false;
 
     await client.close();
+    await delay(2500);
+    // shouldn't deactivate too soon after activating
+    expect(deactivateAppCalled).to.be.false;
     await deactivateAppPromise;
     expect(deactivateAppCalled).to.be.true;
   });
