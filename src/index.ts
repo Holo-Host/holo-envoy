@@ -1067,7 +1067,7 @@ class Envoy {
     }
 
     log.debug("Servicelogger app_info: '%s'", appInfo);
-    // We are assuming that servicelogger is a happ and the first cell is the servicelogger DAN
+    // We are assuming that servicelogger is a happ and the first cell is the servicelogger DNA
     return appInfo.cell_data[0].cell_id;
   }
 
