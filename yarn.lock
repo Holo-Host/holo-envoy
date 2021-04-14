@@ -87,25 +87,30 @@
   resolved "https://registry.yarnpkg.com/@holo-host/wasm-key-manager/-/wasm-key-manager-1.0.0.tgz#32e5365ddc4518a01c17d2aba09d11bf3a042429"
   integrity sha512-GTfeQ2iYvYYrIkuaF0QupWP/y8sdItwL6Tr1osyaU7eUsWtGfpZqDcTZny8KNDdnQAEEP2nDWZORA/Z3EMJa3w==
 
-"@holochain/conductor-api@^0.0.1":
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.1.tgz#a45c32d9d7713232dfab6833d4363b3a20cc157a"
-  integrity sha512-Vng5LG8JN1Zh7/s8OMOQKVih/Cz4zJo/6xpXnOYX148XC8bakKuaRXV08sTUWZMKElbq4BqZFTVcxJw3ouPt+w==
+"@holochain/conductor-api@^0.0.2":
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.2.tgz#054c17e0ed03ba8fdbbf358b1e83ec4cafddda95"
+  integrity sha512-kZxtIV99btLnJ2y3WRl6ORNSZkdzSWAA4I9aTsYupDK0a/0q/RNv8UF3YocahIVL2o93cC9QLKxGo7bjLigFWA==
   dependencies:
-    "@msgpack/msgpack" "^2.1.0"
+    "@msgpack/msgpack" "2.4.0"
     "@types/ws" "^7.2.4"
     isomorphic-ws "^4.0.1"
     nanoid "^3.1.9"
     ws "^7.3.0"
 
-"@holochain/lair-client@^0.1.1":
-  version "0.1.1"
-  resolved "https://registry.yarnpkg.com/@holochain/lair-client/-/lair-client-0.1.1.tgz#7a9c24df883468c5ce9d43526724589921b8c548"
-  integrity sha512-FDjWvM/+BiSuHYdZiQVY6XD4rS/byNP8lpWcS+1AFsoLaWXJqKGKS8BDdzPebeEaxg8CuycKXgIHZM3dDuSgPA==
+"@holochain/lair-client@^0.1.2":
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/@holochain/lair-client/-/lair-client-0.1.2.tgz#8bd218c873b3dbc7b195b85879a0beefeccef8d5"
+  integrity sha512-qVxfNMd+dlLsN6oNSV+sD/VrAa05P8DkiYxtaIsbAJenvq2yaq8uK4LgaNLAHlSWa3s2JfCD+oJU+yxTjhy45g==
   dependencies:
     "@whi/stdlog" "^0.3.4"
 
-"@msgpack/msgpack@^2.1.0", "@msgpack/msgpack@^2.3.0":
+"@msgpack/msgpack@2.4.0":
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/@msgpack/msgpack/-/msgpack-2.4.0.tgz#789c69301388a6a44a47ce654014ecd1703c8fcc"
+  integrity sha512-5qzv53J43V8GaYsaETs29Q0Ehw9Dog6SG18MASZRQDuZYXtA5T7pymGE2S40NL0X8sjl8+TybmRa5O8d45V7MQ==
+
+"@msgpack/msgpack@^2.3.0":
   version "2.5.1"
   resolved "https://registry.yarnpkg.com/@msgpack/msgpack/-/msgpack-2.5.1.tgz#758de4db603dd48832029e68f15dd6cf83ddfa80"
   integrity sha512-l44t7u0VxuHZT5D2zCdsRbkUPkrAJMu4wyXTvHr75eXICklf38NZncRqPYA4g9t7rprPuRCPYT5+pTLihuSKRA==

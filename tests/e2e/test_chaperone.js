@@ -69,7 +69,6 @@ const envoy_mode_map = {
 // Note: All envoyOpts.dnas will be registered via admin interface with the paths provided here
 const envoyOpts = {
   mode: envoy_mode_map.develop,
-  app_port_number: 0,
 }
 
 const getHostAgentKey = async (appClient) => {
@@ -137,6 +136,36 @@ describe("Server", () => {
 
     await resetTmp();
   });
+
+  it('should fail to sign up without wormhole', async function () {
+    this.timeout(30_000)
+
+    const { Client: RPCWebsocketClient } = require('rpc-websockets')
+
+    const agentId = 'uhCAkgHic-Y_Y1C-o9MvNW9KwnqGTNDxyQLjxnL2hETY6BXgONqlT'
+    const hhaHash = 'uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo'
+
+    const client = new RPCWebsocketClient(
+      `ws://localhost:${envoy.ws_server.port}/hosting/?anonymous=false&hha_hash=${hhaHash}&agent_id=${agentId}`
+    )
+
+    const openedPromise = new Promise(resolve => client.once('open', resolve))
+    if (client.socket.readyState === 0) {
+      await openedPromise
+    }
+
+    await client.call('holo/wormhole/event', [agentId])
+
+    const response = await client.call('holo/agent/signup', [hhaHash, agentId])
+    expect(response).deep.equal({
+      name: 'HoloError',
+      message:
+        'HoloError: Error: CONDUCTOR CALL ERROR: {"type":"internal_error","data":"Conductor returned an error while using a ConductorApi: GenesisFailed { errors: [ConductorApiError(WorkflowError(SourceChainError(KeystoreError(LairError(Other(OtherError(\\"unexpected: ErrorResponse { msg_id: 9, message: \\\\\\"Failed to fulfill hosted signing request: \\\\\\\\\\\\\'Failed to get signature from Chaperone\\\\\\\\\\\\\'\\\\\\" }\\")))))))] }"}'
+    })
+    const closedPromise = new Promise(resolve => client.once("close", resolve))
+    client.close()
+    await closedPromise
+  })
 
   it("should sign-in and make a zome function call", async function() {
     this.timeout(300_000);
