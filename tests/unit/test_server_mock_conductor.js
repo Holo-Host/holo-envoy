@@ -87,7 +87,8 @@ describe("Server with mock Conductor", () => {
   beforeEach('Set-up installed_app_ids for test', async () => {
     appConductor.any(MOCK_CELL_DATA)
   });
-  afterEach("Close client", async () => {
+  afterEach("Close client", async function() {
+    this.timeout(20_000)
     if (client && client.opened) {
       if (!client.anonymous) {
         let onDeactivateApp
@@ -260,7 +261,7 @@ describe("Server with mock Conductor", () => {
         dnas: [
           {
             ...envoyOpts.hosted_app.dnas[0],
-            membrane_proof: 'the unique joining code'
+            membrane_proof: Buffer.from('dGhlIHVuaXF1ZSBqb2luaW5nIGNvZGU=', 'base64') // 'the unique joining code'
           }
         ]
       }
@@ -276,7 +277,7 @@ describe("Server with mock Conductor", () => {
       await client.signUp(
         'alice.test.1@holo.host',
         'Passw0rd!',
-        'the unique joining code'
+        'dGhlIHVuaXF1ZSBqb2luaW5nIGNvZGU='
       )
 
 
@@ -446,27 +447,6 @@ describe("Server with mock Conductor", () => {
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
 
-  it("should call ActivateApp and retry if a zome call returns CellMissing", async () => {
-    let activateAppCalled = false
-    adminConductor.next(({ type, data }) => {
-      expect(type).to.equal(MockConductor.ACTIVATE_APP_TYPE)
-      activateAppCalled = true;
-    });
-    appConductor.once(MockConductor.ZOME_CALL_TYPE, {cell_id: MOCK_CELL_ID, zome_name: "zome", fn_name: "zome_fn" }, ({ data }) => {
-      expect(msgpack.decode(Buffer.from(data.payload, 'base64'))).to.equal("zome args")
-      return { type: "internal", data: "CellMissing(...)" };
-    }, { returnError: true })
-    appConductor.once(MockConductor.ZOME_CALL_TYPE, {cell_id: MOCK_CELL_ID, zome_name: "zome", fn_name: "zome_fn" }, ({ data }) => {
-      expect(msgpack.decode(Buffer.from(data.payload, 'base64'))).to.equal("zome args")
-      return "success";
-    })
-    client = await setup.client({})
-    expect(activateAppCalled).to.be.false
-    const result = await client.callZomeFunction("dna_alias", "zome", "zome_fn", "zome args")
-    expect(result).to.equal("success")
-    expect(activateAppCalled).to.be.true
-  })
-
   it("should call deactivate on conductor when client disconnects", async () => {
     const agent_id = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
     let activateAppCalled = false;
@@ -485,7 +465,6 @@ describe("Server with mock Conductor", () => {
       return { type: "success" }
     });
 
-
     client = await setup.client({});
 
     expect(activateAppCalled).to.be.false;
@@ -497,11 +476,15 @@ describe("Server with mock Conductor", () => {
     expect(deactivateAppCalled).to.be.false;
 
     await client.close();
+    await delay(2500);
+    // shouldn't deactivate too soon after activating
+    expect(deactivateAppCalled).to.be.false;
     await deactivateAppPromise;
     expect(deactivateAppCalled).to.be.true;
   });
 
-  it("should call deactivate on conductor when client signs out", async () => {
+  it("should call deactivate on conductor when client signs out", async function() {
+    this.timeout(20_000)
     let activateAppCalled = false;
     let deactivateAppCalled = false;
     let onDeactivateApp;
@@ -530,6 +513,9 @@ describe("Server with mock Conductor", () => {
     expect(deactivateAppCalled).to.be.false;
 
     await client.signOut();
+    await delay(2500);
+    // shouldn't deactivate too soon after activating
+    expect(deactivateAppCalled).to.be.false;
     await deactivateAppPromise;
     expect(deactivateAppCalled).to.be.true;
   });
