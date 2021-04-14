@@ -258,14 +258,23 @@ class Envoy {
           const installed_app_id = getInstalledAppId(hha_hash, agent_id);
           const app_state = this.app_states[installed_app_id]
 
+
+          app_state.desired_activation_state = 'deactivated'
+          app_state.desired_activation_state_changed_at = Date.now()
+
+
           let deactivationInterval = setInterval(() => {
             if (app_state.desired_activation_state === 'activated') {
               clearInterval(deactivationInterval)
               return
             }
 
-            if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state !== 'activated') return
-
+            if (app_state.activation_state_changed_at + 5000 >= Date.now() ||
+                app_state.activation_state !== 'activated' ||
+                app_state.desired_activation_state_changed_at + 5000 >= Date.now()
+            ) {
+              return;
+            }
             app_state.activation_state = 'deactivating'
             app_state.activation_state_changed_at = Date.now()
 
