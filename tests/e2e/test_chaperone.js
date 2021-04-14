@@ -204,19 +204,15 @@ describe("Server", () => {
           max_time_before_invoice: [604800, 0]
         }
         let logger_settings;
-        try {
-          logger_settings = await envoy.hcc_clients.app.callZome({
-            // Note: Cell ID content MUST BE passed in as a Byte Buffer, not a u8int Byte Array
-            cell_id: [Buffer.from(servicelogger_cell_id[0]), Buffer.from(servicelogger_cell_id[1])],
-            zome_name: 'service',
-            fn_name: 'set_logger_settings',
-            payload: settings,
-            cap: null,
-            provenance: Buffer.from(servicelogger_cell_id[1])
-          });
-        } catch (error) {
-          throw new Error(JSON.stringify(error));
-        }
+        logger_settings = await envoy.hcc_clients.app.callZome({
+          // Note: Cell ID content MUST BE passed in as a Byte Buffer, not a u8int Byte Array
+          cell_id: [Buffer.from(servicelogger_cell_id[0]), Buffer.from(servicelogger_cell_id[1])],
+          zome_name: 'service',
+          fn_name: 'set_logger_settings',
+          payload: settings,
+          cap: null,
+          provenance: Buffer.from(servicelogger_cell_id[1])
+        });
         return logger_settings;
       });
 
