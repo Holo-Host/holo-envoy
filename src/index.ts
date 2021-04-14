@@ -11,6 +11,7 @@ import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 import { v4 as uuid } from 'uuid';
 import * as crypto from 'crypto';
+const { inspect } = require('util')
 
 const msgpack = require('@msgpack/msgpack');
 
@@ -293,7 +294,7 @@ class Envoy {
               } else {
                 app_state.activation_state = 'activated'
                 app_state.activation_state_changed_at = Date.now()
-                log.error("Failed to deactivate app with installed_app_id (%s): %o", installed_app_id, err);
+                log.error("Failed to deactivate app with installed_app_id (%s): %s", installed_app_id, inspect(err));
               }
             });
 
