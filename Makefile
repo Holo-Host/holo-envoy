@@ -70,7 +70,8 @@ setup-conductor:
 	make tmp-shim
 	sleep 1
 	rm -rf ./script/install-bundles/.sandbox
-	cd script/install-bundles && cargo run
+	# enforce using nix version of holochain
+	cd script/install-bundles && cargo run -- -h $(shell which holochain)
 	make stop-lair
 	make clean-tmp-shim
 conductor:

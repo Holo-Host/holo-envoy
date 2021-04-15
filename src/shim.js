@@ -2,6 +2,7 @@ const path = require('path')
 const log = require('@whi/stdlog')(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal'
 })
+const { inspect } = require('util')
 
 const net = require('net')
 
@@ -37,7 +38,7 @@ async function init (lair_socket, shim_socket, signing_handler) {
         const request = header.wire_type_class.from(await header.payload())
         const pubkey = request.get(0)
         const message = request.get(1)
-        try{
+        try {
           const signature = await signing_handler(pubkey, message)
 
           if (signature !== null) {
@@ -47,10 +48,10 @@ async function init (lair_socket, shim_socket, signing_handler) {
             conductor_stream.write(response.toMessage(header.id))
             continue
           }
-        } catch(e) {
-           // TODO: need to pass the write struct for error to lair
-          log.normal("The wormhole timeouts and we have nothing to send you ... Sorry holochain!!! Error: %s", e);
-          // conductor_stream.write("Shim Error: Failed to sign")
+        } catch (e) {
+          log.normal("Wormhole failure: %s", inspect(e))
+          const response = new structs.ErrorResponse(`Failed to fulfill hosted signing request: ${inspect(e)}`)
+          conductor_stream.write(response.toMessage(header.id))
           continue
         }
       }
