@@ -10,9 +10,6 @@ const setup_conductor = require("../setup_conductor.js");
 const { create_page, fetchServiceloggerCellId, setupServiceLoggerSettings, PageTestUtils, envoy_mode_map, resetTmp, delay } = require("../utils")
 const msgpack = require('@msgpack/msgpack');
 
-const INVALID_JOINING_CODE = msgpack.encode('failing joining code').toString('base64')
-const SUCCESSFUL_JOINING_CODE = msgpack.encode('joining code').toString('base64')
-
 // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
 const HOST_AGENT_ID = 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k'
 
@@ -24,6 +21,9 @@ const envoyOpts = {
 }
 
 const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
+
+const INVALID_JOINING_CODE = msgpack.encode('failing joining code').toString('base64')
+const SUCCESSFUL_JOINING_CODE = msgpack.encode('joining code').toString('base64')
 
 describe("Server", () => {
   let envoy, server, browser
