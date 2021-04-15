@@ -5,7 +5,6 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 
 const expect = require('chai').expect;
 const fetch = require('node-fetch');
-const why = require('why-is-node-running');
 const portscanner = require('portscanner');
 const msgpack = require('@msgpack/msgpack');
 
@@ -166,6 +165,38 @@ describe("Server with mock Conductor", () => {
       expect(response).to.equal("Hello World");
     } finally {}
   });
+
+  it('should call service logger to update disk usage', async () => {
+    const expected_dna_hash = 'the_expected_dna_hash'
+    const expected_hha_hash = 'the_expected_hha_hash'
+    envoy.dna2hha = {
+      [expected_dna_hash]: expected_hha_hash
+    }
+
+    const expected_cell_id = 'cell_id_for_service_logger'
+
+    const app_info = {
+      cell_data: [{ cell_id: expected_cell_id}]
+    }
+
+    // mock the app info call to get the service logger id
+    appConductor.next(app_info)
+
+    // and then the service logger log_disk_usage call
+    let log_disk_usage_payload
+    appConductor.next(({ type, data }) => {
+      log_disk_usage_payload = msgpack.decode(data.payload)
+    })
+
+
+    envoy.updateStorageUsage()
+
+    await delay(100)
+
+    expect(log_disk_usage_payload).to.have.property('total_disk_usage', 1)
+    expect(log_disk_usage_payload).to.have.property('integrated_entries')
+    expect(log_disk_usage_payload).to.have.property('source_chains')
+  })
 
 
   it("should sign-up on this Host without membrane_proof", async () => {

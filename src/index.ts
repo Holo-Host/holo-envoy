@@ -11,6 +11,7 @@ import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 import { v4 as uuid } from 'uuid';
 import * as crypto from 'crypto';
+import { getDiskUsagePerDna } from './utils';
 const { inspect } = require('util')
 
 const msgpack = require('@msgpack/msgpack');
@@ -156,6 +157,7 @@ class Envoy {
     this.connected.then(() => log.normal("All Conductor clients are in a 'CONNECTED' state"));
     this.startWebsocketServer();
     this.startWormhole();
+    this.startStoragePolling();
   }
 
   async startWormhole() {
@@ -315,7 +317,7 @@ class Envoy {
           log.warn("RPC WebSocket event '%s' is already registered for Agent (%s)", event, agent_id);
         else {
           log.error("Failed during RPC WebSocket event registration: %s", String(e));
-          console.error(e);
+          log.error(e);
         }
       }
 
@@ -536,7 +538,7 @@ class Envoy {
           holo_error = err.toJSON();
         } else {
           log.fatal("Conductor call threw unknown error: %s", String(err));
-          console.error(err);
+          log.error(err);
           holo_error = {
             "source": 'HoloError',
             "message": err.message,
@@ -642,7 +644,7 @@ class Envoy {
       } catch (err) {
         const error = `servicelogger.log_service threw: ${String(err)}`
         log.error("Failed during service confirmation log: %s", error);
-        console.error(err);
+        log.error(err);
 
         this.removePendingConfirmation(response_id);
 
@@ -650,7 +652,6 @@ class Envoy {
         log.normal('Returning error: ', errorPack);
 
         return errorPack;
-
       }
 
       this.removePendingConfirmation(response_id);
@@ -754,6 +755,48 @@ class Envoy {
     delete this.agent_wormhole_num_timeouts[agent_id];
   }
 
+  startStoragePolling () {
+    this.updateStorageUsage()
+    setInterval(this.updateStorageUsage.bind(this), 60 * 60 * 1000)
+  }
+
+  updateStorageUsage () {
+    const dnaHashes = this.getHostedDnaHashes()
+
+    let usagePerDna
+    try {
+      usagePerDna = getDiskUsagePerDna(dnaHashes)
+    } catch (e) {
+      log.error('failed to get disk usage for dnas:', e.toString())
+      return
+    }
+
+    // this fires off a bunch of promises and never waits for them to return
+    dnaHashes.forEach(async dnaHash => {
+      try {
+        const hhaHash = this.dna2hha[dnaHash]
+        const cellId = await this.getServiceLoggerCellId(hhaHash)
+        const payload = {
+          source_chains: [],
+          integrated_entries: [],
+          total_disk_usage: usagePerDna[dnaHash]
+        }
+
+        await this.callConductor("service", {
+          cell_id: cellId,
+          zome_name: "service",
+          fn_name: "log_disk_usage",
+          payload,
+          cap: null,
+          provenance: cellId[1]
+        })
+      } catch (e) {
+        log.error(`error updating disk usage for ${hash}`, e.toString())
+        return
+      }
+    })
+  }
+
   // --------------------------------------------------------------------------------------------
   // WORMHOLE Signing function
   // Note: we need to figure out a better way to manage this timeout.
@@ -772,7 +815,7 @@ class Envoy {
       if (Object.keys(this.anonymous_agents).includes(agent_id))
         throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
       else {
-        console.error(`Agent ${agent_id} is not registered.  It must be a host call`);
+        log.error(`Agent ${agent_id} is not registered.  It must be a host call`);
         // Returning null will let the shim redirect to the local lair instance
         return null
       }
@@ -862,7 +905,7 @@ class Envoy {
       throw new HoloError("Conductor disconnected");
     }
     try {
-      // Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a function (admin client).
+      // Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a string (admin client).
       interfaceMethod = client.callZome;
       methodName = 'callZome'
       callAgent = 'app'
@@ -965,7 +1008,6 @@ class Envoy {
     return resp;
   }
 
-
   // --------------------------------------------------------------------------------------------
 
   // Service Logger Methods
@@ -1034,12 +1076,36 @@ class Envoy {
     return resp;
   }
 
+  async getServiceLoggerCellId(hha_hash) {
+    let servicelogger_installed_app_id;
+
+    if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
+      servicelogger_installed_app_id = this.opts.hosted_app.servicelogger_id;
+    } else {
+      // NB: There will be a new servicelogger app for each hosted happ (should happen at the time of self-hosted install - prompted in host console.)
+      servicelogger_installed_app_id = `${hha_hash}::servicelogger`;
+    }
+
+    log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
+    const appInfo = await this.callConductor("app", { installed_app_id: servicelogger_installed_app_id });
+
+    if (!appInfo) {
+      log.error("Failed during Servicelogger AppInfo lookup: %s", appInfo);
+      throw new HoloError("Failed to fetch AppInfo for Servicelogger")
+    }
+
+    log.debug("Servicelogger app_info: '%s'", appInfo);
+    // We are assuming that servicelogger is a happ and the first cell is the servicelogger DNA
+    return appInfo.cell_data[0].cell_id;
+  }
+
   async logServiceConfirmation(client_request, host_response, confirmation) {
     log.info("Processing service logger confirmation");
     log.silly("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response);
 
     const hha_hash = client_request.request.call_spec.hha_hash;
 
+    // This code should be replaceable with this.getServiceLoggerCellId, but for some reason it breaks.
     let servicelogger_installed_app_id;
 
     if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
@@ -1135,7 +1201,12 @@ class Envoy {
   }
 
   hhaExists(hha_hash) {
-    return (Object.values(this.dna2hha).includes(hha_hash));
+    return Object.values(this.dna2hha).includes(hha_hash);
+  }
+
+
+  getHostedDnaHashes () {
+    return Object.keys(this.dna2hha)
   }
 
   async signalHandler(signal) {
