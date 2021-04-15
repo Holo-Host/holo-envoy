@@ -177,7 +177,7 @@ describe("Server", () => {
 
         // Test for second agent on same host
         // NEED TO FIX
-        await client.signUp("bob.test.1@holo.host", "Passw0rd!", joiningCode);
+        await client.signUp("bob.test.2@holo.host", "Passw0rd!", joiningCode);
         console.log("Finished sign-up for agent: %s", client.agent_id);
         if (client.anonymous === true) {
           throw new Error("Client did not sign-in")
@@ -227,7 +227,7 @@ describe("Server", () => {
       let signupResponse
       try {
         // passing in a random/incorrect joining code
-        signupResponse = await client.signUp("alice.test.1@holo.host", "Passw0rd!", invalidJoiningCode);
+        signupResponse = await client.signUp("carol.test.3@holo.host", "Passw0rd!", invalidJoiningCode);
       } catch (error) {
         
       }
@@ -265,7 +265,7 @@ describe("Server", () => {
       let signupResponse
       try {
         // passing in a random/incorrect joining code
-        signupResponse = await client.signUp("alice.test.1@holo.host", "Passw0rd!", null);
+        signupResponse = await client.signUp("daniel.test.4@holo.host", "Passw0rd!", null);
       } catch (error) {
         
       }
