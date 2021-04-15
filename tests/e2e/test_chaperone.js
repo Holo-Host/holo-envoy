@@ -17,6 +17,9 @@ const msgpack = require('@msgpack/msgpack');
 // NOTE: the test app servicelogger installed_app_id is hard-coded, but intended to mirror our standardized installed_app_id naming pattern for each servicelogger instance (ie:`${hostedAppHha}::servicelogger`)
 const HOSTED_APP_SERVICELOGGER_INSTALLED_APP_ID = installedAppIds[0].app_name;
 
+const INVALID_JOINING_CODE = msgpack.encode('failing joining code').toString('base64')
+const SUCCESSFUL_JOINING_CODE = msgpack.encode('joining code').toString('base64')
+
 let browser;
 
 async function create_page(url) {
@@ -220,7 +223,7 @@ describe("Server", () => {
         const hhaBuffer = Buffer.from(buf);
         return Codec.HoloHash.encode(type, hhaBuffer);
       });
-      const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash) {
+      const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_agent, registered_happ_hash, SUCCESSFUL_JOINING_CODE) {
         console.log("Registered Happ Hash: %s", registered_happ_hash);
 
         const client = new Chaperone({
@@ -241,7 +244,7 @@ describe("Server", () => {
         client.skip_assign_host = true;
 
         await client.ready(200_000);
-        await client.signUp("alice.test.1@holo.host", "Passw0rd!");
+        await client.signUp("alice.test.1@holo.host", "Passw0rd!", SUCCESSFUL_JOINING_CODE);
         console.log("Finished sign-up for agent: %s", client.agent_id);
         if (client.anonymous === true) {
           throw new Error("Client did not sign-in")
@@ -301,7 +304,7 @@ describe("Server", () => {
           responseOne,
           responseTwo
         }
-      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH);
+      }, host_agent_id, registered_agent, REGISTERED_HAPP_HASH, SUCCESSFUL_JOINING_CODE);
 
       log.info("Completed evaluation: %s", responseOne);
       log.info("Completed evaluation: %s", responseTwo);
