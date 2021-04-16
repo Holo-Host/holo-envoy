@@ -207,11 +207,14 @@ class Envoy {
       log.normal("%s (%s) connection for HHA ID: %s", anonymous ? "Anonymous" : "Agent", agent_id, hha_hash);
 
       const installed_app_id = getInstalledAppId(hha_hash, agent_id)
-      this.app_states[installed_app_id] = {
-        activation_state: 'deactivated',
-        activation_state_changed_at: 0,
-        desired_activation_state: 'deactivated',
-        desired_activation_state_changed_at: 0
+      if (!this.app_states[installed_app_id]) {
+        log.normal("initializing app state for installed_app_id %s", installed_app_id)
+        this.app_states[installed_app_id] = {
+          activation_state: 'deactivated',
+          activation_state_changed_at: 0,
+          desired_activation_state: 'deactivated',
+          desired_activation_state_changed_at: 0
+        }
       }
 
       if (anonymous) {
