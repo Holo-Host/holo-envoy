@@ -261,10 +261,12 @@ class Envoy {
 
 
           app_state.desired_activation_state = 'deactivated'
+          log.normal('setting desired state to deactivated. actual:', this.app_states[installed_app_id].desired_activation_state)
           app_state.desired_activation_state_changed_at = Date.now()
 
 
           let deactivationInterval = setInterval(() => {
+            log.normal("trying to deactivate. observed desired: ", app_state.desired_activation_state)
             if (app_state.desired_activation_state === 'activated') {
               clearInterval(deactivationInterval)
               return
@@ -712,8 +714,11 @@ class Envoy {
     try {
       await new Promise<void>((resolve, reject) => {
         app_state.desired_activation_state = 'activated'
+        log.normal('setting desired state to activated. actual:', this.app_states[installed_app_id].desired_activation_state)
+        app_state.desired_activation_state_changed_at = Date.now()
 
         const tryToActivate = async () => {
+          log.normal("trying to activate. observed desired: ", app_state.desired_activation_state)
           if (app_state.desired_activation_state === 'deactivated') {
             // nobody should ever see this error, because chaperone is disconnected
             reject('App already trying to deactivate')
