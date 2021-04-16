@@ -268,16 +268,23 @@ class Envoy {
           app_state.desired_activation_state_changed_at = Date.now()
 
 
+          const when_this_interval = Date.now().toLocaleString()
           let deactivationInterval = setInterval(() => {
-            log.normal("trying to deactivate. observed desired: %s", app_state.desired_activation_state)
+            log.normal("trying to deactivate. desired_activation_state: %s", app_state.desired_activation_state)
+            log.normal("this interval initiated at: %s", when_this_interval)
+            log.normal("app_state: %s", inspect(app_state))
+
             if (app_state.desired_activation_state === 'activated') {
+              log.normal("clearing deactivation interval initiated at: %s because of something in app_state", when_this_interval)
+
               clearInterval(deactivationInterval)
               return
             }
 
+            // dont deactivate too soon or if currently transitioning
             if (app_state.activation_state_changed_at + 5000 >= Date.now() ||
-                app_state.activation_state !== 'activated' ||
-                app_state.desired_activation_state_changed_at + 5000 >= Date.now()
+                app_state.desired_activation_state_changed_at + 5000 >= Date.now() ||
+                app_state.desired_activation_state.endsWith('ing')
             ) {
               return;
             }
@@ -288,9 +295,13 @@ class Envoy {
             .then(() => {
               app_state.activation_state = 'deactivated'
               app_state.activation_state_changed_at = Date.now()
+              log.normal("clearing deactivation interval initiated at: %s because sucessfully deactivated", when_this_interval)
+
               clearInterval(deactivationInterval)
             })
             .catch(err => {
+              log.normal("clearing deactivation interval initiated at: %s because error deactivating", when_this_interval)
+
               clearInterval(deactivationInterval)
               if (err.toString().includes("AppNotActive")) {
                 app_state.activation_state = 'deactivated'
@@ -712,6 +723,7 @@ class Envoy {
     const app_state = this.app_states[installed_app_id]
 
     let activation_interval
+    const when_this_interval = Date.now().toLocaleString()
 
     // let the record show, we're not happy with this code.
     try {
@@ -720,15 +732,20 @@ class Envoy {
         log.normal('setting desired state to activated. actual: %s', this.app_states[installed_app_id].desired_activation_state)
         app_state.desired_activation_state_changed_at = Date.now()
 
+
         const tryToActivate = async () => {
-          log.normal("trying to activate. observed desired: %s", app_state.desired_activation_state)
+          log.normal("trying to activate. desired_activation_state: %s", app_state.desired_activation_state)
+          log.normal("this interval initiated at: %s", when_this_interval)
+          log.normal("app_state: %s", inspect(app_state))
+
+
           if (app_state.desired_activation_state === 'deactivated') {
             // nobody should ever see this error, because chaperone is disconnected
             reject('App already trying to deactivate')
             return
           }
-          // don't try and change state too soon
-          if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state !== 'deactivated') return
+          // don't try and change state too soon or if already transitioning
+          if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state.endsWith('ing')) return
 
           try {
             app_state.activation_state = 'activating'
@@ -750,6 +767,7 @@ class Envoy {
         activation_interval = setInterval(tryToActivate, 5000)
       })
     } finally {
+      log.normal("clearing Activation Interval started at: %s", when_this_interval)
       clearInterval(activation_interval)
     }
     return true
