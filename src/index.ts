@@ -379,7 +379,6 @@ class Envoy {
             dnas = this.opts.hosted_app.dnas;
 					} else {
             dnas = appInfo.cell_data.map(({cell_id, cell_nick}) => ({ nick: cell_nick, hash: cell_id[0], membrane_proof }));
-
 					}
 
           if (membrane_proof) {
