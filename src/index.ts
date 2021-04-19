@@ -42,7 +42,7 @@ const RPC_CLIENT_OPTS = {
 const CONDUCTOR_TIMEOUT = RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
 const NAMESPACE = "/hosting/";
 const READY_STATES = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
-const WORMHOLE_TIMEOUT = 20_000;
+const WORMHOLE_TIMEOUT = 10_000;
 const CALL_CONDUCTOR_TIMEOUT = WORMHOLE_TIMEOUT + 10_000
 
 interface CallSpec {
@@ -298,7 +298,7 @@ class Envoy {
               }
             });
 
-          }, 5000)
+          }, 15000)
         }
       });
     });
@@ -532,6 +532,7 @@ class Envoy {
           holo_error = (new HoloError(new_message)).toJSON();
         } else if (err instanceof HoloError) {
           log.warn("Setting error response to raised HoloError: %s", String(err));
+          console.log('err.toJSON() : ', err.toJSON())
           holo_error = err.toJSON();
         } else {
           log.fatal("Conductor call threw unknown error: %s", String(err));
@@ -546,9 +547,10 @@ class Envoy {
       // - return host response
       let response_message;
       if (holo_error) {
+        console.log(' >>>>>> holo_error : ', holo_error)
         const errorPack = Package.createFromError("HoloError", holo_error);
+        console.log(' >>>>>> errorPack : ', errorPack)
         log.normal('Returning error: ', errorPack);
-
         response_message = errorPack;
       }
       else {
@@ -784,6 +786,7 @@ class Envoy {
         if (this.agent_wormhole_num_timeouts[agent_id] === undefined) {
           this.agent_wormhole_num_timeouts[agent_id] = 0;
         }
+        console.log('!!!!!!!!!!! adding an agent wormhole num timeout...')
         this.agent_wormhole_num_timeouts[agent_id] += 1;
         if (this.agent_wormhole_num_timeouts[agent_id] === 3) {
           this.signOut(agent_id).catch(err => {
