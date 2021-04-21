@@ -284,7 +284,7 @@ class Envoy {
             // dont deactivate too soon or if currently transitioning
             if (app_state.activation_state_changed_at + 5000 >= Date.now() ||
                 app_state.desired_activation_state_changed_at + 5000 >= Date.now() ||
-                app_state.desired_activation_state.endsWith('ing')
+                app_state.activation_state === "deactivating" || app_state.activation_state === "activating"
             ) {
               return;
             }
@@ -745,7 +745,7 @@ class Envoy {
             return
           }
           // don't try and change state too soon or if already transitioning
-          if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state.endsWith('ing')) return
+          if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state === "activating" || app_state.activation_state === "deactivating") return
 
           try {
             app_state.activation_state = 'activating'
