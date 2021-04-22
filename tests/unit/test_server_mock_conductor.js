@@ -478,7 +478,8 @@ describe("Server with mock Conductor", () => {
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
 
-  it("should call deactivate on conductor when client disconnects", async () => {
+  it("should call deactivate on conductor when client disconnects", async function() {
+    this.timeout(20_000)
     const agent_id = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
     let activateAppCalled = false;
     let deactivateAppCalled = false;
