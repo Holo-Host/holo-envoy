@@ -22,8 +22,8 @@ const envoyOpts = {
 
 const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
 
-const INVALID_JOINING_CODE = msgpack.encode('failing joining code').toString('base64')
-const SUCCESSFUL_JOINING_CODE = msgpack.encode('joining code').toString('base64')
+const INVALID_JOINING_CODE = Buffer.from(msgpack.encode('failing joining code')).toString('base64')
+const SUCCESSFUL_JOINING_CODE = Buffer.from(msgpack.encode('joining code')).toString('base64')
 
 describe("Server", () => {
   let envoy, server, browser
