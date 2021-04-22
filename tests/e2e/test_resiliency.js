@@ -68,7 +68,7 @@ const wait_for_browser = browser_handler => new Promise((resolve, reject) => {
 
 describe("Resiliency", () => {
   let envoy, server, browser_handler, browserClient;
-  let http_ctrls, http_url, page;
+  let http_ctrls, http_url, page_url, page;
 
   before('Spin up lair, envoy, conductor, chaperone, and the browser, then sign-in', async function() {
     this.timeout(100_000)
@@ -97,12 +97,8 @@ describe("Resiliency", () => {
     log.debug("Setup config: %s", http_ctrls.ports)
     http_url = `http://localhost:${http_ctrls.ports.chaperone}`
 
-  /////////////////
-    const page_url = `${http_url}/html/chaperone.html`
-    // create a second tab on browser to avoid puppeeteer shutting down (by closing the otherwise only tab)
-    // ** when running the close tab resiliency test
-    await create_page(page_url, browser_handler.browser);
-    page = await create_page(page_url, browser_handler.browser);
+    page_url = `${http_url}/html/chaperone.html`
+    page = await create_page(page_url, browser_handler.browser)
     const pageTestUtils = new PageTestUtils(page)
 
     pageTestUtils.logPageErrors();
@@ -115,22 +111,36 @@ describe("Resiliency", () => {
       expect(value).to.equal(expectation)
     })
 
-    // await page.exposeFunction('checkEnvoyState', () => {
-    //   console.log(' ---------------------------------> hcc_clients admin pending requests: ', envoy.hcc_clients.admin.pendingRequests)
-    //   console.log(' ---------------------------------> hcc_clients app pending requests: ', envoy.hcc_clients.app.pendingRequests)
-    //   console.log(' ---------------------------------> agent_connections : ', envoy.agent_connections)
-    //   console.log(' ---------------------------------> payload_counter : ', envoy.payload_counter)
-    //   console.log(' ---------------------------------> pending_confirms : ', envoy.pending_confirms)
-    //   console.log(' ---------------------------------> pending_signatures : ', envoy.pending_signatures)
-    //   console.log(' ---------------------------------> agent_wormhole_num_timeouts : ', envoy.agent_wormhole_num_timeouts)
-    //   console.log('------------------------------------------>  app_states (for current cell) : ', envoy.app_states[`${REGISTERED_HAPP_HASH}:${SIGNED_IN_AGENT_HASH}`])
-    //   return {
-    //     hcc_clients: envoy.hcc_clients,
-    //     pending_confirms: envoy.pending_confirms
-    //   }
-    // })
+    await page.exposeFunction('checkEnvoyState', (agentId, expectedActivationState, wormHoleTimeouts = 0) => {
+      const shouldBeConnected = expectedActivationState !== 'deactivated'
+      // check agent connections === shouldBeConnected
+      // check that app === expectedActivationState
+      // check still connected to hcc admin and app client
+      // check pending confirms state is same
+      // check pending sigs state is same
+      
+      console.log(' ---------------------------------> hcc_clients admin : ', envoy.hcc_clients.admin)
+      console.log(' ---------------------------------> hcc_clients app : ', envoy.hcc_clients.app)
+      console.log(' ---------------------------------> agent_connections : ', envoy.agent_connections)
+      console.log(' ---------------------------------> payload_counter : ', envoy.payload_counter)
+      console.log(' ---------------------------------> agent_wormhole_num_timeouts : ', envoy.agent_wormhole_num_timeouts)
+      console.log('------------------------------------------>  app_states (for current cell) : ', envoy.app_states[`${REGISTERED_HAPP_HASH}:${agentId}`])
+
+      const isConnectionStateValid = shouldBeConnected === !!envoy.agent_connections[agentId]
+      const isActivationStateValid = expectedActivationState === envoy.app_states[`${REGISTERED_HAPP_HASH}:${agentId}`]
+      const isConductorConnectionValid = !!envoy.hcc_clients.admin && !!envoy.hcc_clients.app
+      const isWormHoleTimeoutCountValid = wormHoleTimeouts === envoy.agent_wormhole_num_timeouts
+
+      console.log(' ---------------------------------> isConnectionStateValid : ', isConnectionStateValid)
+      console.log(' ---------------------------------> isActivationStateValid : ', isActivationStateValid)
+      console.log(' ---------------------------------> isConductorConnectionValid : ', isConductorConnectionValid)
+      console.log(' ---------------------------------> isWormHoleTimeoutCountValid : ', isWormHoleTimeoutCountValid)
+      
+      return isConnectionStateValid && isActivationStateValid
+    })
 
   //////
+    //////
     // Set logger settings for hosted app (in real word scenario - will be done when host installs app):
     try {
       const servicelogger_cell_id = await fetchServiceloggerCellId(envoy.hcc_clients.app)
@@ -183,7 +193,7 @@ describe("Resiliency", () => {
   })
 
 
-  it('Should recover from a browser tab closed during zome call once successfully signed back in', async function () {
+  it('Should recover from a browser tab closed during zome call by automatically signing back in, finishing prior zome call, and successfully completing a new one', async function () {
     this.timeout(300_000)
     try {
       await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {
@@ -197,7 +207,6 @@ describe("Resiliency", () => {
             'host': 'localhost',
             'port': 4656,
           },
-
           host_agent_id, // used to assign host (id generated by hpos-seed)
           app_id: registered_happ_hash, // NOT RANDOM: this needs to match the hash of app in hha
 
@@ -227,8 +236,7 @@ describe("Resiliency", () => {
       }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, SUCCESSFUL_JOINING_CODE);
 
       await page.close()
-      const page_url = `${http_url}/html/chaperone.html`
-      page = await create_page(page_url, browser);
+      page = await create_page(page_url, browser_handler.browser);
 
       await delay(1000)
 
@@ -243,7 +251,6 @@ describe("Resiliency", () => {
             "host": "localhost",
             "port": 4656,
           },
-
           host_agent_id, // used to assign host (id generated by hpos-seed)
           app_id: registered_happ_hash, // NOT RANDOM: this needs to match the hash of app in hha
 
@@ -285,7 +292,6 @@ describe("Resiliency", () => {
       browserClient.on('Network.webSocketFrameSent', async ({ response }) => {
         if (JSON.parse(response.payloadData).method === 'holo/call') {
           console.log('!! closing chaperone client !!')
-          console.log('envoy ws server: ', server)
           await setup.close_connections(server.wss.clients)
         }
       })
@@ -308,35 +314,41 @@ describe("Resiliency", () => {
         });
         client.skip_assign_host = true
 
-        await client.ready(200_000);
-        await client.signUp("alice.test.1@holo.host", "Passw0rd!", joiningCode)
-        console.log("Finished sign-up for agent: %s", client.agent_id)
+        await client.ready(200_000)
+        await client.signUp('bobbo.test.2@holo.host', 'Passw0rd!', joiningCode)
+        console.log('Finished sign-up for agent: %s', client.agent_id)
         if (client.anonymous === true) {
-          throw new Error("Client did not sign-up")
+          throw new Error('Client did not sign-in')
         }
-        if (client.agent_id !== 'uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY') {
+        if (client.agent_id !== 'uhCAkh1YLBXufxHVem7zUXTChtFSVaBbMuWYSQ7VqWkQ6sU9RtpcZ') {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
         hasSignedUp = true
         expectEquals(client.anonymous, false)
-        
-        let { hcc_clients, pending_confirms } = window.checkEnvoyState()
 
         let responseFailure
         try {
-          responseFailure = await client.callZomeFunction(`test`, "test", "pass_obj", {'value': "This is the returned value"})
+        // TEMPORARY: remove race condition and only call zome call once chaperone is updated to return a timeout / server down error after a certain duration of failed connection
+        responsefailure = Promise.race([
+          client.callZomeFunction('test', 'test', 'pass_obj', {'value': 'This is the returned value'}),
+          new Promise((resolve, reject) => {
+            let waitId = setTimeout(() => {
+              clearTimout(waitId);
+              resolve(new Error('ERROR: Call timed out in test'))
+            }, 20000)
+          })
+        ])
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
         }
 
         /// Check Envoy state
-        // check still connected to hcc admin and app client
-        // check pending confirms state is same
-        // check pending sigs state is same
-        // >> check that app is NOT deactivated (ie: app_state !== 'deactivated')
-        
-        // const isEnvoyStateStable = window.checkEnvoyState()
+        //// check agent connections is not longer true
+        //// check that app is deactivated (ie: app_state === 'deactivated')
+        //// wormhole timeouts should exist >0; check integer expectation
+        // const isEnvoyStateStable = window.checkEnvoyState(agentId, 'deactivated', 3)
+        // console.log('envoy state correct ? : ', isEnvoyStateStable)
         // expectEquals(isEnvoyStateStable, true)
 
         /// Check chaperone state
@@ -345,22 +357,39 @@ describe("Resiliency", () => {
         // expectEquals(client.pending_confirms.length, 0)
         // expect that the client is no longer signed in (ie. anonymous)
         // expectEquals(client.anonymous, true)
-
+        
         // wait for chaperone to automatically sign back in on reconnect
         await delay(1000)
+
+        // wait for new ws socket to be ready
+        console.log('.....WAITING TO BE READY')
+        console.log('client connection object >> : ', client.conn)
+        await client.ready(200_000)
+        console.log('..... should be READY')
+        console.log('client connection object >> : ', client.conn)
+
         expectEquals(client.anonymous, false)
+
+        /// Check Envoy state
+        // >> check that app is NOT deactivated (ie: app_state !== 'deactivated')
+        // const isEnvoyStateStable = window.checkEnvoyState(agentId, 'activated')
+        // expectEquals(isEnvoyStateStable, true)
  
         // test call again once sigend back in
-        try {
-          responseSuccess = await client.callZomeFunction('test', 'test', 'pass_obj', {'value': 'This is the returned value'})
-        } catch (error) {
-          console.log(typeof err.stack, err.stack.toString());
-          throw err
-        }
-        return { hasSignedUp, responseFailure, responseSuccess, hcc_clients, pending_confirms }
+        let responseSuccess = {}
+        // try {
+        //   responseSuccess = await client.callZomeFunction('test', 'test', 'pass_obj', {'value': 'This is the returned value'})
+        // } catch (err) {
+        //   console.log(typeof err.stack, err.stack.toString());
+        //   throw err
+        // }
+        return { hasSignedUp, responseFailure, responseSuccess }
       }, HOST_AGENT_ID, REGISTERED_HAPP_HASH)
+      
       expect(hasSignedUp).to.equal(true)
-      expect(responseFailure).to.have.property("error").which.equals("Disconnect Error")
+      // log.info("Completed error response: %s", responsefailure);
+      // expect(responseFailure).to.have.property("error").which.equals("Disconnect Error")
+      log.info("Completed successful response: %s", responseSuccess);
       expect(responseSuccess).to.have.property("value").which.equals("This is the returned value")
     } finally {
     }
@@ -415,12 +444,12 @@ describe("Resiliency", () => {
       client.skip_assign_host = true
 
       await client.ready(200_000);
-      await client.signUp("carol.test.3@holo.host", "Passw0rd!", joiningCode)
-      console.log("Finished sign-up for agent: %s", client.agent_id)
+      await client.signUp('carol.test.3@holo.host', 'Passw0rd!', joiningCode);
+      console.log('Finished sign-up for agent: %s', client.agent_id);
       if (client.anonymous === true) {
-        throw new Error("Client did not sign-up")
+        throw new Error('Client did not sign-in')
       }
-      if (client.agent_id !== 'uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY') {
+      if (client.agent_id !== 'uhCAksf0kcVKuSnekpvYn1a_b9d1i2-tu6BMoiCbB9hndAA0cwEyU') {
         throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
       }
       hasSignedUp = true
@@ -502,13 +531,11 @@ describe("Resiliency", () => {
       if (client.anonymous === true) {
         throw new Error("Client did not sign-up")
       }
-      if (client.agent_id !== 'uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY') {
+      if (client.agent_id !== 'uhCAksf0kcVKuSnekpvYn1a_b9d1i2-tu6BMoiCbB9hndAA0cwEyU') {
         throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
       }
       hasSignedIn = true
       
-      let { hcc_clients, pending_confirms } = window.checkEnvoyState()
-
       let responseSuccess
       try {
         responseSuccess = await client.callZomeFunction(`test`, "test", "pass_obj", {'value': "This is the returned value"});
