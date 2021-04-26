@@ -127,7 +127,7 @@ describe("Server", () => {
     await closedPromise
   })
 
-  it("should sign-in and make a zome function call", async function() {
+  it.only("should sign-in and make a zome function call", async function() {
     this.timeout(300_000);
     try {
       const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {
