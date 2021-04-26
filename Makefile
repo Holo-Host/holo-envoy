@@ -13,7 +13,10 @@ docs/index.html:	build/index.js
 
 .PRECIOUS:	keystore-%.key
 .PHONY:		src build docs docs-watch build-watch
-kill-holochain:
+
+# nix-test, nix-install, ...
+nix-%:
+	nix-shell --run "make $*"
 
 dnas:
 	mkdir -p ./dnas
@@ -137,28 +140,8 @@ publish-docs:
 	git push -f origin gh-pages
 	git checkout $(CURRENT_BRANCH)
 
-
-# Manage Holochain Conductor config
-HC_LOCAL_STORAGE	= $(shell pwd)/holochain-conductor/storage
-
-.PHONY:		start-hcc-%
-conductor.log:
-	touch $@
-
 dist/holo_hosting_chaperone.js:
 	ln -s node_modules/@holo-host/chaperone/dist dist
-
-check-conductor:	check-holochain
-check-holochain:
-	ps -efH | grep holochain | grep -E "conductor-[0-9]+.toml"
-
-keystore-%.key:
-	@echo "Creating Holochain key for Agent $*: keystore-$*.key";
-	echo $$( hc keygen --nullpass --quiet --path ./keystore-$*.key)			\
-		| while read key _; do							\
-			echo $$key > AGENTID;						\
-		done
-	@echo "Agent ID: $$(cat AGENTID)";
 
 # TMP targets
 use-local-chaperone:
@@ -167,3 +150,28 @@ use-yarn-chaperone:
 	yarn uninstall --save @holo-host/chaperone; yarn install --save-dev @holo-host/chaperone
 use-yarn-chaperone-%:
 	yarn uninstall --save @holo-host/chaperone; yarn install --save-dev @holo-host/chaperone@$*
+
+#############################
+# █░█ █▀█ █▀▄ ▄▀█ ▀█▀ █▀▀ ▄▄ █▀ █▀▀ █▀█ █ █▀█ ▀█▀ █▀
+# █▄█ █▀▀ █▄▀ █▀█ ░█░ ██▄ ░░ ▄█ █▄▄ █▀▄ █ █▀▀ ░█░ ▄█
+#############################
+# How to update holochain?
+# In envoy you will have to update the holo-nixpkgs
+# make HOLO_REV="HOLO_REV" update-hc
+# Example use: make HOLO_REV="f0e38fd9895054115d8755572e29a5d3639f69e6" update-hc
+# Note: After running this we should run the tests and check
+
+update-hc:
+	make HOLO_REV=$(HOLO_REV) update-hc-sha
+
+update-hc-sha:
+	@if [ $(HOLO_REV) ]; then\
+		echo "⚙️  Updating holo-envoy using holochain rev: $(HOLO_REV)";\
+		echo "✔  Updating holo-nixpkgs rev in nixpkgs.nix...";\
+		echo "✔  Replacing rev...";\
+		sed -i -e 's/^  url = .*/  url = "https:\/\/github.com\/Holo-Host\/holo-nixpkgs\/archive\/$(HOLO_REV).tar.gz";/' nixpkgs.nix;\
+		echo "✔  Replacing sha256...";\
+		sed -i 's/^  sha256 = .*/  sha256 = "$(shell nix-prefetch-url --unpack "https://github.com/Holo-Host/holo-nixpkgs/archive/$(HOLO_REV).tar.gz")";/' nixpkgs.nix;\
+	else \
+		echo "No holo-nixpkgs rev provided"; \
+  fi
