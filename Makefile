@@ -163,6 +163,10 @@ use-yarn-chaperone-%:
 
 update-hc:
 	make HOLO_REV=$(HOLO_REV) update-hc-sha
+	git checkout -b update-hc-$(HOLO_REV)
+	git add nixpkgs.nix
+	git commit -m hpos-rev:$(HOLO_REV)
+	git push origin HEAD
 
 update-hc-sha:
 	@if [ $(HOLO_REV) ]; then\
