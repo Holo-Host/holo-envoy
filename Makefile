@@ -170,7 +170,7 @@ update-hc:
 
 update-hc-sha:
 	@if [ $(HOLO_REV) ]; then\
-		echo "⚙️  Updating holo-envoy using holochain rev: $(HOLO_REV)";\
+		echo "⚙️  Updating holo-envoy using holo-nixpkgs rev: $(HOLO_REV)";\
 		echo "✔  Updating holo-nixpkgs rev in nixpkgs.nix...";\
 		echo "✔  Replacing rev...";\
 		sed -i -e 's/^  url = .*/  url = "https:\/\/github.com\/Holo-Host\/holo-nixpkgs\/archive\/$(HOLO_REV).tar.gz";/' nixpkgs.nix;\
