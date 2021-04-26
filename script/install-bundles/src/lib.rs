@@ -10,9 +10,8 @@ use holochain_conductor_api::AdminResponse;
 use holochain_conductor_api::conductor::ConductorConfig;
 use holochain_types::prelude::AppBundleSource;
 use holochain_types::prelude::InstallAppBundlePayload;
-use holochain_types::prelude::SerializedBytes;
 use holochain_types::prelude::{MembraneProof, UnsafeBytes};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use std::path::Path;
 
 use std::collections::HashMap;
@@ -112,6 +111,7 @@ async fn main() -> anyhow::Result<()> {
             agent_key: agent_key.clone(),
             source: AppBundleSource::Bundle(bundle),
             membrane_proofs: successful_membrane_proof?,
+            uid: None,
         };
         let r = AdminRequest::InstallAppBundle(Box::new(payload));
         // Run the command and wait for the response.
@@ -122,7 +122,7 @@ async fn main() -> anyhow::Result<()> {
         hc_sandbox::calls::activate_app(
             &mut cmd,
             ActivateApp {
-                app_id: installed_app.installed_app_id().clone(),
+                app_id: installed_app.installed_app_id,
             },
         )
         .await?;
