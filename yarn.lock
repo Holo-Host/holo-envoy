@@ -32,7 +32,7 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@holo-host/chaperone@7.0.0":
+"@holo-host/chaperone@^7.0.0":
   version "7.0.0"
   resolved "https://registry.yarnpkg.com/@holo-host/chaperone/-/chaperone-7.0.0.tgz#54f22d1f911f3696aefc1822cbd9ac756f871e8d"
   integrity sha512-FwfiKNHOce4oaEou7vWnhxEffOeka64vsYHnRCtbFIE2G0XDeIEjBS+209FpgwtM7zfgsq65nfdduJ9wRngsCA==
@@ -87,10 +87,10 @@
   resolved "https://registry.yarnpkg.com/@holo-host/wasm-key-manager/-/wasm-key-manager-1.0.0.tgz#32e5365ddc4518a01c17d2aba09d11bf3a042429"
   integrity sha512-GTfeQ2iYvYYrIkuaF0QupWP/y8sdItwL6Tr1osyaU7eUsWtGfpZqDcTZny8KNDdnQAEEP2nDWZORA/Z3EMJa3w==
 
-"@holochain/conductor-api@^0.0.2":
-  version "0.0.2"
-  resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.2.tgz#054c17e0ed03ba8fdbbf358b1e83ec4cafddda95"
-  integrity sha512-kZxtIV99btLnJ2y3WRl6ORNSZkdzSWAA4I9aTsYupDK0a/0q/RNv8UF3YocahIVL2o93cC9QLKxGo7bjLigFWA==
+"@holochain/conductor-api@^0.0.3":
+  version "0.0.3"
+  resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.3.tgz#68c0b279e9786b7bbd137d3a9349caef820957b9"
+  integrity sha512-wok/uiyGoX4m59wMhT3VX2Ma6bXBfZwp8F8iqTb/XiHz0UpROOCrUELXnmN9Ee1sYnmJcTLYRhRTCZ73WRgkdA==
   dependencies:
     "@msgpack/msgpack" "2.4.0"
     "@types/ws" "^7.2.4"
