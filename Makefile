@@ -157,17 +157,27 @@ use-yarn-chaperone-%:
 #############################
 # How to update holochain?
 # In envoy you will have to update the holo-nixpkgs
-# make HOLO_REV="HOLO_REV" update-hc
+# make HOLO_REV="HOLO_REV" HC_REV="" DNA_VERSION="" update-hc
 # Example use: make HOLO_REV="f0e38fd9895054115d8755572e29a5d3639f69e6" update-hc
 # Note: After running this we should run the tests and check
 
 update-hc:
 	make HOLO_REV=$(HC_REV) update-holochain
 	make HOLO_REV=$(HOLO_REV) update-holo-sha
+	make DNA_VERSION=$(DNA_VERSION) update-holo-sha
 	git checkout -b update-hc-$(HC_REV)
 	git add nixpkgs.nix
 	git commit -m hc-rev:$(HC_REV)
 	git push origin HEAD
+
+update-dnas:
+	@if [ $(DNA_VERSION) ]; then\
+		sed -i "24s/.*/  curl 'https:\/\/holo-host.github.io\/holo-hosting-app-rsm\/releases\/downloads\/$(shell echo $(DNA_VERSION) | tr .- _)\/core-app.$(shell echo $(DNA_VERSION) | tr .- _).happ' -o dnas\/holo-hosting-app.happ/" Makefile;\
+		sed -i "26s/.*/  curl 'https:\/\/holo-host.github.io\/servicelogger-rsm\/releases\/downloads\/$(shell echo $(DNA_VERSION) | tr .- _)\/servicelogger.$(shell echo $(DNA_VERSION) | tr .- _).happ' -o dnas\/servicelogger.happ/" Makefile;\
+		sed -i "28s/.*/  curl -LJ 'https:\/\/github.com\/Holo-Host\/dummy-dna\/releases\/download\/v$(DNA_VERSION)\/test.happ' -o dnas\/test.happ/" Makefile;\
+	else \
+		echo "No dna version provided"; \
+	fi
 
 update-holochain:
 	@if [ $(HC_REV) ]; then\
