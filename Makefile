@@ -162,13 +162,26 @@ use-yarn-chaperone-%:
 # Note: After running this we should run the tests and check
 
 update-hc:
-	make HOLO_REV=$(HOLO_REV) update-hc-sha
-	git checkout -b update-hc-$(HOLO_REV)
+	make HOLO_REV=$(HC_REV) update-holochain
+	make HOLO_REV=$(HOLO_REV) update-holo-sha
+	git checkout -b update-hc-$(HC_REV)
 	git add nixpkgs.nix
-	git commit -m hpos-rev:$(HOLO_REV)
+	git commit -m hc-rev:$(HC_REV)
 	git push origin HEAD
 
-update-hc-sha:
+update-holochain:
+	@if [ $(HC_REV) ]; then\
+		echo "⚙️  Updating holo-envoy using holochain rev: $(HC_REV)";\
+		echo "✔  Updating creates rev in install-script...";\
+		echo "✔  Replacing rev...";\
+		sed -i -e 's/^holochain_cli_sandbox = .*/holochain_cli_sandbox = {git ="https:\/\/github.com\/holochain\/holochain", rev = "$(HC_REV)", package = "holochain_cli_sandbox"}/' ./script/install-bundles/Cargo.toml;\
+		sed -i -e 's/^holochain_conductor_api = .*/holochain_conductor_api = {git ="https:\/\/github.com\/holochain\/holochain", rev = "$(HC_REV)", package = "holochain_conductor_api"}/' ./script/install-bundles/Cargo.toml;\
+		sed -i -e 's/^holochain_types = .*/holochain_types = {git ="https:\/\/github.com\/holochain\/holochain", rev = "$(HC_REV)", package = "holochain_types"}/' ./script/install-bundles/Cargo.toml;\
+	else \
+		echo "No holochain rev provided"; \
+	fi
+
+update-holo-sha:
 	@if [ $(HOLO_REV) ]; then\
 		echo "⚙️  Updating holo-envoy using holo-nixpkgs rev: $(HOLO_REV)";\
 		echo "✔  Updating holo-nixpkgs rev in nixpkgs.nix...";\
