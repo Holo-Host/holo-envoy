@@ -12,18 +12,15 @@ const msgpack = require('@msgpack/msgpack');
 
 // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
 const HOST_AGENT_ID = 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k'
-
 log.info("Host Agent ID: %s", HOST_AGENT_ID);
+
+const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
+const INVALID_JOINING_CODE = msgpack.encode('Failing joining Code').toString('base64')
 
 // Note: All envoyOpts.dnas will be registered via admin interface with the paths provided here
 const envoyOpts = {
   mode: envoy_mode_map.develop,
 }
-
-const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
-
-const INVALID_JOINING_CODE = msgpack.encode('failing joining code').toString('base64')
-const SUCCESSFUL_JOINING_CODE = msgpack.encode('joining code').toString('base64')
 
 describe("Server", () => {
   let envoy, server, browser
@@ -63,6 +60,14 @@ describe("Server", () => {
     pageTestUtils.describeJsHandleLogs();
 
     await page.exposeFunction('delay', delay)
+    // must explicitly expose this native function to puppeteer, otherwise it is undefined and errors out
+    page.exposeFunction('showErrorMessage', error => {
+      if (error instanceof Error) {
+        log.silly(error.message);
+      } else {
+        log.silly(error);
+      }
+    })
 
     // Set logger settings for hosted app (in real word scenario - will be done when host installs app):
     try {
@@ -100,7 +105,7 @@ describe("Server", () => {
   
   // NOTE: Due to current error, this test should fail
   // - currently this should erronesouly pass signin, but bork the system and fail once the first app interface call is made
-  it("should sign-in with incorrect joining code and fail", async function() {
+  it.only("should sign-in with incorrect joining code and fail", async function() {
     this.timeout(300_000);
     const signupResponse = await page.evaluate(async function (host_agent_id, registered_happ_hash, invalidJoiningCode) {
       console.log("Registered Happ Hash: %s", registered_happ_hash);
@@ -125,7 +130,8 @@ describe("Server", () => {
         // passing in a random/incorrect joining code
         signupResponse = await client.signUp("carol.test.3@holo.host", "Passw0rd!", invalidJoiningCode);
       } catch (error) {
-        
+        console.log(typeof error.stack, error.stack.toString());
+        throw error
       }
       console.log("Finished sign-up for agent: %s", client.agent_id);
       console.log('Sign-up response : ', signupResponse);
