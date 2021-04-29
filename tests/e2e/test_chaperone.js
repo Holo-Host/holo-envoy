@@ -12,18 +12,15 @@ const msgpack = require('@msgpack/msgpack');
 
 // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
 const HOST_AGENT_ID = 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k'
-
 log.info("Host Agent ID: %s", HOST_AGENT_ID);
+
+const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
+const SUCCESSFUL_JOINING_CODE = msgpack.encode('joining code').toString('base64')
 
 // Note: All envoyOpts.dnas will be registered via admin interface with the paths provided here
 const envoyOpts = {
   mode: envoy_mode_map.develop,
-}
-
-const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
-
-const INVALID_JOINING_CODE = msgpack.encode('failing joining code').toString('base64')
-const SUCCESSFUL_JOINING_CODE = msgpack.encode('joining code').toString('base64')
+}  
 
 describe("Server", () => {
   let envoy, server, browser

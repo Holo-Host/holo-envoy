@@ -410,7 +410,7 @@ class Envoy {
           }
         }
 
-        await this.signIn(hha_hash, agent_id, true);
+        await this.signIn(hha_hash, agent_id);
       } catch (err) {
         log.error("Failed during DNA processing for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, String(err));
         return new HoloError(err).toJSON()
@@ -663,20 +663,20 @@ class Envoy {
   }
 
   // Activate App - Tell Holochain to begin gossiping and be ready for zome calls on this app.
-  async activateApp (installed_app_id, first_signIn?) {
+  async activateApp (installed_app_id) {
     try {
       log.info("Activating Installed App (%s)", installed_app_id);
-      log.info("First time activating ? (%s)", first_signIn);
-
       const adminResponse = await this.callConductor("admin", "activateApp", { installed_app_id });
 
       if (adminResponse.type !== "success") {
         log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse);
         throw new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`).toJSON()
+      } else {
+        log.normal("Completed activateApp process for installed_app_id (%s)", installed_app_id);
+        return
       }
     } catch (err) {
       if (err.message.includes("AppNotInstalled")) {
-        console.log('>>>>>>>>>>>>>> ERROR INCLUDES "AppNotInstalled"', err.message)
         // This error is returned in two cases:
         // a) TODO: The app is not installed -- Return an error to the user saying that they may need to sign up first.
         // b) The app is already activated -- Our job is done.
@@ -685,17 +685,13 @@ class Envoy {
         try {
           const appInfo = await this.callConductor("app", { installed_app_id: installed_app_id });
           // Check that the appInfo result was not null (would indicate app not installed)
-          if (appInfo.installed_app_id !== undefined) {
-            console.log('>>>>>>>>>>>>>> appInfo.installed_app_id : ', appInfo.installed_app_id)
-
+          if (appInfo.installed_app_id !== undefined && !appInfo.status!.inactive) {
+            log.normal("Completed activateApp process for installed_app_id (%s)", installed_app_id);
+            return
+          } else if (appInfo.status!.inactive!.reason!.quarantined) {
             // TODO: Check for inactive/deactivated reasons && filter for/handle signing error as reason
-            if (appInfo.status!.inactive!.reason!.quarantined) {
-              log.error("'appInfo' revealed app as inactive because: %s", JSON.stringify(appInfo.status!.inactive!.reason!.quarantined.error));
-              throw new HoloError(`Failed to complete activation for installed_app_id'${installed_app_id}'.`).toJSON()
-            } else if (!appInfo.installed_app_id.inactive) {
-              log.normal("Completed sign-in process for installed_app_id (%s)", installed_app_id);
-              return
-            }
+            log.error("'appInfo' revealed app as inactive because: %s", JSON.stringify(appInfo.status!.inactive!.reason!.quarantined.error));
+            throw new HoloError(`Failed to complete activation for installed_app_id'${installed_app_id}'.`).toJSON()
           }
         } catch (appInfoErr) {
           log.error("Failed during 'appInfo': %s", String(appInfoErr));
@@ -705,53 +701,13 @@ class Envoy {
       log.error("Failed during 'activateApp': %s", String(err));
       throw err
     }
-
-    // fix (catch full cases)
-    if (first_signIn) {
-      let status_interval
-      try {
-        await new Promise<void>((resolve, reject) => {
-          const checkActiveStatus = async () => {
-            // membrane proof check is currently asynchronous
-            // ** we're using appInfo to determine whether app was successfully activated or not following activateApp Call
-            try {
-              const appInfo = await this.callConductor("app", { installed_app_id: installed_app_id });
-              console.log('>>>>>>>>>>>>>>> appInfo : ',appInfo)
-              if (appInfo.installed_app_id !== undefined && appInfo.status!.active) {
-                if(appInfo.status!.active === null) {
-                  console.log('App is not yet active.  Genesis in process...')
-                } else {
-                  console.log('>>>>>>>>>>>>>>> appInfo : ',appInfo)
-                  log.normal("Completed sign-in process for installed_app_id (%s)", installed_app_id);
-                  resolve()
-                }
-              } else if (appInfo.status!.inactive!.reason!.never_activated) {
-                reject(new HoloError(`Call to 'activateApp' failed for installed_app_id'${installed_app_id}' because membrane proof was invalid.`).toJSON())
-              } else {
-                reject(new HoloError(`Call to 'activateApp' failed for installed_app_id'${installed_app_id}'; app was ${Object.keys(appInfo.status!.inactive!.reason)[0]}.`).toJSON())
-              }
-            } catch (error) {
-              reject(error)
-            }
-          }
-  
-          checkActiveStatus()
-          status_interval = setInterval(checkActiveStatus, 3000)
-        })
-      } finally {
-        clearInterval(status_interval)
-      }
-    }
   }
 
-  async signIn(hha_hash, agent_id, first_signIn?): Promise<boolean> {
+  async signIn(hha_hash, agent_id): Promise<boolean> {
     if (agent_id in this.anonymous_agents) {
       // Nothing to do. Anonymous cell is always active
       return true;
     }
-
-    console.log('ABOUT TO SIGN IN....')
-    console.log('APART OF SIGN UP??? :  ', first_signIn)
 
     const installed_app_id = getInstalledAppId(hha_hash, agent_id);
     const app_state = this.app_states[installed_app_id]
@@ -771,33 +727,29 @@ class Envoy {
           }
           // don't try and change state too soon
           if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state !== 'deactivated') return
-
           try {
             app_state.activation_state = 'activating'
             app_state.activation_state_changed_at = Date.now()
-            await this.activateApp(installed_app_id, first_signIn)
+            await this.activateApp(installed_app_id)
             app_state.activation_state = 'activated'
             app_state.activation_state_changed_at = Date.now()
             resolve()
           } catch (e) {
-            console.log('DEACTIVATING...')
+            log.normal("Encountered error while trying to activate app: %s", String(e));
+            log.info('Setting activation state to deactivated.')
             app_state.activation_state = 'deactivated'
             app_state.activation_state_changed_at = Date.now()
-
             reject(e)
           }
         }
-
         tryToActivate()
-
         activation_interval = setInterval(tryToActivate, 5000)
-        // log.normal("Completed sign-in process for installed_app_id (%s)", installed_app_id);
       })
     } finally {
       clearInterval(activation_interval)
     }
 
-    throw new Error('stop here....')
+    log.normal("Completed sign-in process for installed_app_id (%s)", installed_app_id);
     return true
   }
 

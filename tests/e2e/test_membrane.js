@@ -105,9 +105,9 @@ describe("Server", () => {
   
   // NOTE: Due to current error, this test should fail
   // - currently this should erronesouly pass signin, but bork the system and fail once the first app interface call is made
-  it.only("should sign-in with incorrect joining code and fail", async function() {
+  it("should sign-in with incorrect joining code and fail", async function() {
     this.timeout(300_000);
-    const signupResponse = await page.evaluate(async function (host_agent_id, registered_happ_hash, invalidJoiningCode) {
+    const signupError = await page.evaluate(async function (host_agent_id, registered_happ_hash, invalidJoiningCode) {
       console.log("Registered Happ Hash: %s", registered_happ_hash);
       const client = new Chaperone({
         "mode": Chaperone.DEVELOP,
@@ -125,28 +125,33 @@ describe("Server", () => {
       client.skip_assign_host = true;
 
       await client.ready(200_000);
-      let signupResponse
+      let signupError
       try {
         // passing in a random/incorrect joining code
-        signupResponse = await client.signUp("carol.test.3@holo.host", "Passw0rd!", invalidJoiningCode);
+        signupError = await client.signUp("carol.test.3@holo.host", "Passw0rd!", invalidJoiningCode);
       } catch (error) {
         console.log(typeof error.stack, error.stack.toString());
-        throw error
+        console.log('error : ', error.message)
+        return {
+          name: error.name,
+          message: error.message
+        }
       }
       console.log("Finished sign-up for agent: %s", client.agent_id);
-      console.log('Sign-up response : ', signupResponse);
-      return signupResponse
+      console.log('Sign-up response : ', signupError);
+      return signupError
     }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, INVALID_JOINING_CODE);
 
-    log.info("Completed evaluation: %s", signupResponse);
-    expect(signupResponse).to.equal(false);
+    log.info("Completed evaluation: %s", signupError);
+    expect(signupError.name).to.equal('HoloError');
+    expect(signupError.message).to.equal('Failed to sign-up')
   });
 
   // NOTE: Due to current error, this test should fail
   // - currently this should erronesouly pass signin, but bork the system and fail once the first app interface call is made
   it("should sign-in with null joining code and fail", async function() {
     this.timeout(300_000);
-    const signupResponse = await page.evaluate(async function (host_agent_id, registered_happ_hash) {
+    const signupError = await page.evaluate(async function (host_agent_id, registered_happ_hash) {
       console.log("Registered Happ Hash: %s", registered_happ_hash);
       const client = new Chaperone({
         "mode": Chaperone.DEVELOP,
@@ -164,19 +169,25 @@ describe("Server", () => {
       client.skip_assign_host = true;
 
       await client.ready(200_000);
-      let signupResponse
+      let signupError
       try {
         // passing in a random/incorrect joining code
-        signupResponse = await client.signUp("daniel.test.4@holo.host", "Passw0rd!", null);
+        signupError = await client.signUp("daniel.test.4@holo.host", "Passw0rd!", null);
       } catch (error) {
-        
+        console.log(typeof error.stack, error.stack.toString());
+        console.log('error : ', error.message)
+        return {
+          name: error.name,
+          message: error.message
+        }
       }
       console.log("Finished sign-up for agent: %s", client.agent_id);
-      console.log('Sign-up response : ', signupResponse);
-      return signupResponse
+      console.log('Sign-up response : ', signupError);
+      return signupError
     }, HOST_AGENT_ID, REGISTERED_HAPP_HASH);
 
-    log.info("Completed evaluation: %s", signupResponse);
-    expect(signupResponse).to.equal(false);
+    log.info("Completed evaluation: %s", signupError);
+    expect(signupError.name).to.equal('HoloError');
+    expect(signupError.message).to.equal('Failed to sign-up')
   })
 })
