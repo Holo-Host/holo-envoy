@@ -773,10 +773,9 @@ class Envoy {
 
     Object.keys(usagePerDna).forEach(async dnaHash => {
       try {
-
         const { diskUsage, sourceChainUsagePerAgent } = usagePerDna[dnaHash]
         const sourceChains = Object.keys(sourceChainUsagePerAgent).map(agentKey => 
-          [agentKey, sourceChainUsagePerAgent[agentKey].length])
+          [Codec.AgentId.decodeToHoloHash(agentKey), sourceChainUsagePerAgent[agentKey].length])
 
         const payload = {
           source_chains: sourceChains,
@@ -786,9 +785,12 @@ class Envoy {
 
         const hhaHash = this.dna2hha[dnaHash]
         if (hhaHash === undefined) {
-          log.error(`Error: No hhaHash (so no service logger) for dna ${dnaHash}`)
+          log.error(`Couldn't log dig usage, no hhaHash (so no service logger) for dna ${dnaHash}`)
           return
         }
+
+        log.normal('Logging disk and sourcechain usage for dna', dnaHash)
+        log.normal('Usage payload', payload)
 
         const cellId = await this.getServiceLoggerCellId(hhaHash)
 
