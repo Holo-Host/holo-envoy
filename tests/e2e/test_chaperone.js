@@ -20,7 +20,7 @@ const SUCCESSFUL_JOINING_CODE = msgpack.encode('joining code').toString('base64'
 // Note: All envoyOpts.dnas will be registered via admin interface with the paths provided here
 const envoyOpts = {
   mode: envoy_mode_map.develop,
-}  
+}
 
 describe("Server", () => {
   let envoy, server, browser
