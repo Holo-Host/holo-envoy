@@ -11,7 +11,6 @@ const dnaRegex = /uhC0k(.{48})/
 const agentRegex = /uhCAk.*$/
 
 export function getDiskUsagePerDna (dnaHashes) {
-
   return dnaHashes.reduce((acc, hash) => ({
     ...acc,
     [hash]: getDiskUsageForHash(hash),

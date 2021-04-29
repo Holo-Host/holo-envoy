@@ -11,7 +11,7 @@ import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 import { v4 as uuid } from 'uuid';
 import * as crypto from 'crypto';
-import { getDiskUsagePerDna, getSourceChainUsagePerAgent, getUsagePerDna } from './utils';
+import { getUsagePerDna } from './utils';
 const { inspect } = require('util')
 
 const msgpack = require('@msgpack/msgpack');
@@ -757,7 +757,7 @@ class Envoy {
 
   startStoragePolling () {
     this.updateStorageUsage()
-    setInterval(this.updateStorageUsage.bind(this), 60 * 1000)
+    setInterval(this.updateStorageUsage.bind(this), 60 * 60 * 1000)
   }
 
   updateStorageUsage () {
@@ -771,8 +771,6 @@ class Envoy {
       return
     }
 
-    console.log('******** usagePerDan', usagePerDna)
-
     Object.keys(usagePerDna).forEach(async dnaHash => {
       try {
 
@@ -780,16 +778,11 @@ class Envoy {
         const sourceChains = Object.keys(sourceChainUsagePerAgent).map(agentKey => 
           [agentKey, sourceChainUsagePerAgent[agentKey].length])
 
-          console.log('******** payload for', dnaHash)
-
-
         const payload = {
           source_chains: sourceChains,
           integrated_entries: [],
           total_disk_usage: diskUsage
         }
-
-        console.log('******** ', payload)
 
         const hhaHash = this.dna2hha[dnaHash]
         if (hhaHash === undefined) {
