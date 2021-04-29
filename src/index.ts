@@ -449,16 +449,31 @@ class Envoy {
         if (!appInfo) {
           log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo);
           throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
+        } else if (appInfo.status!.inactive) {
+          log.error("Conductor call 'appInfo' returned as inactive because: %s", JSON.stringify(appInfo.status!.inactive));
+          if (appInfo.status!.inactive!.reason!.quarantined) {
+             //NB: Occurs when the app was automatically deactivated due to an unrecoverable error by one of its Cells
+            throw new HoloError(`App with installed_app_id'${installed_app_id}' has been quarantined because ${appInfo.status!.inactive!.reason!.quarantined.error}`).toJSON()
+          } else {
+            // return a string rather than rust tuple with null value
+            const status = appInfo.status!.inactive!.reason!.never_activated ? 'never-activated' : 'inactive'
+            appInfo.status = status
+          }
+        } else {
+          // return a string rather than rust tuple with null value
+          appInfo.status = 'active'
         }
       } catch (err) {
         log.error("Failed during Conductor AppInfo call: %s", String(err));
+        if (err instanceof HoloError) {
+          const holoError = err.toJSON();
+          return Package.createFromError("HoloError", holoError)
+        }
         return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
       }
 
       const response_id = uuid();
-
       log.normal("Completed AppInfo call for installed_app_id (%s) with response_id (%s)...", installed_app_id, response_id);
-
       return new Package(appInfo, { "type": "success" }, { response_id });
     }, this.opts.NS);
 
@@ -688,11 +703,13 @@ class Envoy {
           if (appInfo.installed_app_id !== undefined && !appInfo.status!.inactive) {
             log.normal("Completed activateApp process for installed_app_id (%s)", installed_app_id);
             return
-          } else if (appInfo.status!.inactive!.reason!.quarantined) {
-            // TODO: Check for inactive/deactivated reasons && filter for/handle signing error as reason
-            log.error("'appInfo' revealed app as inactive because: %s", JSON.stringify(appInfo.status!.inactive!.reason!.quarantined.error));
-            throw new HoloError(`Failed to complete activation for installed_app_id'${installed_app_id}'.`).toJSON()
+          } else if (appInfo.status!.inactive) {
+            if (appInfo.status!.inactive!.reason!.quarantined) {
+              log.error("'appInfo' revealed app as inactive because: %s", JSON.stringify(appInfo.status!.inactive!.reason!.quarantined.error));
+              throw new HoloError(`Failed to complete activation for installed_app_id'${installed_app_id}'. App Quarantined Error: ${appInfo.status!.inactive!.reason!.quarantined.error}`).toJSON()
+            }
           }
+          throw new HoloError(`Failed to complete activation for installed_app_id'${installed_app_id}'.`).toJSON()
         } catch (appInfoErr) {
           log.error("Failed during 'appInfo': %s", String(appInfoErr));
           throw new HoloError(`Failed to complete 'appInfo' for installed_app_id'${installed_app_id}'.`).toJSON()
@@ -961,13 +978,6 @@ class Envoy {
         }
       } else if (err instanceof Error) {
         log.error("Failed during Conductor call with error: %s", String(err));
-        console.log('>>>>> ERROR FROM CONDUCTOR : ', err)
-        // if(err.message.includes("response from service is not success")) {
-          // should app  deativate via trigger in conductor/core? // ...or should we trigger >>> await admin.deactivateApp({ installed_app_id })
-          // appInfo = await client.appInfo({ installed_app_id }, 1000)
-          // console.log('APP INFO STATUS:', appInfo) // appInfo.status should === {inactive: {reason: { normal: null }}}
-          // throw new HoloError(appInfo.status.inactive!.reason!.quarantined);
-        // }
         throw new HoloError(String(err));
       } else {
         log.fatal("Failed during Conductor call with unknown error: %s", err);

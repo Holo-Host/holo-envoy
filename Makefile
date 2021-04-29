@@ -105,7 +105,7 @@ test-e2e-%:		build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make stop-lair
 	make setup-conductor
-	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/$*.js
+	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/test_$*.js
 test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make stop-lair
@@ -115,7 +115,7 @@ test-e2e-debug-%:		build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make stop-lair
 	make setup-conductor
-	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/$*.js
+	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/test_$*.js
 test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make stop-lair

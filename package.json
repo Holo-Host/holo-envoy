@@ -28,7 +28,7 @@
   "dependencies": {
     "@holo-host/cryptolib": "^0.3.0",
     "@holo-host/data-translator": "^0.1.1",
-    "@holochain/conductor-api": "holochain/holochain-conductor-api#34acd25ed232bbbaecac8e27c26fcfc4db77a557",
+    "@holochain/conductor-api": "file:/home/liza/Documents/gitrepos/holochain/holochain-conductor-api",
     "@holochain/lair-client": "^0.1.2",
     "@msgpack/msgpack": "^2.3.0",
     "@types/ws": "^7.4.0",
@@ -41,7 +41,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "holo-host/chaperone#cb83d86e802a5d17a62c1a3cfb529da057ffb01d",
+    "@holo-host/chaperone": "file:/home/liza/Documents/gitrepos/holochain/holo/chaperone",
     "@holo-host/mock-conductor": "^0.3.1",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
