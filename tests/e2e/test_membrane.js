@@ -131,7 +131,6 @@ describe("Server", () => {
         signupError = await client.signUp("carol.test.3@holo.host", "Passw0rd!", invalidJoiningCode);
       } catch (error) {
         console.log(typeof error.stack, error.stack.toString());
-        console.log('error : ', error.message)
         return {
           name: error.name,
           message: error.message
@@ -175,7 +174,6 @@ describe("Server", () => {
         signupError = await client.signUp("daniel.test.4@holo.host", "Passw0rd!", null);
       } catch (error) {
         console.log(typeof error.stack, error.stack.toString());
-        console.log('error : ', error.message)
         return {
           name: error.name,
           message: error.message
