@@ -666,26 +666,32 @@ class Envoy {
   async activateApp (installed_app_id) {
     try {
       log.info("Activating Installed App (%s)", installed_app_id);
-
       const adminResponse = await this.callConductor("admin", "activateApp", { installed_app_id });
 
       if (adminResponse.type !== "success") {
         log.error("Conductor 'activateApp' returned non-success response: %s", adminResponse);
         throw new HoloError(`Failed to complete 'activateApp' for installed_app_id'${installed_app_id}'.`).toJSON()
+      } else {
+        log.normal("Completed activateApp process for installed_app_id (%s)", installed_app_id);
+        return
       }
     } catch (err) {
       if (err.message.includes("AppNotInstalled")) {
         // This error is returned in two cases:
-        // a) The app is not installed -- Return an error to the user saying that they may need to sign up first.
+        // a) TODO: The app is not installed -- Return an error to the user saying that they may need to sign up first.
         // b) The app is already activated -- Our job is done.
 
         // Check for the second case using appInfo
         try {
           const appInfo = await this.callConductor("app", { installed_app_id: installed_app_id });
           // Check that the appInfo result was not null (would indicate app not installed)
-          if (appInfo.installed_app_id !== undefined) {
-            log.normal("Completed sign-in process for installed_app_id (%s)", installed_app_id);
+          if (appInfo.installed_app_id !== undefined && !appInfo.status!.inactive) {
+            log.normal("Completed activateApp process for installed_app_id (%s)", installed_app_id);
             return
+          } else if (appInfo.status!.inactive!.reason!.quarantined) {
+            // TODO: Check for inactive/deactivated reasons && filter for/handle signing error as reason
+            log.error("'appInfo' revealed app as inactive because: %s", JSON.stringify(appInfo.status!.inactive!.reason!.quarantined.error));
+            throw new HoloError(`Failed to complete activation for installed_app_id'${installed_app_id}'.`).toJSON()
           }
         } catch (appInfoErr) {
           log.error("Failed during 'appInfo': %s", String(appInfoErr));
@@ -721,7 +727,6 @@ class Envoy {
           }
           // don't try and change state too soon
           if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state !== 'deactivated') return
-
           try {
             app_state.activation_state = 'activating'
             app_state.activation_state_changed_at = Date.now()
@@ -730,20 +735,21 @@ class Envoy {
             app_state.activation_state_changed_at = Date.now()
             resolve()
           } catch (e) {
+            log.normal("Encountered error while trying to activate app: %s", String(e));
+            log.info('Setting activation state to deactivated.')
             app_state.activation_state = 'deactivated'
             app_state.activation_state_changed_at = Date.now()
-
             reject(e)
           }
         }
-
         tryToActivate()
-
         activation_interval = setInterval(tryToActivate, 5000)
       })
     } finally {
       clearInterval(activation_interval)
     }
+
+    log.normal("Completed sign-in process for installed_app_id (%s)", installed_app_id);
     return true
   }
 

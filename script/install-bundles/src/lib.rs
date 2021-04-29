@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use serde::Deserialize;
 
 use hc_sandbox::calls::ActivateApp;
 use hc_sandbox::expect_match;
@@ -9,7 +10,11 @@ use holochain_conductor_api::AdminResponse;
 use holochain_conductor_api::conductor::ConductorConfig;
 use holochain_types::prelude::AppBundleSource;
 use holochain_types::prelude::InstallAppBundlePayload;
+use holochain_types::prelude::{MembraneProof, UnsafeBytes};
+use anyhow::{anyhow, Result};
 use std::path::Path;
+
+use std::collections::HashMap;
 
 use structopt::StructOpt;
 
@@ -18,6 +23,20 @@ struct Input {
     #[structopt(short, long, default_value = "holochain")]
     holochain_path: PathBuf,
     happ: Option<PathBuf>,
+}
+
+/// MembraneProof payload contaiing cell_nick
+#[derive(Debug, Deserialize)]
+pub struct ProofPayload {
+    pub cell_nick: String,
+    /// Base64-encoded MembraneProof.
+    pub proof: String,
+}
+/// payload vec of all the mem_proof for one happ
+/// current implementation is implemented to contain mem_proof for elemental_chat
+#[derive(Debug, Deserialize)]
+pub struct MembraneProofFile {
+    pub payload: Vec<ProofPayload>,
 }
 
 #[tokio::main]
@@ -66,6 +85,24 @@ async fn main() -> anyhow::Result<()> {
      for i in 0..3_usize {
          println!(" Installing {} ", ids[i]);
 
+        let a = ProofPayload{
+            cell_nick: "test".to_string(),
+            proof:"rGpvaW5pbmcgY29kZQ==".to_string()
+        };
+        let b = MembraneProofFile{
+            payload: vec![a]
+        };
+
+        let successful_membrane_proof: Result<HashMap<String, MembraneProof>> = b
+        .payload
+        .into_iter()
+        .map(|p| {
+            base64::decode(p.proof.clone())
+                .map(|proof| (p.cell_nick, MembraneProof::from(UnsafeBytes::from(proof))))
+                .map_err(|e| anyhow!("failed to decode proof: {:?}", e))
+        })
+        .collect();
+
          let happ: PathBuf = hc_sandbox::bundles::parse_happ(Some(happs[i].clone()))?;
          let bundle = AppBundleSource::Path(happ.clone()).resolve().await?;
         // Create the raw InstallAppBundlePayload request.
@@ -73,7 +110,8 @@ async fn main() -> anyhow::Result<()> {
             installed_app_id: Some(ids[i].clone()),
             agent_key: agent_key.clone(),
             source: AppBundleSource::Bundle(bundle),
-            membrane_proofs: Default::default(),
+            membrane_proofs: successful_membrane_proof?,
+            uid: None,
         };
         let r = AdminRequest::InstallAppBundle(Box::new(payload));
         // Run the command and wait for the response.
@@ -84,7 +122,7 @@ async fn main() -> anyhow::Result<()> {
         hc_sandbox::calls::activate_app(
             &mut cmd,
             ActivateApp {
-                app_id: installed_app.installed_app_id().clone(),
+                app_id: installed_app.installed_app_id,
             },
         )
         .await?;
