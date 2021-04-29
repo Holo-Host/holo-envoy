@@ -951,6 +951,7 @@ class Envoy {
       if (pleaseCloseClient) await client.close()
       if (err.code === -32000) {
         if (err.data.includes("response from service is not success")) {
+          // differentiate between a signing error bc could not reach service and a FAILED signing service
           log.error("Failed during Conductor call because of a signing request error: %s", err.data);
           throw new HoloError("Failed to get signatures from Client");
         }
@@ -960,6 +961,13 @@ class Envoy {
         }
       } else if (err instanceof Error) {
         log.error("Failed during Conductor call with error: %s", String(err));
+        console.log('>>>>> ERROR FROM CONDUCTOR : ', err)
+        // if(err.message.includes("response from service is not success")) {
+          // should app  deativate via trigger in conductor/core? // ...or should we trigger >>> await admin.deactivateApp({ installed_app_id })
+          // appInfo = await client.appInfo({ installed_app_id }, 1000)
+          // console.log('APP INFO STATUS:', appInfo) // appInfo.status should === {inactive: {reason: { normal: null }}}
+          // throw new HoloError(appInfo.status.inactive!.reason!.quarantined);
+        // }
         throw new HoloError(String(err));
       } else {
         log.fatal("Failed during Conductor call with unknown error: %s", err);
