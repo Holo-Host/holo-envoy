@@ -757,7 +757,7 @@ class Envoy {
 
   startStoragePolling () {
     this.updateStorageUsage()
-    setInterval(this.updateStorageUsage.bind(this), 60 * 60 * 1000)
+    setInterval(this.updateStorageUsage.bind(this), 60 * 1000)
   }
 
   updateStorageUsage () {
