@@ -370,8 +370,6 @@ class Envoy {
     this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id, membrane_proof]) => {
       log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);
 
-      const failure_response = (new HoloError("Failed to create a new hosted agent")).toJSON();
-
       const anonymous_instance_app_id = hha_hash;
       const hosted_agent_instance_app_id = getInstalledAppId(hha_hash, agent_id);
 
@@ -379,8 +377,8 @@ class Envoy {
       const appInfo = await this.callConductor("app", { installed_app_id: anonymous_instance_app_id });
 
       if (!appInfo) {
-        log.error("Failed during hosted app's AppInfo call: %s", appInfo);
-        return failure_response;
+        log.error("Failed during hosted app's AppInfo call: %s", appInfo)
+        return Package.createFromError("UserError", (new HoloError("Failed to create a new hosted agent")).toJSON())
       }
 
       log.silly('NUMBER OF DNAs in the hosted happ: ', appInfo.cell_data.length)
