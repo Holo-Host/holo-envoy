@@ -32,8 +32,9 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@holo-host/chaperone@file:../chaperone":
+"@holo-host/chaperone@Holo-Host/chaperone#6f512a1f89276289584c991411fa17b0ab9b9ba1":
   version "7.0.0"
+  resolved "https://codeload.github.com/Holo-Host/chaperone/tar.gz/6f512a1f89276289584c991411fa17b0ab9b9ba1"
   dependencies:
     "@holo-host/comb" "^0.2.0"
     "@holo-host/cryptolib" "^0.3.0"
@@ -85,8 +86,10 @@
   resolved "https://registry.yarnpkg.com/@holo-host/wasm-key-manager/-/wasm-key-manager-1.0.0.tgz#32e5365ddc4518a01c17d2aba09d11bf3a042429"
   integrity sha512-GTfeQ2iYvYYrIkuaF0QupWP/y8sdItwL6Tr1osyaU7eUsWtGfpZqDcTZny8KNDdnQAEEP2nDWZORA/Z3EMJa3w==
 
-"@holochain/conductor-api@file:../../holochain-conductor-api":
-  version "0.0.3"
+"@holochain/conductor-api@^0.0.4":
+  version "0.0.4"
+  resolved "https://registry.yarnpkg.com/@holochain/conductor-api/-/conductor-api-0.0.4.tgz#a9ad7df1bbdeee6053ad0c84039821498591a6a3"
+  integrity sha512-s52H+JMtiWID8wsqkKVkbjNDrHeVD88X+XWEllIi9INc7md2nBkMKBVChc/qgpRFqrpj2X8j/Es9MtvIJYnQqg==
   dependencies:
     "@msgpack/msgpack" "2.4.0"
     "@types/ws" "^7.2.4"
@@ -549,9 +552,9 @@ core-js@^2.4.0:
   integrity sha512-Kb2wC0fvsWfQrgk8HU5lW6U/Lcs8+9aaYcy4ZFc6DDlo4nZ7n70dEgE5rtR0oG6ufKDUnrwfWL1mXR5ljDatrQ==
 
 core-js@^3.0.0:
-  version "3.11.1"
-  resolved "https://registry.yarnpkg.com/core-js/-/core-js-3.11.1.tgz#f920392bf8ed63a0ec8e4e729857bfa3d121c525"
-  integrity sha512-k93Isqg7e4txZWMGNYwevZL9MiogLk8pd1PtwrmFmi8IBq4GXqUaVW/a33Llt6amSI36uSjd0GWwc9pTT9ALlQ==
+  version "3.11.2"
+  resolved "https://registry.yarnpkg.com/core-js/-/core-js-3.11.2.tgz#af087a43373fc6e72942917c4a4c3de43ed574d6"
+  integrity sha512-3tfrrO1JpJSYGKnd9LKTBPqgUES/UYiCzMKeqwR1+jF16q4kD1BY2NvqkfuzXwQ6+CIWm55V9cjD7PQd+hijdw==
 
 core-util-is@1.0.2, core-util-is@~1.0.0:
   version "1.0.2"
