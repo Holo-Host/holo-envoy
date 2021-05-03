@@ -41,7 +41,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@holo-host/chaperone": "Holo-Host/chaperone#6f512a1f89276289584c991411fa17b0ab9b9ba1",
+    "@holo-host/chaperone": "^7.1.1",
     "@holo-host/mock-conductor": "^0.3.1",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",

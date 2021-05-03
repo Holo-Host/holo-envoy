@@ -378,7 +378,7 @@ class Envoy {
 
       if (!appInfo) {
         log.error("Failed during hosted app's AppInfo call: %s", appInfo)
-        return Package.createFromError("UserError", (new HoloError("Failed to create a new hosted agent")).toJSON())
+        return Package.createFromError("HoloError", (new HoloError("Failed to create a new hosted agent")).toJSON())
       }
 
       log.silly('NUMBER OF DNAs in the hosted happ: ', appInfo.cell_data.length)
