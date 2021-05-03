@@ -272,5 +272,13 @@ describe("Server", () => {
   });
 
   it("should sign-up on this Host");
-  it("should have no pending confirmations");
+  
+  it("should have no pending confirmations", async function() {
+    // Give confirmation request some time to finish
+    this.timeout(5_000);
+    try {
+      await delay(2_000);
+      expect(envoy.pending_confirms).to.be.empty;
+    } finally {}
+  });
 });
