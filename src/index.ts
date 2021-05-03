@@ -74,22 +74,22 @@ interface EnvoyConfig {
   hosted_app?: HostedAppConfig;
 }
 
-class HoloError extends Error {
 
+class CustomError extends Error {
   constructor(message) {
     // Pass remaining arguments (including vendor specific ones) to parent constructor
     super(message);
 
     // Maintains proper stack trace for where our error was thrown (only available on V8)
     if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, HoloError);
+      Error.captureStackTrace(this, this.constructor);
     }
 
-    this.name = 'HoloError';
+    this.name = this.constructor.name;
 
     // Fix for Typescript
     //   - https://github.com/Microsoft/TypeScript/wiki/Breaking-Changes#extending-built-ins-like-error-array-and-map-may-no-longer-work
-    Object.setPrototypeOf(this, HoloError.prototype);
+    Object.setPrototypeOf(this, this.constructor.prototype);
   }
 
   toJSON() {
@@ -99,6 +99,9 @@ class HoloError extends Error {
     };
   }
 }
+
+class HoloError extends CustomError {}
+class UserError extends CustomError {}
 
 async function promiseMap (array, fn) {
   const resolvedArray = await array;
@@ -253,8 +256,7 @@ class Envoy {
       }
 
       socket.on("close", async () => {
-        log.normal("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
-
+        log.warn("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
         if (anonymous) {
           log.debug("Remove anonymous Agent (%s) from anonymous list", agent_id);
           delete this.anonymous_agents[agent_id];
@@ -264,26 +266,30 @@ class Envoy {
           const installed_app_id = getInstalledAppId(hha_hash, agent_id);
           const app_state = this.app_states[installed_app_id]
 
-
+          log.normal("app_state prior to deactivation loop: %s", inspect(app_state))
           app_state.desired_activation_state = 'deactivated'
-          log.normal('setting desired state to deactivated. actual: %s', this.app_states[installed_app_id].desired_activation_state)
           app_state.desired_activation_state_changed_at = Date.now()
-
-
+          log.normal('Set desired state to deactivated. actual: %s', this.app_states[installed_app_id].desired_activation_state)
+          
+          if (app_state.activation_state === 'deactivated') {
+            log.normal('Skipping deactivation loop because app already assigned to deactive state');
+            return;
+          }
+          
+          // start deactivation loop :
           const when_this_interval = Date.now().toLocaleString()
           let deactivationInterval = setInterval(() => {
-            log.normal("trying to deactivate. desired_activation_state: %s", app_state.desired_activation_state)
+            log.normal("In deactivation loop for installed_app_id: %s. Checking desired_activation_state: %s", installed_app_id, app_state.desired_activation_state)
             log.normal("this interval initiated at: %s", when_this_interval)
-            log.normal("app_state: %s", inspect(app_state))
+            log.normal("app_state inside deactivation loop: %s", inspect(app_state))
 
             if (app_state.desired_activation_state === 'activated') {
-              log.normal("clearing deactivation interval initiated at: %s because of something in app_state", when_this_interval)
-
+              log.normal("Clearing deactivation interval initiated at: %s because desired_activation_state is now 'activated'", when_this_interval)
               clearInterval(deactivationInterval)
               return
             }
 
-            // dont deactivate too soon or if currently transitioning
+            // don't deactivate too soon or if currently transitioning
             if (app_state.activation_state_changed_at + 5000 >= Date.now() ||
                 app_state.desired_activation_state_changed_at + 5000 >= Date.now() ||
                 app_state.activation_state === "deactivating" || app_state.activation_state === "activating"
@@ -423,6 +429,17 @@ class Envoy {
           if (err.message.toLowerCase().includes("duplicate cell")) {
             log.warn("Cell (%s) already exists in Conductor", hosted_agent_instance_app_id);
           } else {
+            if (err.toString().includes("GenesisFailure")) {
+              if (err.toString().includes("No membrane proof found")) {
+                throw new UserError("Missing membrane proof")
+              } else if (err.toString().includes("Joining code invalid")) {
+                throw new UserError("Invalid joining code")
+              }
+              const genesisFailureStart = err.toString().indexOf('GenesisFailure("') + 15
+              const genesisFailureEnd = err.toString().indexOf('")') + 1
+              const genesisFailureMessage = err.toString().substring(genesisFailureStart, genesisFailureEnd)
+              throw new UserError(genesisFailureMessage)
+            }
             log.error("Failed during 'installApp': %s", String(err));
             throw err;
           }
@@ -431,28 +448,48 @@ class Envoy {
         await this.signIn(hha_hash, agent_id);
       } catch (err) {
         log.error("Failed during DNA processing for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, String(err));
-        return new HoloError(err).toJSON()
+        let error_pack;
+        if  (err instanceof UserError) {
+          log.warn("Setting error response to raised UserError: %s", String(err));
+          error_pack = Package.createFromError("UserError", err.toJSON());
+        } else {
+          let holo_error;
+          if (err instanceof HoloError) {
+            log.warn("Setting error response to raised HoloError: %s", String(err));
+            holo_error = err.toJSON();
+          } else {
+            holo_error = {
+              "source": 'HoloError',
+              "message": err.message,
+            };
+          }
+          error_pack = Package.createFromError("HoloError", holo_error);
+        }
+        log.normal('Returning error: ', error_pack);
+        return error_pack
       }
 
       // - return success
       log.normal("Completed sign-up process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
-      return true;
+      return new Package(true, { "type": "success" });
     }, this.opts.NS);
 
     // Envoy - New Hosted Agent Sign-up Sequence
     this.ws_server.register("holo/agent/signin", async ([hha_hash, agent_id]) => {
-      const failure_response = (new HoloError("Failed to sign-in an existing hosted agent")).toJSON();
-
       log.normal("Received sign in request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);
       try {
-        const res = await this.signIn(hha_hash, agent_id);
+        const signInResult = await this.signIn(hha_hash, agent_id);
         log.normal("Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
-        return res;
+        if (signInResult === true) {
+          return new Package(signInResult, { "type": "success" });
+        } else {
+          return new Package(false, { "type": "success" });
+        }
       } catch (err) {
         if (err.toString().includes("AppNotInstalled")) {
-          return new HoloError("Failed to sign-in: Agent unknown to this host").toJSON()
+          return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
         }
-        return failure_response;
+        return Package.createFromError("UserError", (new UserError('Failed to sign-in an existing hosted agent')).toJSON());
       }
     }, this.opts.NS);
 
@@ -469,12 +506,10 @@ class Envoy {
           throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
         }
       } catch (err) {
-        log.error("Failed during Conductor AppInfo call: %s", String(err));
         return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
       }
 
       const response_id = uuid();
-
       log.normal("Completed AppInfo call for installed_app_id (%s) with response_id (%s)...", installed_app_id, response_id);
 
       return new Package(appInfo, { "type": "success" }, { response_id });
@@ -693,7 +728,7 @@ class Envoy {
         return
       }
     } catch (err) {
-      if (err.message.includes("AppNotInstalled")) {
+      if (err.message.includes("AppNotInstalled")) {       
         // This error is returned in two cases:
         // a) TODO: The app is not installed -- Return an error to the user saying that they may need to sign up first.
         // b) The app is already activated -- Our job is done.
@@ -726,25 +761,29 @@ class Envoy {
       return true;
     }
 
+    const when_this_interval = Date.now().toLocaleString()
     const installed_app_id = getInstalledAppId(hha_hash, agent_id);
     const app_state = this.app_states[installed_app_id]
 
-    let activation_interval
-    const when_this_interval = Date.now().toLocaleString()
+    log.normal("app_state prior to activation sequence: %s", inspect(app_state))
 
+    app_state.desired_activation_state = 'activated'
+    app_state.desired_activation_state_changed_at = Date.now()
+    log.normal('Set desired state to activated. actual: %s', this.app_states[installed_app_id].desired_activation_state)
+
+    if (app_state.activation_state === 'activated') {
+      log.normal('Skipping activation loop because app already assigned to active state');
+      return true;
+    }
+
+    let activation_interval
     // let the record show, we're not happy with this code.
     try {
       await new Promise<void>((resolve, reject) => {
-        app_state.desired_activation_state = 'activated'
-        log.normal('setting desired state to activated. actual: %s', this.app_states[installed_app_id].desired_activation_state)
-        app_state.desired_activation_state_changed_at = Date.now()
-
-
         const tryToActivate = async () => {
-          log.normal("trying to activate. desired_activation_state: %s", app_state.desired_activation_state)
+          log.normal("In activation loop for installed_app_id : %s. Checking desired_activation_state: %s", installed_app_id, app_state.desired_activation_state)
           log.normal("this interval initiated at: %s", when_this_interval)
-          log.normal("app_state: %s", inspect(app_state))
-
+          log.normal("app_state inside activation loop: %s", inspect(app_state))
 
           if (app_state.desired_activation_state === 'deactivated') {
             // nobody should ever see this error, because chaperone is disconnected
@@ -980,7 +1019,12 @@ class Envoy {
       } catch (error) {
         console.log("CONDUCTOR CALL ERROR: ");
         console.log(error);
-        throw new Error(`CONDUCTOR CALL ERROR: ${JSON.stringify(error.data)}`);
+
+        if (error.data.data.includes("GenesisFailure")) {
+          throw new HoloError(error.data.data)
+        } else {
+          throw new Error(`CONDUCTOR CALL ERROR: ${JSON.stringify(error.data)}`);
+        }
       }
 
       if (callAgent === "app") {
@@ -1031,6 +1075,7 @@ class Envoy {
         }
       } else if (err instanceof Error) {
         log.error("Failed during Conductor call with error: %s", String(err));
+        if (err.name === 'HoloError') throw err
         throw new HoloError(String(err));
       } else {
         log.fatal("Failed during Conductor call with unknown error: %s", err);
