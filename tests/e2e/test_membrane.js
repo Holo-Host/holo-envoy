@@ -103,8 +103,6 @@ describe("Server", () => {
     await resetTmp();
   });
   
-  // NOTE: Due to current error, this test should fail
-  // - currently this should erronesouly pass signin, but bork the system and fail once the first app interface call is made
   it("should sign-in with incorrect joining code and fail", async function() {
     this.timeout(300_000);
     const signupError = await page.evaluate(async function (host_agent_id, registered_happ_hash, invalidJoiningCode) {
@@ -130,24 +128,21 @@ describe("Server", () => {
         // passing in a random/incorrect joining code
         signupError = await client.signUp("carol.test.3@holo.host", "Passw0rd!", invalidJoiningCode);
       } catch (error) {
-        console.log(typeof error.stack, error.stack.toString());
+        console.log('Caught Sign-up Error: ', error)
         return {
           name: error.name,
           message: error.message
         }
       }
-      console.log("Finished sign-up for agent: %s", client.agent_id);
-      console.log('Sign-up response : ', signupError);
+      console.log("Finished signed-up agent: %s", client.agent_id);
       return signupError
     }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, INVALID_JOINING_CODE);
 
     log.info("Completed evaluation: %s", signupError);
-    expect(signupError.name).to.equal('HoloError');
-    expect(signupError.message).to.equal('Failed to sign-up')
+    expect(signupError.name).to.equal('UserError');
+    expect(signupError.message).to.equal('Invalid joining code')
   });
 
-  // NOTE: Due to current error, this test should fail
-  // - currently this should erronesouly pass signin, but bork the system and fail once the first app interface call is made
   it("should sign-in with null joining code and fail", async function() {
     this.timeout(300_000);
     const signupError = await page.evaluate(async function (host_agent_id, registered_happ_hash) {
@@ -170,22 +165,21 @@ describe("Server", () => {
       await client.ready(200_000);
       let signupError
       try {
-        // passing in a random/incorrect joining code
+        // passing in no joining code
         signupError = await client.signUp("daniel.test.4@holo.host", "Passw0rd!", null);
       } catch (error) {
-        console.log(typeof error.stack, error.stack.toString());
+        console.log('Caught Sign-up Error: ', error)
         return {
           name: error.name,
           message: error.message
         }
       }
-      console.log("Finished sign-up for agent: %s", client.agent_id);
-      console.log('Sign-up response : ', signupError);
+      console.log("Finished signed-up agent: %s", client.agent_id);
       return signupError
     }, HOST_AGENT_ID, REGISTERED_HAPP_HASH);
 
     log.info("Completed evaluation: %s", signupError);
-    expect(signupError.name).to.equal('HoloError');
-    expect(signupError.message).to.equal('Failed to sign-up')
+    expect(signupError.name).to.equal('UserError');
+    expect(signupError.message).to.equal('Missing membrane proof')
   })
 })
