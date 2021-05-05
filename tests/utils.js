@@ -101,8 +101,9 @@ class PageTestUtils {
     this.logPageErrors = () => page.on('pageerror', async error => {
       if (error instanceof Error) {
         log.silly(error.message);
-      } else
+      } else {
         log.silly(error);
+      }
     });
 
     this.describeJsHandleLogs = () => page.on('console', async msg => {
