@@ -11,7 +11,7 @@ import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 import { v4 as uuid } from 'uuid';
 import * as crypto from 'crypto';
-import { getDiskUsagePerDna } from './utils';
+import { getUsagePerDna } from './utils';
 const { inspect } = require('util')
 
 const msgpack = require('@msgpack/msgpack');
@@ -828,7 +828,7 @@ class Envoy {
 
   startStoragePolling () {
     this.updateStorageUsage()
-    setInterval(this.updateStorageUsage.bind(this), 60 * 60 * 1000)
+    setInterval(this.updateStorageUsage.bind(this), 60 * 1000)
   }
 
   updateStorageUsage () {
@@ -836,22 +836,34 @@ class Envoy {
 
     let usagePerDna
     try {
-      usagePerDna = getDiskUsagePerDna(dnaHashes)
+      usagePerDna = getUsagePerDna(dnaHashes)
     } catch (e) {
       log.error('failed to get disk usage for dnas:', e.toString())
       return
     }
 
-    // this fires off a bunch of promises and never waits for them to return
-    dnaHashes.forEach(async dnaHash => {
+    Object.keys(usagePerDna).forEach(async dnaHash => {
       try {
-        const hhaHash = this.dna2hha[dnaHash]
-        const cellId = await this.getServiceLoggerCellId(hhaHash)
+        const { diskUsage, sourceChainUsagePerAgent } = usagePerDna[dnaHash]
+        const sourceChains = Object.keys(sourceChainUsagePerAgent).map(agentKey => 
+          [Codec.AgentId.decodeToHoloHash(agentKey), sourceChainUsagePerAgent[agentKey].length])
+
         const payload = {
-          source_chains: [],
+          source_chains: sourceChains,
           integrated_entries: [],
-          total_disk_usage: usagePerDna[dnaHash]
+          total_disk_usage: diskUsage
         }
+
+        const hhaHash = this.dna2hha[dnaHash]
+        if (hhaHash === undefined) {
+          log.error(`Couldn't log dig usage, no hhaHash (so no service logger) for dna ${dnaHash}`)
+          return
+        }
+
+        log.normal('Logging disk and sourcechain usage for dna', dnaHash)
+        log.normal('Usage payload', payload)
+
+        const cellId = await this.getServiceLoggerCellId(hhaHash)
 
         await this.callConductor("service", {
           cell_id: cellId,
@@ -862,7 +874,7 @@ class Envoy {
           provenance: cellId[1]
         })
       } catch (e) {
-        log.error(`error updating disk usage for ${hash}`, e.toString())
+        log.error(`error updating disk usage for ${dnaHash}`, e.toString())
         return
       }
     })
@@ -1221,6 +1233,7 @@ class Envoy {
     let retryCall = true
     while (retryCall) {
       retryCall = false
+
       try {
         resp = await this.callConductor("app", {
           "cell_id": servicelogger_cell_id,
