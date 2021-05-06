@@ -135,7 +135,7 @@ describe("Server", () => {
     await closedPromise
   })
 
-  it.only("should return correct appInfo status after app is deactivated", async function() {
+  it("should return 'inactive' appInfo status after app is deactivated", async function() {
     this.timeout(300_000);
     // 1. sign agent in successfully
     const { signupResponse , signoutResponse} = await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {
@@ -181,7 +181,7 @@ describe("Server", () => {
       return { signupResponse, signoutResponse }
     }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, SUCCESSFUL_JOINING_CODE);
 
-    log.info("Completed evaluation: %s", signupResponse);
+    log.info("Completed signup response: %s", signupResponse);
     expect(signupResponse).to.equal(true);
     expect(signoutResponse).to.equal(true); 
 
@@ -201,7 +201,7 @@ describe("Server", () => {
       await openedPromise
     }
     const appInfoResponse = await rpc_client.call('holo/app_info', { installed_app_id: `${hhaHash}:${agentId}` })
-    console.log('appInfo RESPONSE : ', appInfoResponse )
+    log.info("Completed appInfo response: %s", appInfoResponse);
     expect(appInfoResponse.payload.status).equal('inactive')
     const closedPromise = new Promise(resolve => rpc_client.once("close", resolve))
     rpc_client.close()
