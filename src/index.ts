@@ -11,6 +11,7 @@ import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 import { v4 as uuid } from 'uuid';
 import * as crypto from 'crypto';
+import { getUsagePerDna } from './utils';
 const { inspect } = require('util')
 
 const msgpack = require('@msgpack/msgpack');
@@ -73,22 +74,22 @@ interface EnvoyConfig {
   hosted_app?: HostedAppConfig;
 }
 
-class HoloError extends Error {
 
+class CustomError extends Error {
   constructor(message) {
     // Pass remaining arguments (including vendor specific ones) to parent constructor
     super(message);
 
     // Maintains proper stack trace for where our error was thrown (only available on V8)
     if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, HoloError);
+      Error.captureStackTrace(this, this.constructor);
     }
 
-    this.name = 'HoloError';
+    this.name = this.constructor.name;
 
     // Fix for Typescript
     //   - https://github.com/Microsoft/TypeScript/wiki/Breaking-Changes#extending-built-ins-like-error-array-and-map-may-no-longer-work
-    Object.setPrototypeOf(this, HoloError.prototype);
+    Object.setPrototypeOf(this, this.constructor.prototype);
   }
 
   toJSON() {
@@ -98,6 +99,9 @@ class HoloError extends Error {
     };
   }
 }
+
+class HoloError extends CustomError {}
+class UserError extends CustomError {}
 
 async function promiseMap (array, fn) {
   const resolvedArray = await array;
@@ -156,6 +160,7 @@ class Envoy {
     this.connected.then(() => log.normal("All Conductor clients are in a 'CONNECTED' state"));
     this.startWebsocketServer();
     this.startWormhole();
+    this.startStoragePolling();
   }
 
   async startWormhole() {
@@ -207,11 +212,14 @@ class Envoy {
       log.normal("%s (%s) connection for HHA ID: %s", anonymous ? "Anonymous" : "Agent", agent_id, hha_hash);
 
       const installed_app_id = getInstalledAppId(hha_hash, agent_id)
-      this.app_states[installed_app_id] = {
-        activation_state: 'deactivated',
-        activation_state_changed_at: 0,
-        desired_activation_state: 'deactivated',
-        desired_activation_state_changed_at: 0
+      if (!this.app_states[installed_app_id]) {
+        log.normal("initializing app state for installed_app_id %s", installed_app_id)
+        this.app_states[installed_app_id] = {
+          activation_state: 'deactivated',
+          activation_state_changed_at: 0,
+          desired_activation_state: 'deactivated',
+          desired_activation_state_changed_at: 0
+        }
       }
 
       if (anonymous) {
@@ -248,8 +256,7 @@ class Envoy {
       }
 
       socket.on("close", async () => {
-        log.normal("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
-
+        log.warn("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
         if (anonymous) {
           log.debug("Remove anonymous Agent (%s) from anonymous list", agent_id);
           delete this.anonymous_agents[agent_id];
@@ -259,20 +266,33 @@ class Envoy {
           const installed_app_id = getInstalledAppId(hha_hash, agent_id);
           const app_state = this.app_states[installed_app_id]
 
-
+          log.normal("app_state prior to deactivation loop: %s", inspect(app_state))
           app_state.desired_activation_state = 'deactivated'
           app_state.desired_activation_state_changed_at = Date.now()
-
-
+          log.normal('Set desired state to deactivated. actual: %s', this.app_states[installed_app_id].desired_activation_state)
+          
+          if (app_state.activation_state === 'deactivated') {
+            log.normal('Skipping deactivation loop because app already assigned to deactive state');
+            return;
+          }
+          
+          // start deactivation loop :
+          const when_this_interval = Date.now().toLocaleString()
           let deactivationInterval = setInterval(() => {
+            log.normal("In deactivation loop for installed_app_id: %s. Checking desired_activation_state: %s", installed_app_id, app_state.desired_activation_state)
+            log.normal("this interval initiated at: %s", when_this_interval)
+            log.normal("app_state inside deactivation loop: %s", inspect(app_state))
+
             if (app_state.desired_activation_state === 'activated') {
+              log.normal("Clearing deactivation interval initiated at: %s because desired_activation_state is now 'activated'", when_this_interval)
               clearInterval(deactivationInterval)
               return
             }
 
+            // don't deactivate too soon or if currently transitioning
             if (app_state.activation_state_changed_at + 5000 >= Date.now() ||
-                app_state.activation_state !== 'activated' ||
-                app_state.desired_activation_state_changed_at + 5000 >= Date.now()
+                app_state.desired_activation_state_changed_at + 5000 >= Date.now() ||
+                app_state.activation_state === "deactivating" || app_state.activation_state === "activating"
             ) {
               return;
             }
@@ -283,9 +303,13 @@ class Envoy {
             .then(() => {
               app_state.activation_state = 'deactivated'
               app_state.activation_state_changed_at = Date.now()
+              log.normal("clearing deactivation interval initiated at: %s because sucessfully deactivated", when_this_interval)
+
               clearInterval(deactivationInterval)
             })
             .catch(err => {
+              log.normal("clearing deactivation interval initiated at: %s because error deactivating", when_this_interval)
+
               clearInterval(deactivationInterval)
               if (err.toString().includes("AppNotActive")) {
                 app_state.activation_state = 'deactivated'
@@ -315,7 +339,7 @@ class Envoy {
           log.warn("RPC WebSocket event '%s' is already registered for Agent (%s)", event, agent_id);
         else {
           log.error("Failed during RPC WebSocket event registration: %s", String(e));
-          console.error(e);
+          log.error(e);
         }
       }
 
@@ -346,8 +370,6 @@ class Envoy {
     this.ws_server.register("holo/agent/signup", async ([hha_hash, agent_id, membrane_proof]) => {
       log.normal("Received sign-up request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);
 
-      const failure_response = (new HoloError("Failed to create a new hosted agent")).toJSON();
-
       const anonymous_instance_app_id = hha_hash;
       const hosted_agent_instance_app_id = getInstalledAppId(hha_hash, agent_id);
 
@@ -355,8 +377,8 @@ class Envoy {
       const appInfo = await this.callConductor("app", { installed_app_id: anonymous_instance_app_id });
 
       if (!appInfo) {
-        log.error("Failed during hosted app's AppInfo call: %s", appInfo);
-        return failure_response;
+        log.error("Failed during hosted app's AppInfo call: %s", appInfo)
+        return Package.createFromError("HoloError", (new HoloError("Failed to create a new hosted agent")).toJSON())
       }
 
       log.silly('NUMBER OF DNAs in the hosted happ: ', appInfo.cell_data.length)
@@ -405,6 +427,17 @@ class Envoy {
           if (err.message.toLowerCase().includes("duplicate cell")) {
             log.warn("Cell (%s) already exists in Conductor", hosted_agent_instance_app_id);
           } else {
+            if (err.toString().includes("GenesisFailure")) {
+              if (err.toString().includes("No membrane proof found")) {
+                throw new UserError("Missing membrane proof")
+              } else if (err.toString().includes("Joining code invalid")) {
+                throw new UserError("Invalid joining code")
+              }
+              const genesisFailureStart = err.toString().indexOf('GenesisFailure("') + 15
+              const genesisFailureEnd = err.toString().indexOf('")') + 1
+              const genesisFailureMessage = err.toString().substring(genesisFailureStart, genesisFailureEnd)
+              throw new UserError(genesisFailureMessage)
+            }
             log.error("Failed during 'installApp': %s", String(err));
             throw err;
           }
@@ -413,28 +446,48 @@ class Envoy {
         await this.signIn(hha_hash, agent_id);
       } catch (err) {
         log.error("Failed during DNA processing for Agent (%s) HHA ID (%s): %s", agent_id, hha_hash, String(err));
-        return new HoloError(err).toJSON()
+        let error_pack;
+        if  (err instanceof UserError) {
+          log.warn("Setting error response to raised UserError: %s", String(err));
+          error_pack = Package.createFromError("UserError", err.toJSON());
+        } else {
+          let holo_error;
+          if (err instanceof HoloError) {
+            log.warn("Setting error response to raised HoloError: %s", String(err));
+            holo_error = err.toJSON();
+          } else {
+            holo_error = {
+              "source": 'HoloError',
+              "message": err.message,
+            };
+          }
+          error_pack = Package.createFromError("HoloError", holo_error);
+        }
+        log.normal('Returning error: ', error_pack);
+        return error_pack
       }
 
       // - return success
       log.normal("Completed sign-up process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
-      return true;
+      return new Package(true, { "type": "success" });
     }, this.opts.NS);
 
     // Envoy - New Hosted Agent Sign-up Sequence
     this.ws_server.register("holo/agent/signin", async ([hha_hash, agent_id]) => {
-      const failure_response = (new HoloError("Failed to sign-in an existing hosted agent")).toJSON();
-
       log.normal("Received sign in request from Agent (%s) for HHA ID: %s", agent_id, hha_hash);
       try {
-        const res = await this.signIn(hha_hash, agent_id);
+        const signInResult = await this.signIn(hha_hash, agent_id);
         log.normal("Completed sign-in process for Agent (%s) HHA ID (%s)", agent_id, hha_hash);
-        return res;
+        if (signInResult === true) {
+          return new Package(signInResult, { "type": "success" });
+        } else {
+          return new Package(false, { "type": "success" });
+        }
       } catch (err) {
         if (err.toString().includes("AppNotInstalled")) {
-          return new HoloError("Failed to sign-in: Agent unknown to this host").toJSON()
+          return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
         }
-        return failure_response;
+        return Package.createFromError("UserError", (new UserError('Failed to sign-in an existing hosted agent')).toJSON());
       }
     }, this.opts.NS);
 
@@ -442,7 +495,6 @@ class Envoy {
     // NOTE: we have decided as a team to charge for app_info calls, but after release and user feedback
     this.ws_server.register("holo/app_info", async ({ installed_app_id }) => {
       let appInfo
-
       try {
         log.debug("Calling AppInfo function with installed_app_id(%s) :", installed_app_id);
         appInfo = await this.callConductor("app", { installed_app_id });
@@ -551,7 +603,7 @@ class Envoy {
           holo_error = err.toJSON();
         } else {
           log.fatal("Conductor call threw unknown error: %s", String(err));
-          console.error(err);
+          log.error(err);
           holo_error = {
             "source": 'HoloError',
             "message": err.message,
@@ -657,7 +709,7 @@ class Envoy {
       } catch (err) {
         const error = `servicelogger.log_service threw: ${String(err)}`
         log.error("Failed during service confirmation log: %s", error);
-        console.error(err);
+        log.error(err);
 
         this.removePendingConfirmation(response_id);
 
@@ -665,7 +717,6 @@ class Envoy {
         log.normal('Returning error: ', errorPack);
 
         return errorPack;
-
       }
 
       this.removePendingConfirmation(response_id);
@@ -691,7 +742,7 @@ class Envoy {
         return
       }
     } catch (err) {
-      if (err.message.includes("AppNotInstalled")) {
+      if (err.message.includes("AppNotInstalled")) {       
         // This error is returned in two cases:
         // a) TODO: The app is not installed -- Return an error to the user saying that they may need to sign up first.
         // b) The app is already activated -- Our job is done.
@@ -726,24 +777,39 @@ class Envoy {
       return true;
     }
 
+    const when_this_interval = Date.now().toLocaleString()
     const installed_app_id = getInstalledAppId(hha_hash, agent_id);
     const app_state = this.app_states[installed_app_id]
 
-    let activation_interval
+    log.normal("app_state prior to activation sequence: %s", inspect(app_state))
 
+    app_state.desired_activation_state = 'activated'
+    app_state.desired_activation_state_changed_at = Date.now()
+    log.normal('Set desired state to activated. actual: %s', this.app_states[installed_app_id].desired_activation_state)
+
+    if (app_state.activation_state === 'activated') {
+      log.normal('Skipping activation loop because app already assigned to active state');
+      return true;
+    }
+
+    let activation_interval
     // let the record show, we're not happy with this code.
     try {
       await new Promise<void>((resolve, reject) => {
-        app_state.desired_activation_state = 'activated'
-
         const tryToActivate = async () => {
+          log.normal("In activation loop for installed_app_id : %s. Checking desired_activation_state: %s", installed_app_id, app_state.desired_activation_state)
+          log.normal("this interval initiated at: %s", when_this_interval)
+          log.normal("app_state inside activation loop: %s", inspect(app_state))
+
           if (app_state.desired_activation_state === 'deactivated') {
             // nobody should ever see this error, because chaperone is disconnected
             reject('App already trying to deactivate')
             return
           }
-          // don't try and change state too soon
-          if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state !== 'deactivated') return
+
+          // don't try and change state too soon or if already transitioning
+          if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state === "activating" || app_state.activation_state === "deactivating") return
+
           try {
             app_state.activation_state = 'activating'
             app_state.activation_state_changed_at = Date.now()
@@ -763,6 +829,7 @@ class Envoy {
         activation_interval = setInterval(tryToActivate, 5000)
       })
     } finally {
+      log.normal("clearing Activation Interval started at: %s", when_this_interval)
       clearInterval(activation_interval)
     }
 
@@ -775,6 +842,60 @@ class Envoy {
     delete this.agent_connections[agent_id];
     connections.forEach(connection => connection.close());
     delete this.agent_wormhole_num_timeouts[agent_id];
+  }
+
+  startStoragePolling () {
+    this.updateStorageUsage()
+    setInterval(this.updateStorageUsage.bind(this), 60 * 1000)
+  }
+
+  updateStorageUsage () {
+    const dnaHashes = this.getHostedDnaHashes()
+
+    let usagePerDna
+    try {
+      usagePerDna = getUsagePerDna(dnaHashes)
+    } catch (e) {
+      log.error('failed to get disk usage for dnas:', e.toString())
+      return
+    }
+
+    Object.keys(usagePerDna).forEach(async dnaHash => {
+      try {
+        const { diskUsage, sourceChainUsagePerAgent } = usagePerDna[dnaHash]
+        const sourceChains = Object.keys(sourceChainUsagePerAgent).map(agentKey => 
+          [Codec.AgentId.decodeToHoloHash(agentKey), sourceChainUsagePerAgent[agentKey].length])
+
+        const payload = {
+          source_chains: sourceChains,
+          integrated_entries: [],
+          total_disk_usage: diskUsage
+        }
+
+        const hhaHash = this.dna2hha[dnaHash]
+        if (hhaHash === undefined) {
+          log.error(`Couldn't log dig usage, no hhaHash (so no service logger) for dna ${dnaHash}`)
+          return
+        }
+
+        log.normal('Logging disk and sourcechain usage for dna', dnaHash)
+        log.normal('Usage payload', payload)
+
+        const cellId = await this.getServiceLoggerCellId(hhaHash)
+
+        await this.callConductor("service", {
+          cell_id: cellId,
+          zome_name: "service",
+          fn_name: "log_disk_usage",
+          payload,
+          cap: null,
+          provenance: cellId[1]
+        })
+      } catch (e) {
+        log.error(`error updating disk usage for ${dnaHash}`, e.toString())
+        return
+      }
+    })
   }
 
   // --------------------------------------------------------------------------------------------
@@ -795,7 +916,7 @@ class Envoy {
       if (Object.keys(this.anonymous_agents).includes(agent_id))
         throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
       else {
-        console.error(`Agent ${agent_id} is not registered.  It must be a host call`);
+        log.error(`Agent ${agent_id} is not registered.  It must be a host call`);
         // Returning null will let the shim redirect to the local lair instance
         return null
       }
@@ -885,7 +1006,7 @@ class Envoy {
       throw new HoloError("Conductor disconnected");
     }
     try {
-      // Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a function (admin client).
+      // Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a string (admin client).
       interfaceMethod = client.callZome;
       methodName = 'callZome'
       callAgent = 'app'
@@ -926,7 +1047,12 @@ class Envoy {
       } catch (error) {
         console.log("CONDUCTOR CALL ERROR: ");
         console.log(error);
-        throw new Error(`CONDUCTOR CALL ERROR: ${JSON.stringify(error.data)}`);
+
+        if (error.data.data.includes("GenesisFailure")) {
+          throw new HoloError(error.data.data)
+        } else {
+          throw new Error(`CONDUCTOR CALL ERROR: ${JSON.stringify(error.data)}`);
+        }
       }
 
       if (callAgent === "app") {
@@ -978,6 +1104,7 @@ class Envoy {
         }
       } else if (err instanceof Error) {
         log.error("Failed during Conductor call with error: %s", String(err));
+        if (err.name === 'HoloError') throw err
         throw new HoloError(String(err));
       } else {
         log.fatal("Failed during Conductor call with unknown error: %s", err);
@@ -988,7 +1115,6 @@ class Envoy {
     log.normal("Conductor call returned successful '%s' response: %s ", typeof resp, resp);
     return resp;
   }
-
 
   // --------------------------------------------------------------------------------------------
 
@@ -1058,12 +1184,36 @@ class Envoy {
     return resp;
   }
 
+  async getServiceLoggerCellId(hha_hash) {
+    let servicelogger_installed_app_id;
+
+    if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
+      servicelogger_installed_app_id = this.opts.hosted_app.servicelogger_id;
+    } else {
+      // NB: There will be a new servicelogger app for each hosted happ (should happen at the time of self-hosted install - prompted in host console.)
+      servicelogger_installed_app_id = `${hha_hash}::servicelogger`;
+    }
+
+    log.info("Retrieve Servicelogger cell id using the Installed App Id: '%s'", servicelogger_installed_app_id);
+    const appInfo = await this.callConductor("app", { installed_app_id: servicelogger_installed_app_id });
+
+    if (!appInfo) {
+      log.error("Failed during Servicelogger AppInfo lookup: %s", appInfo);
+      throw new HoloError("Failed to fetch AppInfo for Servicelogger")
+    }
+
+    log.debug("Servicelogger app_info: '%s'", appInfo);
+    // We are assuming that servicelogger is a happ and the first cell is the servicelogger DNA
+    return appInfo.cell_data[0].cell_id;
+  }
+
   async logServiceConfirmation(client_request, host_response, confirmation) {
     log.info("Processing service logger confirmation");
     log.silly("Processing service logger confirmation (%s) for client request (%s) with host response", confirmation, client_request, host_response);
 
     const hha_hash = client_request.request.call_spec.hha_hash;
 
+    // This code should be replaceable with this.getServiceLoggerCellId, but for some reason it breaks.
     let servicelogger_installed_app_id;
 
     if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
@@ -1102,6 +1252,7 @@ class Envoy {
     let retryCall = true
     while (retryCall) {
       retryCall = false
+
       try {
         resp = await this.callConductor("app", {
           "cell_id": servicelogger_cell_id,
@@ -1159,7 +1310,12 @@ class Envoy {
   }
 
   hhaExists(hha_hash) {
-    return (Object.values(this.dna2hha).includes(hha_hash));
+    return Object.values(this.dna2hha).includes(hha_hash);
+  }
+
+
+  getHostedDnaHashes () {
+    return Object.keys(this.dna2hha)
   }
 
   async signalHandler(signal) {
