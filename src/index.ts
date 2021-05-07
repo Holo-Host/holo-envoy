@@ -582,7 +582,6 @@ class Envoy {
           holo_error = (new HoloError(new_message)).toJSON();
         } else if (err instanceof HoloError) {
           log.warn("Setting error response to raised HoloError: %s", String(err));
-          console.log('err.toJSON() : ', err.toJSON())
           holo_error = err.toJSON();
         } else {
           log.fatal("Conductor call threw unknown error: %s", String(err));
