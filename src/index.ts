@@ -401,7 +401,6 @@ class Envoy {
             dnas = this.opts.hosted_app.dnas;
 					} else {
             dnas = appInfo.cell_data.map(({cell_id, cell_nick}) => ({ nick: cell_nick, hash: cell_id[0], membrane_proof }));
-
 					}
 
           if (membrane_proof) {
@@ -551,7 +550,6 @@ class Envoy {
       request = await this.logServiceRequest(agent_id, payload, service_signature);
 
       // ZomeCall to Conductor App Interface
-
       const zomeCallArgs = {
         cell_id: [Buffer.from(call_spec.cell_id[0]), Buffer.from(call_spec.cell_id[1])],
         zome_name: call_spec.zome,
@@ -600,7 +598,6 @@ class Envoy {
       if (holo_error) {
         const errorPack = Package.createFromError("HoloError", holo_error);
         log.normal('Returning error: ', errorPack);
-
         response_message = errorPack;
       }
       else {
@@ -911,6 +908,7 @@ class Envoy {
         if (this.agent_wormhole_num_timeouts[agent_id] === undefined) {
           this.agent_wormhole_num_timeouts[agent_id] = 0;
         }
+        log.debug('adding an agent wormhole num timeout')
         this.agent_wormhole_num_timeouts[agent_id] += 1;
         if (this.agent_wormhole_num_timeouts[agent_id] === 3) {
           this.signOut(agent_id).catch(err => {
