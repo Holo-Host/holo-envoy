@@ -176,7 +176,8 @@ describe("Client-Server Scenarios", () => {
     })
   }
 
-  // this test is skipped as the signing error currently throws a panic in holochain,
+  // \/ UPDATE: This is still an issue, but no longer surfaces, as all other server-client tests have been merged into same file.
+  // This test is skipped as the signing error currently throws a panic in holochain,
   // ** which will cause the stale ws connection to choke and thereby fail the setup for remaining tests 
   it('should fail to sign up without wormhole', async function () {
     this.timeout(30_000)
@@ -198,9 +199,13 @@ describe("Client-Server Scenarios", () => {
 
     const response = await client.call('holo/agent/signup', [hhaHash, agentId, SUCCESSFUL_JOINING_CODE])
     expect(response).deep.equal({
-      name: 'HoloError',
-      message:
-        'HoloError: Error: CONDUCTOR CALL ERROR: {"type":"internal_error","data":"Conductor returned an error while using a ConductorApi: GenesisFailed { errors: [ConductorApiError(WorkflowError(SourceChainError(KeystoreError(LairError(Other(OtherError(\\"unexpected: ErrorResponse { msg_id: 11, message: \\\\\\"Failed to fulfill hosted signing request: \\\\\\\\\\\\\'Failed to get signature from Chaperone\\\\\\\\\\\\\'\\\\\\" }\\")))))))] }"}'
+      "type": "error",
+      "payload": {
+        "error": "HoloError",
+        "message": "Error: CONDUCTOR CALL ERROR: {\"type\":\"internal_error\",\"data\":\"Conductor returned an error while using a ConductorApi: GenesisFailed { errors: [ConductorApiError(WorkflowError(SourceChainError(KeystoreError(LairError(Other(OtherError(\\\"unexpected: ErrorResponse { msg_id: 11, message: \\\\\\\"Failed to fulfill hosted signing request: \\\\\\\\\\\\'Failed to get signature from Chaperone\\\\\\\\\\\\'\\\\\\\" }\\\")))))))] }\"}",
+        "source": "HoloError",
+        "stack": []
+      }
     })
     const closedPromise = new Promise(resolve => client.once("close", resolve))
     client.close()
