@@ -898,7 +898,7 @@ class Envoy {
         if (this.agent_wormhole_num_timeouts[agent_id] === undefined) {
           this.agent_wormhole_num_timeouts[agent_id] = 0;
         }
-        console.log('!!!!!!!!!!! adding an agent wormhole num timeout...')
+        log.debug('adding an agent wormhole num timeout')
         this.agent_wormhole_num_timeouts[agent_id] += 1;
         if (this.agent_wormhole_num_timeouts[agent_id] === 3) {
           this.signOut(agent_id).catch(err => {
