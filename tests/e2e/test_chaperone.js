@@ -4,6 +4,7 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 });
 const expect = require('chai').expect;
 const puppeteer = require('puppeteer');
+const { Client: RPCWebsocketClient } = require('rpc-websockets')
 const http_servers = require('../setup_http_server.js');
 const setup = require("../setup_envoy.js");
 const setup_conductor = require("../setup_conductor.js");
@@ -20,7 +21,7 @@ const INVALID_JOINING_CODE = msgpack.encode('Failing joining Code').toString('ba
 
 // Note: All envoyOpts.dnas will be registered via admin interface with the paths provided here
 const envoyOpts = {
-  mode: envoy_mode_map.develop,
+  mode: envoy_mode_map.develop
 }
 
 describe("Server", () => {
@@ -190,7 +191,6 @@ describe("Server", () => {
 
     // 2. Then make appInfo call using the agent   pubkey (since the agent has signed out and closed their ws, their cell should have been deactivated and the app should return as 'inactive')
     // cannot make call from within chaperone instance bc the getAppInfo call doesn't accept provided a `installed_app_id`
-    const { Client: RPCWebsocketClient } = require('rpc-websockets')
     const agentId = 'uhCAksf0kcVKuSnekpvYn1a_b9d1i2-tu6BMoiCbB9hndAA0cwEyU'
     const hhaHash = 'uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo'
     const rpc_client = new RPCWebsocketClient(
