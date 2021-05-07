@@ -176,10 +176,9 @@ describe("Client-Server Scenarios", () => {
     })
   }
 
-  // \/ UPDATE: This is still an issue, but no longer surfaces, as all other server-client tests have been merged into same file.
   // This test is skipped as the signing error currently throws a panic in holochain,
   // ** which will cause the stale ws connection to choke and thereby fail the setup for remaining tests 
-  it('should fail to sign up without wormhole', async function () {
+  it.skip('should fail to sign up without wormhole', async function () {
     this.timeout(30_000)
     const { Client: RPCWebsocketClient } = require('rpc-websockets')
 
