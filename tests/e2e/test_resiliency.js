@@ -107,12 +107,9 @@ describe("Resiliency", () => {
     page.once('close', () => console.info('⛔ Page is closed'))
 
     await page.exposeFunction('delay', delay)
-    await page.exposeFunction('expectEquals', (value, expectation) => {
-      expect(value).to.equal(expectation)
-    })
 
-    await page.exposeFunction('checkEnvoyState', (agentId, expectedActivationState, wormHoleTimeouts = 0) => {
-      const shouldBeConnected = expectedActivationState !== 'deactivated'
+    await page.exposeFunction('checkEnvoyConnections', (agentId, numReconnects) => {
+      console.log('agentId : ', agentId)
       // check agent connections === shouldBeConnected
       // check that app === expectedActivationState
       // check still connected to hcc admin and app client
@@ -122,21 +119,31 @@ describe("Resiliency", () => {
       console.log(' ---------------------------------> hcc_clients admin : ', envoy.hcc_clients.admin)
       console.log(' ---------------------------------> hcc_clients app : ', envoy.hcc_clients.app)
       console.log(' ---------------------------------> agent_connections : ', envoy.agent_connections)
+      console.log(' ---------------------------------> # connections for provdied agent : ', envoy.agent_connections[agentId].length)
+      console.log('------------------------------------>  app_states (for current cell) : ', envoy.app_states[`${REGISTERED_HAPP_HASH}:${agentId}`])
+
+      const isBrowserConnectionValid = envoy.agent_connections[agentId].length === numReconnects + 1
+      const isConductorConnectionValid = !!envoy.hcc_clients.admin && !!envoy.hcc_clients.app
+
+      console.log(' ---------------------------------> isBrowserConnectionValid : ', isBrowserConnectionValid)
+      console.log(' ---------------------------------> isConductorConnectionValid : ', isConductorConnectionValid)
+      console.log('isBrowserConnectionValid && isConductorConnectionValid', isBrowserConnectionValid && isConductorConnectionValid)
+      return isBrowserConnectionValid && isConductorConnectionValid
+    })
+
+
+    await page.exposeFunction('checkEnvoyState', (agentId, wormHoleTimeouts = 0) => {
+      console.log('agentId : ', agentId)
       console.log(' ---------------------------------> payload_counter : ', envoy.payload_counter)
       console.log(' ---------------------------------> agent_wormhole_num_timeouts : ', envoy.agent_wormhole_num_timeouts)
-      console.log('------------------------------------------>  app_states (for current cell) : ', envoy.app_states[`${REGISTERED_HAPP_HASH}:${agentId}`])
 
-      const isConnectionStateValid = shouldBeConnected === !!envoy.agent_connections[agentId]
-      const isActivationStateValid = expectedActivationState === envoy.app_states[`${REGISTERED_HAPP_HASH}:${agentId}`]
-      const isConductorConnectionValid = !!envoy.hcc_clients.admin && !!envoy.hcc_clients.app
       const isWormHoleTimeoutCountValid = wormHoleTimeouts === envoy.agent_wormhole_num_timeouts
+      const isPayloadCounterValid = envoy.payload_counter === 0
 
-      console.log(' ---------------------------------> isConnectionStateValid : ', isConnectionStateValid)
-      console.log(' ---------------------------------> isActivationStateValid : ', isActivationStateValid)
-      console.log(' ---------------------------------> isConductorConnectionValid : ', isConductorConnectionValid)
       console.log(' ---------------------------------> isWormHoleTimeoutCountValid : ', isWormHoleTimeoutCountValid)
-      
-      return isConnectionStateValid && isActivationStateValid
+      console.log(' ---------------------------------> isPayloadCounterValid : ', isPayloadCounterValid)
+      console.log('isWormHoleTimeoutCountValid && isPayloadCounterValid : ', isWormHoleTimeoutCountValid && isPayloadCounterValid)
+      return isWormHoleTimeoutCountValid && isPayloadCounterValid
     })
 
   //////
@@ -172,7 +179,7 @@ describe("Resiliency", () => {
   
   after('Shut down all servers', async () => {
     log.debug("Shutdown cleanly...")
-    await delay(5000)
+    await delay(5_000)
     log.debug("Close browser...")
     await wait_for_browser(browser_handler)
     await browser_handler.browser.close()
@@ -191,6 +198,14 @@ describe("Resiliency", () => {
     
     await resetTmp()
   })
+
+  const setNetworkEventHandler = (fn) => {
+    let callZomeCount = 0
+    const addZomeCallCount = () => callZomeCount++
+    browserClient.on('Network.webSocketFrameSent', async ({ response }) => {
+      await fn(response, callZomeCount, addZomeCallCount)
+    })
+  }
 
 
   it('Should recover from a browser tab closed during zome call by automatically signing back in, finishing prior zome call, and successfully completing a new one', async function () {
@@ -286,18 +301,28 @@ describe("Resiliency", () => {
     })
 
     it.only('Should recover from internet loss (client closing) in the middle of a zome call', async function() {
-      this.timeout(300_000)
+      this.timeout(500_000)
       try {
-      // set zomecall event listener to trigger client closure
-      browserClient.on('Network.webSocketFrameSent', async ({ response }) => {
-        if (JSON.parse(response.payloadData).method === 'holo/call') {
-          console.log('!! closing chaperone client !!')
-          await setup.close_connections(server.wss.clients)
-        }
-      })
-      
-      const { hasSignedUp, responseFailure, responseSuccess } = await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {
+        setNetworkEventHandler(async (response, callZomeCount, addZomeCallCount) => {
+          console.log('call zome event count : ', callZomeCount)
+          // set zomecall event listener to trigger client closure
+          if (JSON.parse(response.payloadData).method === 'holo/call' && callZomeCount === 0) {
+            addZomeCallCount()
+            log.info('!! closing chaperone client !!')
+            await setup.close_connections(server.wss.clients)
+          } else if (JSON.parse(response.payloadData).method === 'holo/call' && callZomeCount >= 1) {
+            addZomeCallCount()
+          }
+          return
+        })
+
+        const { hasSignedUp, areEnvoyConnectionsValid, isChaperoneValid, responseSuccess } = await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {
         let hasSignedUp = false
+        let areEnvoyConnectionsValid = false
+        const isChaperoneValid = {
+          pendingQueueValid: false,
+          userStateValid: false,
+        }
         console.log("Registered Happ Hash: %s", registered_happ_hash)
         const client = new Chaperone({
           "mode": Chaperone.DEVELOP,
@@ -324,16 +349,14 @@ describe("Resiliency", () => {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
         hasSignedUp = true
-        expectEquals(client.anonymous, false)
 
-        let responseFailure
         try {
         // TEMPORARY: remove race condition and only call zome call once chaperone is updated to return a timeout / server down error after a certain duration of failed connection
-        responsefailure = Promise.race([
+        Promise.race([
           client.callZomeFunction('test', 'test', 'pass_obj', {'value': 'This is the returned value'}),
           new Promise((resolve, reject) => {
             let waitId = setTimeout(() => {
-              clearTimout(waitId);
+              clearTimeout(waitId);
               resolve(new Error('ERROR: Call timed out in test'))
             }, 20000)
           })
@@ -343,52 +366,45 @@ describe("Resiliency", () => {
           throw err
         }
 
-        /// Check Envoy state
-        //// check agent connections is not longer true
-        //// check that app is deactivated (ie: app_state === 'deactivated')
-        //// wormhole timeouts should exist >0; check integer expectation
-        // const isEnvoyStateStable = window.checkEnvoyState(agentId, 'deactivated', 3)
-        // console.log('envoy state correct ? : ', isEnvoyStateStable)
-        // expectEquals(isEnvoyStateStable, true)
+        // wait for socket to close
+        await delay(2000)
 
-        /// Check chaperone state
-        // expect that pending confirms is still empty
-        // console.log('length of chaperone pending_confirms', client.pending_confirms.length)
-        // expectEquals(client.pending_confirms.length, 0)
-        // expect that the client is no longer signed in (ie. anonymous)
-        // expectEquals(client.anonymous, true)
+        // check envoy agent connections has one deleted socket and one reconnected socket
+        if (window.checkEnvoyConnections(client.agent_id, 1)) {
+          areEnvoyConnectionsValid = true
+        }
+        console.log('envoy state correct ? : ', areEnvoyConnectionsValid)
+        // check that the client is still signed in
+        isChaperoneValid.userStateValid = client.anonymous === false
         
         // wait for chaperone to automatically sign back in on reconnect
-        await delay(1000)
-
+        await delay(3000)
         // wait for new ws socket to be ready
-        console.log('.....WAITING TO BE READY')
-        console.log('client connection object >> : ', client.conn)
         await client.ready(200_000)
-        console.log('..... should be READY')
-        console.log('client connection object >> : ', client.conn)
+        // wait for envoy to process error
+        await delay(8000)
+        // TODO: verify the returned error (from envoy)
 
-        expectEquals(client.anonymous, false)
-
-        /// Check Envoy state
-        // >> check that app is NOT deactivated (ie: app_state !== 'deactivated')
-        // const isEnvoyStateStable = window.checkEnvoyState(agentId, 'activated')
-        // expectEquals(isEnvoyStateStable, true)
- 
         // test call again once sigend back in
         let responseSuccess = {}
-        // try {
-        //   responseSuccess = await client.callZomeFunction('test', 'test', 'pass_obj', {'value': 'This is the returned value'})
-        // } catch (err) {
-        //   console.log(typeof err.stack, err.stack.toString());
-        //   throw err
-        // }
-        return { hasSignedUp, responseFailure, responseSuccess }
+        try {
+          responseSuccess = await client.callZomeFunction('test', 'test', 'pass_obj', {'value': 'This is the returned value'})
+        } catch (err) {
+          console.log(typeof err.stack, err.stack.toString());
+          throw err
+        }
+
+        // expect that pending confirms is still empty
+        isChaperoneValid.pendingQueueValid = Object.keys(client.pending_confirms).length === 0
+
+        return { hasSignedUp, areEnvoyConnectionsValid, isChaperoneValid, responseSuccess }
       }, HOST_AGENT_ID, REGISTERED_HAPP_HASH)
-      
+
       expect(hasSignedUp).to.equal(true)
-      // log.info("Completed error response: %s", responsefailure);
-      // expect(responseFailure).to.have.property("error").which.equals("Disconnect Error")
+      expect(areEnvoyConnectionsValid).to.equal(true)
+      expect(isChaperoneValid.userStateValid).to.equal(true)
+      expect(isChaperoneValid.pendingQueueValid).to.equal(true)
+
       log.info("Completed successful response: %s", responseSuccess);
       expect(responseSuccess).to.have.property("value").which.equals("This is the returned value")
     } finally {
@@ -425,7 +441,7 @@ describe("Resiliency", () => {
     //   return wormholeTimeouts
     // })
 
-    const { hasSignedUp, responsefailure } = await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {
+    const { hasSignedUp, responseFailure } = await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {
       let hasSignedUp = false
       console.log("Registered Happ Hash: %s", registered_happ_hash)
       const client = new Chaperone({
@@ -454,28 +470,25 @@ describe("Resiliency", () => {
       }
       hasSignedUp = true
 
-      // Check signing error
-      // window.alertWormholeTimeoutNo()
-
-      let responsefailure
+      let responseFailure
       try {
         // TEMPORARY: remove race condition and only call zome call once chaperone is updated to return a timeout / server down error after a certain duration of failed connection
-        responsefailure = Promise.race([
+        responseFailure = Promise.race([
           client.callZomeFunction('test', 'test', 'pass_obj', {'value': 'This is the returned value'}),
           new Promise((resolve, reject) => {
             let waitId = setTimeout(() => {
-              clearTimout(waitId);
+              clearTimeout(waitId);
               resolve(new Error('ERROR: Call timed out in test'))
             }, 20000)
           })
         ])
       } catch (err) {
-          console.log('ERROR BLOC >>>> responsefailure : ', responsefailure)
+          console.log('ERROR BLOC >>>> responseFailure : ', responseFailure)
           console.log(typeof err.stack, err.stack.toString())
           throw err
       }
 
-      console.log('responsefailure : ', responsefailure)
+      console.log('responseFailure : ', responseFailure)
       /// Check Envoy state
       // check still connected to hcc admin and app client
       // check pending confirms state is same
@@ -492,14 +505,14 @@ describe("Resiliency", () => {
       // expect that the client is no longer signed in (ie. anonymous)
       // expectEquals(client.anonymous, true)
 
-      return { hasSignedUp, responsefailure }
+      return { hasSignedUp, responseFailure }
     }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, SUCCESSFUL_JOINING_CODE)
     
     expect(hasSignedUp).to.equal(true)
     
     // chaperone should receive a connection timeout error as server is down
-    log.info("Completed error response: %s", responsefailure);
-    expect(responsefailure).deep.equal({
+    log.info("Completed error response: %s", responseFailure);
+    expect(responseFailure).deep.equal({
       name: 'HoloError',
       message: 'CHAPERONE TIMEOUT ERROR'
     })
