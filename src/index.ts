@@ -229,6 +229,7 @@ class Envoy {
         if (this.agent_connections[agent_id] === undefined) {
           this.agent_connections[agent_id] = [];
         }
+        // check for hha errors && throw existing errors
         this.agent_connections[agent_id].push(socket);
       }
 
@@ -550,7 +551,6 @@ class Envoy {
       request = await this.logServiceRequest(agent_id, payload, service_signature);
 
       // ZomeCall to Conductor App Interface
-
       const zomeCallArgs = {
         cell_id: [Buffer.from(call_spec.cell_id[0]), Buffer.from(call_spec.cell_id[1])],
         zome_name: call_spec.zome,
@@ -598,9 +598,7 @@ class Envoy {
       // - return host response
       let response_message;
       if (holo_error) {
-        console.log(' >>>>>> holo_error : ', holo_error)
         const errorPack = Package.createFromError("HoloError", holo_error);
-        console.log(' >>>>>> errorPack : ', errorPack)
         log.normal('Returning error: ', errorPack);
         response_message = errorPack;
       }
