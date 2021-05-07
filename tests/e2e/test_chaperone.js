@@ -16,13 +16,11 @@ log.info("Host Agent ID: %s", HOST_AGENT_ID);
 
 const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
 const SUCCESSFUL_JOINING_CODE = Buffer.from(msgpack.encode('joining code')).toString('base64')
-// const SUCCESSFUL_JOINING_CODE = msgpack.encode('joining code').toString('base64')
 const INVALID_JOINING_CODE = msgpack.encode('Failing joining Code').toString('base64')
 
 // Note: All envoyOpts.dnas will be registered via admin interface with the paths provided here
 const envoyOpts = {
-  mode: envoy_mode_map.develop,
-  // app_port_number: 0
+  mode: envoy_mode_map.develop
 }
 
 class BrowserHandler {

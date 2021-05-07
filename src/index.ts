@@ -43,7 +43,7 @@ const RPC_CLIENT_OPTS = {
 const CONDUCTOR_TIMEOUT = RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
 const NAMESPACE = "/hosting/";
 const READY_STATES = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
-const WORMHOLE_TIMEOUT = 10_000;
+const WORMHOLE_TIMEOUT = 20_000;
 const CALL_CONDUCTOR_TIMEOUT = WORMHOLE_TIMEOUT + 10_000
 
 interface CallSpec {
@@ -229,7 +229,6 @@ class Envoy {
         if (this.agent_connections[agent_id] === undefined) {
           this.agent_connections[agent_id] = [];
         }
-        // check for hha errors && throw existing errors
         this.agent_connections[agent_id].push(socket);
       }
 
