@@ -29,7 +29,7 @@ class BrowserHandler {
   constructor() {
     const launch_browser = async () => {
       this.browser = false;
-      this.browser = await puppeteer.launch({ headless: false });
+      this.browser = await puppeteer.launch();
       this.browser.on('disconnected', async () => {
         log.info('>>>>>>>>>>> BROWSER DISCONNECTED <<<<<<<<<<<<< ')
         await delay(5000)
