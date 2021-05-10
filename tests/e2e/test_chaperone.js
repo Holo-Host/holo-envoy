@@ -309,12 +309,12 @@ describe("Client-Server Scenarios", () => {
         client.skip_assign_host = true;
 
         await client.ready(200_000);
-        await client.signUp("alice.test.1@holo.host", "Passw0rd!", joiningCode);
+        await client.signUp("bobbo.test.2@holo.host", "Passw0rd!", joiningCode);
         console.log("Finished sign-up for agent: %s", client.agent_id);
         if (client.anonymous === true) {
           throw new Error("Client did not sign-in")
         }
-        if (client.agent_id !== "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY") {
+        if (client.agent_id !== "uhCAkh1YLBXufxHVem7zUXTChtFSVaBbMuWYSQ7VqWkQ6sU9RtpcZ") {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
 
@@ -331,19 +331,19 @@ describe("Client-Server Scenarios", () => {
         //and by signing out too soon it would not be able to get all the signature its needs and the test would fail
         await delay(15000);
         await client.signOut();
-        console.log("Alice anonymous after sign-up: ", client.anonymous);
+        console.log("Bobbo anonymous after sign-up: ", client.anonymous);
 
         // Test for second agent on same host
-        await client.signUp("bob.test.2@holo.host", "Passw0rd!", joiningCode);
+        await client.signUp("new_bob.test.2@holo.host", "Passw0rd!", joiningCode);
         console.log("Finished sign-up for agent: %s", client.agent_id);
         if (client.anonymous === true) {
           throw new Error("Client did not sign-in")
         }
-        if (client.agent_id !== "uhCAkS6PRnk-Yhkw0Wi5rW5IYyPqUtPtFQgyzmEQ6zJ6HqlUu0SxP") {
+        if (client.agent_id !== "uhCAkdop1X9N_xdSH_AZtFG9U8F8gCLXcF__MRYtg3yY4QgvGoyLe") {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
         await client.signOut();
-        console.log("BOB anonymous after sign-up: ", client.anonymous);
+        console.log("New Bob anonymous after sign-up: ", client.anonymous);
 
         return {
           responseOne,
@@ -453,7 +453,7 @@ describe("Client-Server Scenarios", () => {
       let signupError
       try {
         // passing in a random/incorrect joining code
-        signupError = await client.signUp("carol.test.3@holo.host", "Passw0rd!", invalidJoiningCode);
+        signupError = await client.signUp("edward.test.5@holo.host", "Passw0rd!", invalidJoiningCode);
       } catch (error) {
         console.log('Caught Sign-up Error: ', error)
         return {
@@ -533,12 +533,12 @@ describe("Client-Server Scenarios", () => {
         client.skip_assign_host = true;
 
         await client.ready(200_000);
-        await client.signUp('alice.test.1@holo.host', 'Passw0rd!', joiningCode);
+        await client.signUp('franko.test.6@holo.host', 'Passw0rd!', joiningCode);
         console.log('Finished sign-up for agent: %s', client.agent_id);
         if (client.anonymous === true) {
           throw new Error('Client did not sign-in')
         }
-        if (client.agent_id !== 'uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY') {
+        if (client.agent_id !== 'uhCAk_gZyIDnZ98xN9YNyM_mYjq32464T_d1RT2RlPyJJVlUhpTyw') {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
 
@@ -577,12 +577,12 @@ describe("Client-Server Scenarios", () => {
         client.skip_assign_host = true;
 
         await client.ready(200_000);
-        await client.signIn('alice.test.1@holo.host', 'Passw0rd!', joining_code);
+        await client.signIn('franko.test.6@holo.host', 'Passw0rd!', joining_code);
         console.log('Finished sign-up for agent: %s', client.agent_id);
         if (client.anonymous === true) {
           throw new Error('Client did not sign-in')
         }
-        if (client.agent_id !== 'uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY') {
+        if (client.agent_id !== 'uhCAk_gZyIDnZ98xN9YNyM_mYjq32464T_d1RT2RlPyJJVlUhpTyw') {
           throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
         }
 
@@ -642,12 +642,12 @@ describe("Client-Server Scenarios", () => {
       client.skip_assign_host = true
 
       await client.ready(200_000)
-      await client.signUp('bobbo.test.2@holo.host', 'Passw0rd!', joiningCode)
+      await client.signUp('george.test.7@holo.host', 'Passw0rd!', joiningCode)
       console.log('Finished sign-up for agent: %s', client.agent_id)
       if (client.anonymous === true) {
         throw new Error('Client did not sign-in')
       }
-      if (client.agent_id !== 'uhCAkh1YLBXufxHVem7zUXTChtFSVaBbMuWYSQ7VqWkQ6sU9RtpcZ') {
+      if (client.agent_id !== 'uhCAkGRbFp2b651LoSM-MWpAqkn6cjeu9DRPiZPQSunwkIH1soysR') {
         throw new Error(`Unexpected Agent ID: ${client.agent_id}`)
       }
       hasSignedUp = true
