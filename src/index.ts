@@ -270,12 +270,12 @@ class Envoy {
           app_state.desired_activation_state = 'deactivated'
           app_state.desired_activation_state_changed_at = Date.now()
           log.normal('Set desired state to deactivated. actual: %s', this.app_states[installed_app_id].desired_activation_state)
-          
+
           if (app_state.activation_state === 'deactivated') {
             log.normal('Skipping deactivation loop because app already assigned to deactive state');
             return;
           }
-          
+
           // start deactivation loop :
           const when_this_interval = Date.now().toLocaleString()
           let deactivationInterval = setInterval(() => {
@@ -487,7 +487,7 @@ class Envoy {
         if (err.toString().includes("AppNotInstalled")) {
           return Package.createFromError("HoloError", (new HoloError('Failed during Conductor AppInfo call')).toJSON());
         }
-        return Package.createFromError("UserError", (new UserError('Failed to sign-in an existing hosted agent')).toJSON());
+        return Package.createFromError("UserError", (new UserError(`Failed to sign-in an existing hosted agent: ${inspect(err)}`)).toJSON());
       }
     }, this.opts.NS);
 
@@ -726,7 +726,7 @@ class Envoy {
         return
       }
     } catch (err) {
-      if (err.message.includes("AppNotInstalled")) {       
+      if (err.message.includes("AppNotInstalled")) {
         // This error is returned in two cases:
         // a) TODO: The app is not installed -- Return an error to the user saying that they may need to sign up first.
         // b) The app is already activated -- Our job is done.
@@ -845,7 +845,7 @@ class Envoy {
     Object.keys(usagePerDna).forEach(async dnaHash => {
       try {
         const { diskUsage, sourceChainUsagePerAgent } = usagePerDna[dnaHash]
-        const sourceChains = Object.keys(sourceChainUsagePerAgent).map(agentKey => 
+        const sourceChains = Object.keys(sourceChainUsagePerAgent).map(agentKey =>
           [Codec.AgentId.decodeToHoloHash(agentKey), sourceChainUsagePerAgent[agentKey].length])
 
         const payload = {
@@ -856,7 +856,7 @@ class Envoy {
 
         const hhaHash = this.dna2hha[dnaHash]
         if (hhaHash === undefined) {
-          log.error(`Couldn't log dig usage, no hhaHash (so no service logger) for dna ${dnaHash}`)
+          log.normal(`Couldn't log disk usage, no hhaHash (so no service logger) for dna ${dnaHash}`)
           return
         }
 
@@ -898,7 +898,7 @@ class Envoy {
       if (Object.keys(this.anonymous_agents).includes(agent_id))
         throw new Error(`Agent ${agent_id} cannot sign requests because they are anonymous`);
       else {
-        log.error(`Agent ${agent_id} is not registered.  It must be a host call`);
+        log.normal(`Agent ${agent_id} is not registered.  It must be a host call`);
         // Returning null will let the shim redirect to the local lair instance
         return null
       }
