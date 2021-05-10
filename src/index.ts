@@ -500,7 +500,7 @@ class Envoy {
         if (!appInfo) {
           log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo);
           throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
-        } else if (appInfo.status!.inactive) {
+        } else if (appInfo.status && appInfo.status!.inactive) {
           log.error("Conductor call 'appInfo' returned as inactive because: %s", JSON.stringify(appInfo.status!.inactive));
           if (appInfo.status!.inactive!.reason!.quarantined) {
              //NB: Occurs when the app was automatically deactivated due to an unrecoverable error by one of its Cells

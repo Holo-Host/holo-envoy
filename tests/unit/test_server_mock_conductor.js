@@ -192,7 +192,7 @@ describe("Server with mock Conductor", () => {
     const expected_cell_id = 'cell_id_for_service_logger'
 
     const app_info = {
-      cell_data: [{ cell_id: expected_cell_id}]
+      cell_data: [{ cell_id: expected_cell_id }]
     }
 
     // mock the app info call to get the service logger id
@@ -742,10 +742,12 @@ describe("Server with mock Conductor", () => {
   it("should reconnect and successfully handle app_info", async () => {
     const agentId = AGENT_ID;
     client = await setup.client({
-      agent_id: agentId
+      agent_id: agentId,
+      app_id : HOSTED_INSTALLED_APP_ID
     });
+    
     const callAppInfo = () => client.processCOMBRequest("appInfo");
-
+    
     const res1 = await callAppInfo();
     expect(res1).to.have.property("cell_data");
 
@@ -757,7 +759,7 @@ describe("Server with mock Conductor", () => {
       type: "error",
       payload: {
         "error": "Error",
-        "message": "Error while calling envoy app_info: {\"type\":\"error\",\"payload\":{\"source\":\"HoloError\",\"error\":\"HoloError\",\"message\":\"Failed during Conductor AppInfo call\",\"stack\":[]}}"
+        "message": "Error while calling envoy app_info: {\"type\":\"error\",\"payload\":{\"source\":\"HoloError\",\"error\":\"HoloError\",\"message\":\"Conductor disconnected\",\"stack\":[]}}"
       }
     });
 
