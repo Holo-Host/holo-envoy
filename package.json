@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@holo-host/chaperone": "^7.1.1",
-    "@holo-host/mock-conductor": "^0.3.1",
+    "@holo-host/mock-conductor": "^0.3.2",
     "@types/node": "^12.11.1",
     "braintree-jsdoc-template": "^3.3.0",
     "chai": "^4.2.0",
