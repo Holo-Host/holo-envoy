@@ -1010,6 +1010,13 @@ class Envoy {
     }
     try {
       // Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a string (admin client).
+      // console.log(
+      //   '*************** call spec', call_spec
+      // )
+
+      // console.log(
+      //   '*************** args', args
+      // )
       interfaceMethod = client.callZome;
       methodName = 'callZome'
       callAgent = 'app'
@@ -1144,7 +1151,10 @@ class Envoy {
       while (slUpdate) {
         const [args, resolve, reject] = slUpdate
         try {
+          console.log('********* calling conductor with', args.fn_name)
           const result = await this.callConductor("app", args);
+          console.log('********* returned from calling conductor with', args.fn_name)
+
           resolve(result)
         } catch (e) {
           reject(e)

@@ -787,8 +787,8 @@ describe("Server with mock Conductor", () => {
     const serviceLoggerCall1 = {
       cell_id: MOCK_CELL_ID,
       zome_name: "service",
-      fn_name: "log_activity",
-      args: {
+      fn_name: "log_activity1",
+      payload: {
         zomeFnArgs: "Activity Log"
       }
     }
@@ -796,8 +796,8 @@ describe("Server with mock Conductor", () => {
     const serviceloggerCall2 = {
       cell_id: MOCK_CELL_ID,
       zome_name: "service",
-      fn_name: "log_activity",
-      args: {
+      fn_name: "log_activity2",
+      payload: {
         zomeFnArgs: "Activity Log"
       }
     }
@@ -807,18 +807,22 @@ describe("Server with mock Conductor", () => {
     let was2Called = false
     let was2CalledBefore1Finished = false
 
-    appConductor.once(MockConductor.ZOME_CALL_TYPE, serviceLoggerCall1, () => {
+    appConductor.once(MockConductor.ZOME_CALL_TYPE, serviceLoggerCall1, async () => {
+      console.log('************ calling 1')
       was1Called = true
-      setTimeout(() => {
-        serviceLogCall1Finished = true
-      }, 500)
+      await delay(500)
+      call1Finished = true
+      console.log('************ done calling 1')
     });
 
     appConductor.once(MockConductor.ZOME_CALL_TYPE, serviceloggerCall2, () => {
+      console.log('************ calling 2', call1Finished)
       was2Called = true
       if (!call1Finished) {
         was2CalledBefore1Finished = true
       }
+      console.log('************ done calling 2')
+
     });
 
     envoy.callSlUpdate(serviceLoggerCall1)
