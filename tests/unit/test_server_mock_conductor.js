@@ -745,9 +745,9 @@ describe("Server with mock Conductor", () => {
       agent_id: agentId,
       app_id : HOSTED_INSTALLED_APP_ID
     });
-    
+
     const callAppInfo = () => client.processCOMBRequest("appInfo");
-    
+
     const res1 = await callAppInfo();
     expect(res1).to.have.property("cell_data");
 
@@ -776,6 +776,55 @@ describe("Server with mock Conductor", () => {
     const res3 = await callAppInfo();
     expect(res3).to.deep.equal(res1);
   });
+
+  it("should not update ServiceLogger concurrently ", () => {
+    client = await setup.client({
+      web_user_legend : {
+        "alice.test.1@holo.host": AGENT_ID,
+      }
+    })
+
+    const servicelogData1 = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: "service",
+      fn_name: "log_activity",
+      args: {
+        zomeFnArgs: "Activity Log"
+      }
+    }
+
+    const servicelogData2 = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: "service",
+      fn_name: "log_activity",
+      args: {
+        zomeFnArgs: "Activity Log"
+      }
+    }
+
+    let call1Finished = false
+    let was1Called = false
+    let was2Called = false
+    let was2CalledBefore1Finished = false
+
+    appConductor.once(MockConductor.ZOME_CALL_TYPE, servicelogData1, () => {
+      was1Called = true
+      setTimeout(() => {
+        serviceLogCall1Finished = true
+      }, 500)
+    });
+
+    appConductor.once(MockConductor.ZOME_CALL_TYPE, servicelogData2, () => {
+      was2Called = true
+      if (!call1Finished) {
+        was2CalledBefore1Finished = true
+      }
+    });
+
+    expect(was1Called).to.equal(true);
+    expect(was2Called).to.equal(true);
+    expect(was2CalledBefore1Finished).to.equal(false);
+  })
 });
 
 describe("server without mock conductor to start", () => {
