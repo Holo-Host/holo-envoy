@@ -1010,13 +1010,6 @@ class Envoy {
     }
     try {
       // Assume the interfaceMethod is using a client that calls an AppWebsocket interface, unless `call_spec` is a string (admin client).
-      // console.log(
-      //   '*************** call spec', call_spec
-      // )
-
-      // console.log(
-      //   '*************** args', args
-      // )
       interfaceMethod = client.callZome;
       methodName = 'callZome'
       callAgent = 'app'
