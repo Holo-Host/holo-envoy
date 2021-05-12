@@ -777,14 +777,14 @@ describe("Server with mock Conductor", () => {
     expect(res3).to.deep.equal(res1);
   });
 
-  it("should not update ServiceLogger concurrently ", () => {
+  it.only("should not update ServiceLogger concurrently ", async () => {
     client = await setup.client({
       web_user_legend : {
         "alice.test.1@holo.host": AGENT_ID,
       }
     })
 
-    const servicelogData1 = {
+    const serviceLoggerCall1 = {
       cell_id: MOCK_CELL_ID,
       zome_name: "service",
       fn_name: "log_activity",
@@ -793,7 +793,7 @@ describe("Server with mock Conductor", () => {
       }
     }
 
-    const servicelogData2 = {
+    const serviceloggerCall2 = {
       cell_id: MOCK_CELL_ID,
       zome_name: "service",
       fn_name: "log_activity",
@@ -807,19 +807,25 @@ describe("Server with mock Conductor", () => {
     let was2Called = false
     let was2CalledBefore1Finished = false
 
-    appConductor.once(MockConductor.ZOME_CALL_TYPE, servicelogData1, () => {
+    appConductor.once(MockConductor.ZOME_CALL_TYPE, serviceLoggerCall1, () => {
       was1Called = true
       setTimeout(() => {
         serviceLogCall1Finished = true
       }, 500)
     });
 
-    appConductor.once(MockConductor.ZOME_CALL_TYPE, servicelogData2, () => {
+    appConductor.once(MockConductor.ZOME_CALL_TYPE, serviceloggerCall2, () => {
       was2Called = true
       if (!call1Finished) {
         was2CalledBefore1Finished = true
       }
     });
+
+    envoy.callSlUpdate(serviceLoggerCall1)
+
+    envoy.callSlUpdate(serviceloggerCall2)
+
+    await delay(200)
 
     expect(was1Called).to.equal(true);
     expect(was2Called).to.equal(true);
