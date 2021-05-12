@@ -1151,10 +1151,7 @@ class Envoy {
       while (slUpdate) {
         const [args, resolve, reject] = slUpdate
         try {
-          console.log('********* calling conductor with', args.fn_name)
           const result = await this.callConductor("app", args);
-          console.log('********* returned from calling conductor with', args.fn_name)
-
           resolve(result)
         } catch (e) {
           reject(e)
