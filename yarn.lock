@@ -12,9 +12,9 @@
     keypather "^1.10.2"
 
 "@babel/parser@^7.9.4":
-  version "7.14.1"
-  resolved "https://registry.yarnpkg.com/@babel/parser/-/parser-7.14.1.tgz#1bd644b5db3f5797c4479d89ec1817fe02b84c47"
-  integrity sha512-muUGEKu8E/ftMTPlNp+mc6zL3E9zKWmF5sDHZ5MSsoTP9Wyz64AhEf9kD08xYJ7w6Hdcu8H550ircnPyWSIF0Q==
+  version "7.14.2"
+  resolved "https://registry.yarnpkg.com/@babel/parser/-/parser-7.14.2.tgz#0c1680aa44ad4605b16cbdcc5c341a61bde9c746"
+  integrity sha512-IoVDIHpsgE/fu7eXBeRWt8zLbDrSvD7H1gpomOkPpBoEN8KCruCqSDdqo8dddwQQrui30KSvQBaMUOJiuFu6QQ==
 
 "@babel/runtime@^7.11.2", "@babel/runtime@^7.4.5":
   version "7.14.0"
@@ -73,10 +73,10 @@
   resolved "https://registry.yarnpkg.com/@holo-host/data-translator/-/data-translator-0.1.1.tgz#aefab77086e2a65d88e77f32b1f6a7f18352fdd9"
   integrity sha512-WIg0RDj+VT2yCJPAWJWJdq5e7mfU2Xm3sSc1s6jyT+DlPzKynZ1QeE282DuwuMWeqhNyyW2haGtADTnom5oKuw==
 
-"@holo-host/mock-conductor@^0.3.1", "@holo-host/mock-conductor@^0.3.2":
-  version "0.3.2"
-  resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.3.2.tgz#7ae07b0756a56b686f6da3a9ae2b7371e0f1d05b"
-  integrity sha512-115noEImmh02cYU05lhERJ7wRx7/JCXjRzTtzCeRY9nKBbOxv2ctagF3JDipDP8fGxIE+rrqhL9msCESVXyUuA==
+"@holo-host/mock-conductor@^0.3.1", "@holo-host/mock-conductor@^0.3.3":
+  version "0.3.3"
+  resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.3.3.tgz#058d16a50f3635b1dcadabeb625b6263b3fb1e7c"
+  integrity sha512-58xtScH7FukZgLwHRuQB999s/sIFKc+4ZwqYLU1JHgoHSPYQK6h8F4lMRamquy9Kowd3n3JrbRG1tF2c1RBB7g==
   dependencies:
     "@msgpack/msgpack" "2.4.0"
     lodash "^4.17.20"
@@ -121,19 +121,19 @@
   integrity sha1-nKUs2jY/aZxpRmwqbM2q2RPqenM=
 
 "@types/node@*":
-  version "15.0.2"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-15.0.2.tgz#51e9c0920d1b45936ea04341aa3e2e58d339fb67"
-  integrity sha512-p68+a+KoxpoB47015IeYZYRrdqMUcpbK8re/zpFB8Ld46LHC1lPEbp3EXgkEhAYEcPvjJF6ZO+869SQ0aH1dcA==
+  version "15.0.3"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-15.0.3.tgz#ee09fcaac513576474c327da5818d421b98db88a"
+  integrity sha512-/WbxFeBU+0F79z9RdEOXH4CsDga+ibi5M8uEYr91u3CkT/pdWcV8MCook+4wDPnZBexRdwWS+PiVZ2xJviAzcQ==
 
 "@types/node@^12.11.1":
-  version "12.20.12"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.20.12.tgz#fd9c1c2cfab536a2383ed1ef70f94adea743a226"
-  integrity sha512-KQZ1al2hKOONAs2MFv+yTQP1LkDWMrRJ9YCVRalXltOfXsBmH5IownLxQaiq0lnAHwAViLnh2aTYqrPcRGEbgg==
+  version "12.20.13"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.20.13.tgz#e743bae112bd779ac9650f907197dd2caa7f0364"
+  integrity sha512-1x8W5OpxPq+T85OUsHRP6BqXeosKmeXRtjoF39STcdf/UWLqUsoehstZKOi0CunhVqHG17AyZgpj20eRVooK6A==
 
 "@types/ws@^7.2.4", "@types/ws@^7.4.0":
-  version "7.4.2"
-  resolved "https://registry.yarnpkg.com/@types/ws/-/ws-7.4.2.tgz#bfe739b5f8b3a39742605fbe415ae7e88ee614c8"
-  integrity sha512-PbeN0Eydl7LQl4OIav29YmkO2LxbVuz3nZD/kb19lOS+wLgIkRbWMNmU/QQR7ABpOJ7D7xDOU8co7iohObewrw==
+  version "7.4.4"
+  resolved "https://registry.yarnpkg.com/@types/ws/-/ws-7.4.4.tgz#93e1e00824c1de2608c30e6de4303ab3b4c0c9bc"
+  integrity sha512-d/7W23JAXPodQNbOZNXvl2K+bqAQrCMwlh/nuQsPSQk6Fq0opHoPrUw43aHsvSbIiQPr8Of2hkFbnz1XBFVyZQ==
   dependencies:
     "@types/node" "*"
 

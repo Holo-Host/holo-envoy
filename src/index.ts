@@ -128,6 +128,10 @@ class Envoy {
 
   dna2hha: any = {};
 
+  slUpdateQueue: any[] = [];
+
+  awakenSlQueueConsumer: (() => void) | null = null
+
   app_states: Record<string, {
     activation_state: 'deactivated' | 'activated' | 'deactivating' | 'activating',
     desired_activation_state: 'activated' | 'deactivated',
@@ -160,6 +164,7 @@ class Envoy {
     this.connected.then(() => log.normal("All Conductor clients are in a 'CONNECTED' state"));
     this.startWebsocketServer();
     this.startWormhole();
+    this.startSlUpdateQueue()
     this.startStoragePolling();
   }
 
@@ -880,7 +885,7 @@ class Envoy {
 
         const cellId = await this.getServiceLoggerCellId(hhaHash)
 
-        await this.callConductor("service", {
+        await this.callSlUpdate({
           cell_id: cellId,
           zome_name: "service",
           fn_name: "log_disk_usage",
@@ -1118,6 +1123,40 @@ class Envoy {
 
   // Service Logger Methods
 
+  async callSlUpdate (args) {
+    return await new Promise((resolve, reject) => {
+      this.slUpdateQueue.push([
+        args,
+        resolve,
+        reject
+      ])
+      if (this.awakenSlQueueConsumer) {
+        this.awakenSlQueueConsumer()
+      }
+    })
+  }
+
+  async startSlUpdateQueue () {
+    while (true) {
+      let slUpdate
+      slUpdate = this.slUpdateQueue.shift()
+
+      while (slUpdate) {
+        const [args, resolve, reject] = slUpdate
+        try {
+          const result = await this.callConductor("app", args);
+          resolve(result)
+        } catch (e) {
+          reject(e)
+        }
+
+        slUpdate = this.slUpdateQueue.shift()
+      }
+
+      await new Promise<void>(resolve => this.awakenSlQueueConsumer = resolve)
+    }
+  }
+
   addPendingConfirmation(response_id, client_req, host_res, agent_id) {
     log.info("Add response ID (%s)... from pending confirmations", response_id);
     log.silly("Add response ID (%s)... to pending confirmations for Agent (%s) with client request (%s) and host response (%s)", response_id, agent_id, client_req, host_res);
@@ -1250,16 +1289,15 @@ class Envoy {
     let retryCall = true
     while (retryCall) {
       retryCall = false
-
       try {
-        resp = await this.callConductor("app", {
+        resp = await this.callSlUpdate({
           "cell_id": servicelogger_cell_id,
           "zome_name": "service",
           "fn_name": "log_activity",
           payload,
           cap: null,
           provenance: buffer_host_agent_servicelogger_id,
-        });
+        })
       } catch (e) {
         if (String(e).includes("source chain head has moved")) {
           retryCall = true
@@ -1281,7 +1319,6 @@ class Envoy {
       throw new Error(`Unknown 'service->log_service' response format: typeof '${typeof resp}' (${content})`);
     }
   }
-
 
   // --------------------------------------------------------------------------------------------
 
