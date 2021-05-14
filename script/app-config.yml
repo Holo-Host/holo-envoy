@@ -9,10 +9,8 @@
   - ./dnas/holo-hosting-app.dna.gz
 # NB: Make sure the hha app_name matches the harded HHA_INSTALLED_APP_ID value in index.ts
   app_name: holo-hosting-app
-  app_port: 42233 # internal port
 
 # Hosted App with happ_id: uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo
 - dnas:
   - ./dnas/test.dna.gz
   app_name: uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo
-  app_port: 42233 # hosted port

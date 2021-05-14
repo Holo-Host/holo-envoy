@@ -4,14 +4,20 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 });
 
 const expect = require('chai').expect;
+const fetch = require('node-fetch');
+const portscanner = require('portscanner');
+const msgpack = require('@msgpack/msgpack');
 
 const setup = require("../setup_envoy.js");
 const MockConductor = require('@holo-host/mock-conductor');
+const { Codec } = require('@holo-host/cryptolib');
+
 const {
   ZomeAPIResult
 } = MockConductor;
 
 const ADMIN_PORT = 4444;
+const FAKE_PORT = 4443;
 const APP_PORT = 42233;
 
 const envoy_mode_map = {
@@ -21,48 +27,107 @@ const envoy_mode_map = {
 
 const envoyOpts = {
   mode: envoy_mode_map.develop,
-  app_port_number: 0,
   hosted_app: {
     dnas: [{
       nick: 'test-hha',
-			path: './dnas/elemental-chat.dna.gz'
-		}],
-		usingURL: false
+      path: './dnas/elemental-chat.dna'
+    }],
+    usingURL: false
   }
 }
 
 describe("Server with mock Conductor", () => {
-  const INTERNAL_INSTALLED_APP_ID = "holo-hosting-app"
   // Note: The value used for the hosted installed_app_ids
   // ** must match the hha_hash pased to the chaperone server (in setup_envoy.js)
   const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
   const DNA_ALIAS = "dna_alias";
-  const MOCK_CELL_ID = [Buffer.from("dnaHash"), Buffer.from("agentPubkey")];
-  const MOCK_CELL_DATA = [[MOCK_CELL_ID, DNA_ALIAS]];
+  // alice@test1.holo.host Passw0rd!
+  const AGENT_ID = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
+  const DNA_HASH = "uhC0kWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
+  const MOCK_CELL_ID = [Codec.HoloHash.decode(DNA_HASH), Codec.AgentId.decode(AGENT_ID)];
+  const MOCK_CELL_DATA = {
+    cell_data: [{
+      cell_id: MOCK_CELL_ID,
+      cell_nick: DNA_ALIAS
+    }]
+  };
 
   let envoy;
   let server;
   let conductor;
-  // let wormhole;
   let client;
 
+  async function checkPorts(port_array) {
+    return new Promise((resolve, reject) => {
+      portscanner.findAPortInUse(port_array, '127.0.0.1', function(error, port) {
+        if (port) {
+          reject(new Error(`Port ${port} already used by other process`));
+        }
+        resolve();
+      });
+    });
+  }
+
   before("Start mock conductor with envoy and client", async () => {
+    await checkPorts([ADMIN_PORT, FAKE_PORT, APP_PORT]);
+
+    // FAKE_PORT is used in appConducotr because of the way MockConductor works:
+    // 1st arg is Admin port that does not receive signals
     adminConductor = new MockConductor(ADMIN_PORT);
-    appConductor = new MockConductor(APP_PORT);
+    appConductor = new MockConductor(FAKE_PORT, APP_PORT);
 
     envoy = await setup.start(envoyOpts);
     server = envoy.ws_server;
-    // wormhole			= envoy.wormhole;
 
     log.info("Waiting for Conductor connections...");
     await envoy.connected;
   });
   beforeEach('Set-up installed_app_ids for test', async () => {
-    appConductor.any({ cell_data: MOCK_CELL_DATA })
+    appConductor.any(MOCK_CELL_DATA);
+    // localstorage mock
+    const store = {};
+    const mockLocalStorage = {
+      getItem: function (key) {
+         return store[key]
+      },
+      setItem: function (key, value) {
+        return store[key] = value
+      },
+      removeItem: function (key) {
+        delete store[key]
+      },
+      clear: function () {
+        store = {}
+      },
+    }
+    global.window = { localStorage: mockLocalStorage }
   });
-  afterEach("Close client", async () => {
-    log.info("Closing client...");
-    await client.close();
+  afterEach("Close client", async function() {
+    this.timeout(20_000)
+    if (client && client.opened) {
+      if (!client.anonymous) {
+        let onDeactivateApp
+        const appDeactivated = new Promise((resolve, reject) => onDeactivateApp = resolve)
+        const installed_app_id = `${client.hha_hash}:${client.agent_id}`
+        adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id }, onDeactivateApp)
+        log.info("Closing client...");
+        await client.close();
+        await appDeactivated
+      } else {
+        log.info("Closing client...");
+        await client.close();
+      }
+      const unusedAdminResponses = Object.entries(adminConductor.responseQueues).filter(([fn, queue]) => queue.length !== 0)
+      if (unusedAdminResponses.length) {
+        log.warn("Mock admin conductor contains unused responses: %j", unusedAdminResponses)
+      }
+      adminConductor.clearResponses()
+      const unusedAppResponses = Object.entries(appConductor.responseQueues).filter(([fn, queue]) => queue.length !== 0)
+      if (unusedAppResponses.length) {
+        log.warn("Mock app conductor contains unused responses: %j", unusedAppResponses)
+      }
+      appConductor.clearResponses()
+    }
   });
   after("Close mock conductor with envoy", async () => {
     log.info("Stopping Envoy...");
@@ -73,10 +138,15 @@ describe("Server with mock Conductor", () => {
     await appConductor.close();
   });
 
+  it("should encode and decode back agent id", async () => {
+    let result = Codec.AgentId.encode(Codec.AgentId.decode(AGENT_ID));
+    expect(result).to.equal(AGENT_ID);
+  });
+
   it("should process request and respond", async () => {
     client = await setup.client({
       web_user_legend : {
-        "alice.test.1@holo.host": "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq",
+        "alice.test.1@holo.host": AGENT_ID,
       }
     });
 
@@ -112,11 +182,42 @@ describe("Server with mock Conductor", () => {
     } finally {}
   });
 
+  it('should call service logger to update disk usage', async () => {
+    const expected_dna_hash = 'the_expected_dna_hash'
+    const expected_hha_hash = 'the_expected_hha_hash'
+    envoy.dna2hha = {
+      [expected_dna_hash]: expected_hha_hash
+    }
+
+    const expected_cell_id = 'cell_id_for_service_logger'
+
+    const app_info = {
+      cell_data: [{ cell_id: expected_cell_id }]
+    }
+
+    // mock the app info call to get the service logger id
+    appConductor.next(app_info)
+
+    // and then the service logger log_disk_usage call
+    let log_disk_usage_payload
+    appConductor.next(({ type, data }) => {
+      log_disk_usage_payload = msgpack.decode(data.payload)
+    })
+
+
+    envoy.updateStorageUsage()
+
+    await delay(100)
+
+    expect(log_disk_usage_payload).to.have.property('total_disk_usage', 1)
+    expect(log_disk_usage_payload).to.have.property('integrated_entries')
+    expect(log_disk_usage_payload).to.have.property('source_chains')
+  })
+
+
   it("should sign-up on this Host without membrane_proof", async () => {
-    const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
-    client = await setup.client({
-      agent_id: agentId
-    });
+    const agentId = AGENT_ID;
+    client = await setup.client({});
     client.skip_assign_host = true;
 
     try {
@@ -145,27 +246,32 @@ describe("Server with mock Conductor", () => {
       };
       appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_1_details_response);
 
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${agentId}`
+
       const appInfo = {
-        installed_app_id: HOSTED_INSTALLED_APP_ID,
-        agent_key: Buffer.from(agentId),
-        dnas: envoyOpts.hosted_app.dnas,
+        installed_app_id,
+        agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
+        dnas: envoyOpts.hosted_app.dnas
       }
-      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, { type: "success" });
-      adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, { type: "success" });
-      adminConductor.once(MockConductor.ATTACH_APP_INTERFACE_TYPE, { port: 0 }, { type: "success" });
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
+        type: 'success'
+      })
+      adminConductor.once(
+        MockConductor.ACTIVATE_APP_TYPE,
+        { installed_app_id },
+        { type: 'success' }
+      )
+
 
       await client.signUp("alice.test.1@holo.host", "Passw0rd!");
 
       expect(client.anonymous).to.be.false;
-      expect(client.agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+      expect(client.agent_id).to.equal(AGENT_ID);
     } finally {}
   });
 
   it("should sign-up on this Host with membrane_proof", async () => {
-    const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
-    client = await setup.client({
-      agent_id: agentId
-    });
+    client = await setup.client({});
     client.skip_assign_host = true;
 
     try {
@@ -194,39 +300,138 @@ describe("Server with mock Conductor", () => {
       };
       appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_2_details_response);
 
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
+
       const appInfo = {
-        installed_app_id: HOSTED_INSTALLED_APP_ID,
-        agent_key: Buffer.from(agentId),
-        dnas: {
-          ...envoyOpts.hosted_app.dnas,
-          membrane_proof: 'the unique joining code'
-        }
+        installed_app_id,
+        agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
+        dnas: [
+          {
+            ...envoyOpts.hosted_app.dnas[0],
+            membrane_proof: Buffer.from('dGhlIHVuaXF1ZSBqb2luaW5nIGNvZGU=', 'base64') // 'the unique joining code'
+          }
+        ]
       }
-      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, { type: "success" });
-      adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, { type: "success" });
-      adminConductor.once(MockConductor.ATTACH_APP_INTERFACE_TYPE, { port: 0 }, { type: "success" });
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
+        type: 'success'
+      })
+      adminConductor.once(
+        MockConductor.ACTIVATE_APP_TYPE,
+        { installed_app_id },
+        { type: 'success' }
+      )
+
+      await client.signUp(
+        'alice.test.1@holo.host',
+        'Passw0rd!',
+        'dGhlIHVuaXF1ZSBqb2luaW5nIGNvZGU='
+      )
+
+
+      expect(client.anonymous).to.be.false;
+      expect(client.agent_id).to.equal(AGENT_ID);
+    } finally {}
+  });
+
+
+  it("should forward signal from conductor to client", async () => {
+    let expectedSignalData = "Hello signal!";
+    // Instance of DNA that is emitting signal
+    // has to match DNA registered in envoy's dna2hha during Login and agent's ID
+    let cellId = MOCK_CELL_ID;
+
+    client = await setup.client({});
+    client.skip_assign_host = true;
+
+    try {
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
+
+      const appInfo = {
+        installed_app_id,
+        agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
+        dnas: envoyOpts.hosted_app.dnas
+      }
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
+        type: 'success'
+      })
+      adminConductor.once(
+        MockConductor.ACTIVATE_APP_TYPE,
+        { installed_app_id },
+        { type: 'success' }
+      )
 
       await client.signUp("alice.test.1@holo.host", "Passw0rd!");
 
-      expect(client.anonymous).to.be.false;
-      expect(client.agent_id).to.equal("uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq");
+      // mock conductor emits signal (has to be the right one)
+      log.debug(`Broadcasting signal via mock conductor`);
+      await appConductor.broadcastAppSignal(cellId, expectedSignalData);
+
+      // wait for signal to propagate all across
+      await delay(1000)
+
+      // client receives this
+      let receivedSignalData = client.signalStore;
+
+      expect(receivedSignalData).to.equal(expectedSignalData);
+    } finally {}
+  });
+
+  it("should forward signal from conductor to client with prefixed DNA hash", async () => {
+    let expectedSignalData = "Hello signal!";
+    // Instance of DNA that is emitting signal
+    // has to match DNA registered in envoy's dna2hha during Login and agent's ID
+    let cellId = [Codec.HoloHash.holoHashFromBuffer("dna", MOCK_CELL_ID[0]), Codec.HoloHash.holoHashFromBuffer("agent", MOCK_CELL_ID[1])]
+
+    client = await setup.client({});
+    client.skip_assign_host = true;
+
+    try {
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
+
+      const appInfo = {
+        installed_app_id,
+        agent_key: Codec.AgentId.decodeToHoloHash(AGENT_ID),
+        dnas: envoyOpts.hosted_app.dnas
+      }
+      adminConductor.once(MockConductor.INSTALL_APP_TYPE, appInfo, {
+        type: 'success'
+      })
+      adminConductor.once(
+        MockConductor.ACTIVATE_APP_TYPE,
+        { installed_app_id },
+        { type: 'success' }
+      )
+
+      await client.signUp("alice.test.1@holo.host", "Passw0rd!");
+
+      // mock conductor emits signal (has to be the right one)
+      log.debug(`Broadcasting signal via mock conductor`);
+      await appConductor.broadcastAppSignal(cellId, expectedSignalData);
+
+      // wait for signal to propagate all across
+      await delay(1000)
+
+      // client receives this
+      let receivedSignalData = client.signalStore;
+
+      expect(receivedSignalData).to.equal(expectedSignalData);
     } finally {}
   });
 
   it("should sign-out", async () => {
     client = await setup.client({
-      agent_id: "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq"
+      agent_id: AGENT_ID
     });
     try {
       await client.signOut();
 
       expect(client.anonymous).to.be.true;
-      expect(client.agent_id).to.not.equal("HcSCj43itVtGRr59tnbrryyX9URi6zpkzNKtYR96uJ5exqxdsmeO8iWKV59bomi");
+      expect(client.agent_id).to.not.equal(AGENT_ID);
     } finally {}
   });
 
   it.skip("should complete wormhole request", async () => {
-    client = await setup.client();
+    client = await setup.client({});
     try {
       conductor.general.once("call", async function(data) {
         const signature = await conductor.wormholeRequest(client.agent_id, "UW1ZVWo1NnJyakFTOHVRQXpkTlFoUHJ3WHhFeUJ4ZkFxdktwZ1g5bnBpOGZOeA==");
@@ -246,7 +451,7 @@ describe("Server with mock Conductor", () => {
   });
 
   it.skip("should fail wormhole request because Agent is anonymous", async () => {
-    client = await setup.client();
+    client = await setup.client({});
     try {
 
       let failed = false;
@@ -289,18 +494,262 @@ describe("Server with mock Conductor", () => {
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
 
-  it("should reconnect and successfully handle app_info", async () => {
-    const agentId = "uhCAkkeIowX20hXW+9wMyh0tQY5Y73RybHi1BdpKdIdbD26Dl/xwq";
-    client = await setup.client({
-      agent_id: agentId
+  it("should call deactivate on conductor when client disconnects", async function() {
+    this.timeout(20_000)
+    const agent_id = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
+    let activateAppCalled = false;
+    let deactivateAppCalled = false;
+    let onDeactivateApp;
+    const deactivateAppPromise = new Promise((resolve, reject) => onDeactivateApp = resolve);
+
+    adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
+      activateAppCalled = true;
+      return { type: "success" }
     });
+
+    adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
+      deactivateAppCalled = true;
+      onDeactivateApp();
+      return { type: "success" }
+    });
+
+    client = await setup.client({});
+
+    expect(activateAppCalled).to.be.false;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.signIn("alice.test.1@holo.host", "Passw0rd!");
+
+    expect(activateAppCalled).to.be.true;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.close();
+    await delay(2500);
+    // shouldn't deactivate too soon after activating
+    expect(deactivateAppCalled).to.be.false;
+    await deactivateAppPromise;
+    expect(deactivateAppCalled).to.be.true;
+  });
+
+  it("should call deactivate on conductor when client signs out", async function() {
+    this.timeout(20_000)
+    let activateAppCalled = false;
+    let deactivateAppCalled = false;
+    let onDeactivateApp;
+    const deactivateAppPromise = new Promise((resolve, reject) => onDeactivateApp = resolve);
+
+    adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, () => {
+      activateAppCalled = true;
+      return { type: "success" }
+    });
+
+    adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, () => {
+      deactivateAppCalled = true;
+      onDeactivateApp();
+      return { type: "success" }
+    });
+
+
+    client = await setup.client({});
+
+    expect(activateAppCalled).to.be.false;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.signIn("alice.test.1@holo.host", "Passw0rd!");
+
+    expect(activateAppCalled).to.be.true;
+    expect(deactivateAppCalled).to.be.false;
+
+    await client.signOut();
+    await delay(2500);
+    // shouldn't deactivate too soon after activating
+    expect(deactivateAppCalled).to.be.false;
+    await deactivateAppPromise;
+    expect(deactivateAppCalled).to.be.true;
+  });
+
+  // TODO: Why is this failing?
+  it.skip('should retry service logger confirm if it fails with head moved', async () => {
+    client = await setup.client({})
+
+    const callZomeData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'zome',
+      fn_name: 'zome_fn'
+    }
+
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      callZomeData,
+      "success",
+    )
+
+    const servicelogData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'service',
+      fn_name: 'log_activity'
+    }
+
+    let tries = 0
+
+    // Simulate three head moved failures
+    for (let i = 0; i < 3; i++) {
+      appConductor.once(
+        MockConductor.ZOME_CALL_TYPE,
+        servicelogData,
+        () => {
+          tries += 1
+          return "source chain head has moved"
+        },
+        { returnError: true }
+      )
+    }
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      servicelogData,
+      () => {
+        tries += 1
+        return "service logger success"
+      },
+    )
+
+    expect(tries).to.equal(0)
+
+    const response = await client.callZomeFunction(
+      'dna_alias',
+      'zome',
+      'zome_fn',
+      {
+        zomeFnArgs: 'String Input'
+      }
+    )
+
+    expect(tries).to.equal(4)
+
+    log.debug('Response: %s', response)
+
+    expect(response).to.equal("success")
+  })
+
+  it('can return a buffer from a zome call', async () => {
+    client = await setup.client({})
+
+    const callZomeData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'zome',
+      fn_name: 'zome_fn'
+    }
+    const expected_response = Buffer.from([1, 3, 3, 7])
+
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      callZomeData,
+      expected_response,
+    )
+
+    const servicelogData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'service',
+      fn_name: 'log_activity'
+    }
+
+    const activity_log_response = 'Activity Log Success Hash'
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      servicelogData,
+      activity_log_response
+    )
+
+    const response = await client.callZomeFunction(
+      'dna_alias',
+      'zome',
+      'zome_fn',
+      'zome args'
+    )
+
+    console.log('Response:', response)
+
+    expect(response).to.be.a("UInt8Array")
+    expect(Buffer.from(response).compare(expected_response)).to.equal(0)
+  })
+
+  it('should return a useful error message when a conductor call fails', async () => {
+    client = await setup.client({})
+
+    const callZomeData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'zome',
+      fn_name: 'zome_fn'
+    }
+    const expected_response = {
+      type: 'error',
+      data: {
+        type: 'fake conductor error type',
+        data: 'fake conductor error data'
+      }
+    }
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      callZomeData,
+      expected_response.data,
+      { returnError: true }
+    )
+
+    const servicelogData = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: 'service',
+      fn_name: 'log_activity'
+    }
+    const activity_log_response = 'Activity Log Success Hash'
+    appConductor.once(
+      MockConductor.ZOME_CALL_TYPE,
+      servicelogData,
+      activity_log_response
+    )
+
+    const response = await client.callZomeFunction(
+      'dna_alias',
+      'zome',
+      'zome_fn',
+      {
+        zomeFnArgs: 'String Input'
+      }
+    )
+
+    log.debug('Response: %s', response)
+
+    delete response._metadata
+    expect(response).to.deep.equal({
+      type: 'error',
+      payload: {
+        source: 'HoloError',
+        error: 'HoloError',
+        message:
+          'Error: CONDUCTOR CALL ERROR: {"type":"fake conductor error type","data":"fake conductor error data"}',
+        stack: []
+      }
+    })
+  })
+
+  function delay(t) {
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        resolve();
+      }, t);
+    });
+  }
+
+  it("should reconnect and successfully handle app_info", async () => {
+    const agentId = AGENT_ID;
+    client = await setup.client({
+      agent_id: agentId,
+      app_id : HOSTED_INSTALLED_APP_ID
+    });
+
     const callAppInfo = () => client.processCOMBRequest("appInfo");
 
     const res1 = await callAppInfo();
-    expect(res1)
-      .to.have.property("type", "success");
-    expect(res1).to.have.property("payload")
-      .which.has.property("cell_data");
+    expect(res1).to.have.property("cell_data");
 
     await appConductor.close();
     await adminConductor.close();
@@ -309,16 +758,14 @@ describe("Server with mock Conductor", () => {
     expect(res2).to.deep.equal({
       type: "error",
       payload: {
-        source: "HoloError",
-        error: "HoloError",
-        message: "Failed during Conductor AppInfo call",
-        stack: []
+        "error": "Error",
+        "message": "Error while calling envoy app_info: {\"type\":\"error\",\"payload\":{\"source\":\"HoloError\",\"error\":\"HoloError\",\"message\":\"Conductor disconnected\",\"stack\":[]}}"
       }
     });
 
     adminConductor = new MockConductor(ADMIN_PORT);
     appConductor = new MockConductor(APP_PORT);
-    appConductor.any({ cell_data: MOCK_CELL_DATA });
+    appConductor.any(MOCK_CELL_DATA);
 
     // Wait for envoy to reconnect
     await Promise.all([
@@ -329,12 +776,60 @@ describe("Server with mock Conductor", () => {
     const res3 = await callAppInfo();
     expect(res3).to.deep.equal(res1);
   });
+
+  it("should not update ServiceLogger concurrently ", async () => {
+    client = await setup.client({
+      web_user_legend : {
+        "alice.test.1@holo.host": AGENT_ID,
+      }
+    })
+
+    const serviceLoggerCall1 = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: "service",
+      fn_name: "log_activity1"
+    }
+
+    const serviceloggerCall2 = {
+      cell_id: MOCK_CELL_ID,
+      zome_name: "service",
+      fn_name: "log_activity2"
+    }
+
+    let call1Finished = false
+    let was1Called = false
+    let was2Called = false
+    let was2CalledBefore1Finished = false
+
+    appConductor.once(MockConductor.ZOME_CALL_TYPE, serviceLoggerCall1, async () => {
+      was1Called = true
+      await delay(100)
+      call1Finished = true
+    });
+
+    appConductor.once(MockConductor.ZOME_CALL_TYPE, serviceloggerCall2, () => {
+      was2Called = true
+      if (!call1Finished) {
+        was2CalledBefore1Finished = true
+      }
+    });
+
+    envoy.callSlUpdate(serviceLoggerCall1)
+
+    envoy.callSlUpdate(serviceloggerCall2)
+
+    await delay(200)
+
+    expect(was1Called).to.equal(true);
+    expect(was2Called).to.equal(true);
+    expect(was2CalledBefore1Finished).to.equal(false);
+  })
 });
 
 describe("server without mock conductor to start", () => {
   let envoy;
   let server;
-  
+
   it("should try to reconnect to conductor if fails on first try", async () => {
     envoy = await setup.start(envoyOpts);
     server = envoy.ws_server;
@@ -342,7 +837,7 @@ describe("server without mock conductor to start", () => {
     let connected = false;
     envoy.connected.then(() => connected = true);
     expect(connected).to.be.false;
-    
+
     adminConductor = new MockConductor(ADMIN_PORT);
     appConductor = new MockConductor(APP_PORT);
     await envoy.connected;

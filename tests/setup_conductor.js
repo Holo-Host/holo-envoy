@@ -1,4 +1,4 @@
-const { exec } = require("child_process");
+const { exec, execSync } = require("child_process");
 
 async function start_lair() {
   console.log("Starting Lair ...");
@@ -15,12 +15,56 @@ async function start_lair() {
       console.log(`Lair Start Up stdout: ${stdout}`);
   });
 }
-
+async function stop_lair() {
+  console.log("Stopping Lair ...");
+  exec("make stop-lair", (error, stdout, stderr) => {
+      if (error) {
+          console.log(`Lair stop Up error: ${error.message}`);
+          return;
+      }
+      if (stderr) {
+          console.log(`Lair stop Up stderr: ${stderr}`);
+          return;
+      }
+      console.log(`Lair stop Up stdout: ${stdout}`);
+  });
+}
+async function setup_conductor() {
+  console.log("Setting up Holochain ...");
+  console.log("Note: See hc-conductor.log file for logs");
+  execSync("make setup-conductor", (error, stdout, stderr) => {
+      if (error) {
+          console.log(`Holochain Conductor Start Up error: ${error.message}`);
+          // return;
+      }
+      if (stderr) {
+          console.log(`Holochain Conductor Start Up stderr: ${stderr}`);
+          // return;
+      }
+      console.log(`Holochain Conductor Start Up stdout: ${stdout}`);
+  });
+}
 
 async function start_conductor() {
   console.log("Starting Holochain ...");
   console.log("Note: See hc-conductor.log file for logs");
   exec("make conductor", (error, stdout, stderr) => {
+      if (error) {
+          console.log(`Holochain Conductor Start Up error: ${error.message}`);
+          return;
+      }
+      if (stderr) {
+          console.log(`Holochain Conductor Start Up stderr: ${stderr}`);
+          return;
+      }
+      console.log(`Holochain Conductor Start Up stdout: ${stdout}`);
+  });
+}
+
+async function start_conductor_2() {
+  console.log("Starting Holochain ...");
+  console.log("Note: See hc-conductor.log file for logs");
+  exec("make tmp-conductor", (error, stdout, stderr) => {
       if (error) {
           console.log(`Holochain Conductor Start Up error: ${error.message}`);
           return;
@@ -50,6 +94,9 @@ async function stop_conductor(timeout) {
 
 module.exports = {
   start_conductor,
+  start_conductor_2,
+  setup_conductor,
   stop_conductor,
-  start_lair
+  start_lair,
+  stop_lair
 };

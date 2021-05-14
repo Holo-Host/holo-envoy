@@ -8,6 +8,7 @@ mkShell {
   });
   buildInputs = [
     holochain
+    hc
     lair-keystore
     python
   ];

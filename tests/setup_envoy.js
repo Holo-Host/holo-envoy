@@ -25,14 +25,15 @@ async function start_envoy(opts = {}) {
   return envoy;
 }
 
-async function stop_envoy() {
-  for (let [i, client] of clients.entries()) {
-    const ws = client.websocket();
-
-    log.debug("Closing Chaperone client[%s]: %s", i, ws.url);
+async function close_ws_connections(clients) {
+  for (let [i, client] of clients.entries()) {  
+    log.debug("Closing Chaperone client[%s]: %o", i); // locate and display url in log
     await client.close();
   }
+}
 
+async function stop_envoy() {
+  await close_ws_connections(envoy.ws_server.wss.clients)
   log.debug("Closing Envoy...");
   await envoy.close();
 }
@@ -66,7 +67,9 @@ async function create_client({ mode, port, hha_hash, agent_id, web_user_legend, 
     completeConfig = Object.assign({}, {
       "agent_id": agent_id
     }, rawConfig);
-  };
+  } else {
+    completeConfig = rawConfig;
+  }
 
   const client = new Chaperone(completeConfig);
   await client.ready(timeout);
@@ -78,4 +81,5 @@ module.exports = {
   "client": create_client,
   "start": start_envoy,
   "stop": stop_envoy,
+  "close_connections": close_ws_connections,
 };
