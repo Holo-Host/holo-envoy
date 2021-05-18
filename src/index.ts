@@ -1,4 +1,5 @@
 import path from 'path';
+import { inspect } from 'util'
 import logger from '@whi/stdlog';
 import * as http from 'http';
 import concat_stream from 'concat-stream';
@@ -12,7 +13,6 @@ import Websocket from 'ws';
 import { v4 as uuid } from 'uuid';
 import * as crypto from 'crypto';
 import { getUsagePerDna } from './utils';
-const { inspect } = require('util')
 
 const msgpack = require('@msgpack/msgpack');
 
@@ -1360,7 +1360,8 @@ class Envoy {
     let event_id = this.cellId2eventId(cell_id);
 
     log.info(`Signal handler is emitting event ${event_id}`);
-    log.debug(`Signal content: ${signal.data.payload}`);
+
+    log.debug(`Signal content: ${inspect(signal.data.payload, true, 5, true)}`);
     this.ws_server.emit(event_id, Buffer.from(msgpack.encode(signal)).toString('base64'))
   }
 
