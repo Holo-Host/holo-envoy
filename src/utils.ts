@@ -18,8 +18,6 @@ export function getDiskUsagePerDna (dnaHashes) {
 }
 
 export function getSourceChainUsagePerAgent (dnaHash) {
-  console.log('***************** reading cellFolders from HOLOCHAIN_DATABASE_DIRECTORY', HOLOCHAIN_DATABASE_DIRECTORY)
-
   let cellFolders
   try {
     cellFolders = readdirSync(HOLOCHAIN_DATABASE_DIRECTORY).filter(filename => filename.startsWith(`cell-${dnaHash}`))
@@ -31,8 +29,6 @@ export function getSourceChainUsagePerAgent (dnaHash) {
 }
 
 export function getUsagePerDna (hostedHashes) {
-  console.log('***************** reading cellFolders from HOLOCHAIN_DATABASE_DIRECTORY', HOLOCHAIN_DATABASE_DIRECTORY)
-  
   let cellFolders
   try {
     cellFolders = readdirSync(HOLOCHAIN_DATABASE_DIRECTORY).filter(filename => filename.startsWith('cell'))
