@@ -2,7 +2,12 @@ import { readdirSync } from 'fs'
 import { inspect } from 'util'
 import { groupBy, uniq } from 'lodash'
 
+if (process.env.NODE_ENV === 'production' && !process.env.HOLOCHAIN_DATABASE_DIRECTORY) {
+  throw new Error('HOLOCHAIN_DATABASE_DIRECTORY environment variable was not specified')
+}
+
 const HOLOCHAIN_DATABASE_DIRECTORY = process.env.HOLOCHAIN_DATABASE_DIRECTORY || './'
+
 
 // This is a temporary mock solution because holochain will soon be switching to sqlite
 const getDiskUsageForHash = _ => 1
