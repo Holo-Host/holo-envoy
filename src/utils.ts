@@ -2,9 +2,7 @@ import { readdirSync } from 'fs'
 import { inspect } from 'util'
 import { groupBy, uniq } from 'lodash'
 
-const HOLOCHAIN_DATABASE_DIRECTORY = process.env.NODE_ENV === 'test'
-  ? './'
-  : '/var/lib/holochain-rsm/databases_lmdb4'
+const HOLOCHAIN_DATABASE_DIRECTORY = process.env.HOLOCHAIN_DATABASE_DIRECTORY || './'
 
 // This is a temporary mock solution because holochain will soon be switching to sqlite
 const getDiskUsageForHash = _ => 1
@@ -20,6 +18,8 @@ export function getDiskUsagePerDna (dnaHashes) {
 }
 
 export function getSourceChainUsagePerAgent (dnaHash) {
+  console.log('***************** reading cellFolders from HOLOCHAIN_DATABASE_DIRECTORY', HOLOCHAIN_DATABASE_DIRECTORY)
+
   let cellFolders
   try {
     cellFolders = readdirSync(HOLOCHAIN_DATABASE_DIRECTORY).filter(filename => filename.startsWith(`cell-${dnaHash}`))
@@ -31,6 +31,8 @@ export function getSourceChainUsagePerAgent (dnaHash) {
 }
 
 export function getUsagePerDna (hostedHashes) {
+  console.log('***************** reading cellFolders from HOLOCHAIN_DATABASE_DIRECTORY', HOLOCHAIN_DATABASE_DIRECTORY)
+  
   let cellFolders
   try {
     cellFolders = readdirSync(HOLOCHAIN_DATABASE_DIRECTORY).filter(filename => filename.startsWith('cell'))
