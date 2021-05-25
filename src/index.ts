@@ -201,7 +201,7 @@ class Envoy {
     }
 
     const ping = socket => {
-      console.log('Pinging to keep socket alive : ', socket.isAlive, socket.readyState, socket)
+      console.log('Pinging to keep socket alive.  Socket readystate : ', socket.readyState)
     }
 
     this.ws_server.on("connection", async (socket, request) => {
