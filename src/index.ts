@@ -1,6 +1,5 @@
 import path from 'path';
 import logger from '@whi/stdlog';
-import * as http from 'http';
 import concat_stream from 'concat-stream';
 import SerializeJSON from 'json-stable-stringify';
 import { Codec } from '@holo-host/cryptolib';
@@ -197,11 +196,36 @@ class Envoy {
       "host": "0.0.0.0", // "localhost",
     });
 
+    const heartbeat = ws => {
+      ws.isAlive = true
+    }
+
+    const ping = ws => {
+      // do some stuff
+      console.log('PINGING...')
+    }
+
     this.ws_server.on("connection", async (socket, request) => {
+      socket.isAlive = true
+      socket.on("pong", () => { heartbeat(socket) })
+
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
       // client-side if something is not right.
       log.silly("Incoming connection from %s", request.url);
       const url = new URL(request.url, "http://localhost");
+      
+      const heartbeatInterval = setInterval(() => {
+        if (socket.isAlive === false) {
+          console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+          console.log("going to close websocket because `socket.isAlive === false` in hearbeat interval")
+          console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            return socket.close()
+        }
+  
+        socket.isAlive = false
+        socket.ping(() => { ping(socket) })
+      }, 30000)
+
 
       socket.on("message", (data) => {
         try {
@@ -262,6 +286,10 @@ class Envoy {
 
       socket.on("close", async () => {
         log.warn("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
+        
+        // clear ping/pong interval for keepalive check
+        clearInterval(heartbeatInterval)
+
         if (anonymous) {
           log.debug("Remove anonymous Agent (%s) from anonymous list", agent_id);
           delete this.anonymous_agents[agent_id];
