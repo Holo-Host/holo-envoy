@@ -141,7 +141,7 @@ describe("Client-Server Scenarios", () => {
     })
   })
 
-  afterEach('', async () => {
+  afterEach('Close browser', async () => {
     log.debug("Shutdown Browser cleanly...")
     await delay(5_000)
     log.debug("Close browser...")
@@ -151,8 +151,6 @@ describe("Client-Server Scenarios", () => {
   
   after('Shut down all servers', async () => {
     log.debug("Shutdown Servers cleanly...")
-    // await delay(5_000)
-
     log.debug("Stop holochain...")
     await setup_conductor.stop_conductor()
     
