@@ -200,9 +200,8 @@ class Envoy {
       ws.isAlive = true
     }
 
-    const ping = ws => {
-      // do some stuff
-      console.log('PINGING...')
+    const ping = socket => {
+      console.log('Pinging to keep socket alive : ', socket.isAlive, socket.readyState, socket)
     }
 
     this.ws_server.on("connection", async (socket, request) => {
@@ -216,9 +215,7 @@ class Envoy {
       
       const heartbeatInterval = setInterval(() => {
         if (socket.isAlive === false) {
-          console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-          console.log("going to close websocket because `socket.isAlive === false` in hearbeat interval")
-          console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+          log.info("About to close websocket because socket is no longer alive")
             return socket.close()
         }
   
