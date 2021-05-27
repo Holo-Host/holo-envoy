@@ -212,13 +212,13 @@ class Envoy {
       // client-side if something is not right.
       log.silly("Incoming connection from %s", request.url);
       const url = new URL(request.url, "http://localhost");
-      
+
       const heartbeatInterval = setInterval(() => {
         if (socket.isAlive === false) {
           log.info("About to close websocket because socket is no longer alive")
             return socket.close()
         }
-  
+
         socket.isAlive = false
         socket.ping(() => { ping(socket) })
       }, 30000)
@@ -259,11 +259,9 @@ class Envoy {
       }
 
       // Signal is a message initiated in conductor which is sent to UI. In case to be able to route signals
-      // to appropriate agents UIs we need to be able to identify connection based on agent_id and hha_hash.
+      // to appropriate agents UIs we need to be able to identify connection based on agent_id.
 
-      // make sure dna2hha entry exists for given hha
-      await this.recordHha(hha_hash);
-      let event_id = this.createEventId(agent_id, hha_hash);
+      let event_id = this.createEventId(agent_id);
 
       // Create event with unique id so that chaperone can subscribe to it.
       // Events can be passed only to logged-in users, otherwise there's no way to map
@@ -281,9 +279,12 @@ class Envoy {
         }
       }
 
+      // make sure dna2hha entry exists for given hha in order to log disk usage.
+      await this.recordHha(hha_hash);
+
       socket.on("close", async () => {
         log.warn("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
-        
+
         // clear ping/pong interval for keepalive check
         clearInterval(heartbeatInterval)
 
@@ -1394,17 +1395,12 @@ class Envoy {
     if (cell_id.length != 2) {
       throw new Error(`Wrong cell id: ${cell_id}`);
     }
-    let dna_hash_string = Codec.HoloHash.encode("dna", cell_id[0]); // cell_id[0] is binary buffer of dna_hash
-    let hha_hash = this.dna2hha[dna_hash_string];
-    if (!hha_hash) {
-      throw new Error(`Can't find hha_hash for DNA: ${cell_id[0]}`);
-    }
     let agent_id_string = Codec.AgentId.encode(cell_id[1]); // cell_id[1] is binary buffer of agent_id
-    return this.createEventId(agent_id_string, hha_hash);
+    return this.createEventId(agent_id_string);
   }
 
-  createEventId(agent_id, hha_hash) {
-    return `signal:${agent_id}:${hha_hash}`;
+  createEventId(agent_id) {
+    return `signal:${agent_id}`;
   }
 }
 
