@@ -212,13 +212,13 @@ class Envoy {
       // client-side if something is not right.
       log.silly("Incoming connection from %s", request.url);
       const url = new URL(request.url, "http://localhost");
-      
+
       const heartbeatInterval = setInterval(() => {
         if (socket.isAlive === false) {
           log.info("About to close websocket because socket is no longer alive")
             return socket.close()
         }
-  
+
         socket.isAlive = false
         socket.ping(() => { ping(socket) })
       }, 30000)
@@ -283,7 +283,7 @@ class Envoy {
 
       socket.on("close", async () => {
         log.warn("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
-        
+
         // clear ping/pong interval for keepalive check
         clearInterval(heartbeatInterval)
 
@@ -731,7 +731,7 @@ class Envoy {
       let service_log;
       try {
         log.debug("Log service confirmation for Response ID (%s)... for agent_id (%s)", response_id, agent_id);
-        service_log = await this.logServiceConfirmation(client_req, host_res, confirmation);
+        service_log = "no-sl-logs";//await this.logServiceConfirmation(client_req, host_res, confirmation);
         log.info("Service confirmation log hash: %s", service_log);
       } catch (err) {
         const error = `servicelogger.log_service threw: ${String(err)}`
