@@ -27,39 +27,40 @@ async function init (lair_socket, shim_socket, signing_handler) {
     lair_stream.pipe(conductor_stream)
     conductor_stream.pipe(parser)
 
-    parser.map(async headerPromise => {
-      header = await headerPromise;
-      if (header === null) return
+    for await (const header of parser) {
+      async () => {
+        if (header === null) return
 
-      if (
-        header.wire_type_id ===
-        structs.Ed25519.SignByPublicKey.Request.WIRE_TYPE
-      ) {
-        log.normal('Intercepted sign by public key')
-        const request = header.wire_type_class.from(await header.payload())
-        const pubkey = request.get(0)
-        const message = request.get(1)
-        try {
-          const signature = await signing_handler(pubkey, message)
+        if (
+          header.wire_type_id ===
+          structs.Ed25519.SignByPublicKey.Request.WIRE_TYPE
+        ) {
+          log.normal('Intercepted sign by public key')
+          const request = header.wire_type_class.from(await header.payload())
+          const pubkey = request.get(0)
+          const message = request.get(1)
+          try {
+            const signature = await signing_handler(pubkey, message)
 
-          if (signature !== null) {
-            let response = new structs.Ed25519.SignByPublicKey.Response(
-              Codec.Signature.decode(signature)
-            )
+            if (signature !== null) {
+              let response = new structs.Ed25519.SignByPublicKey.Response(
+                Codec.Signature.decode(signature)
+              )
+              conductor_stream.write(response.toMessage(header.id))
+              return
+            }
+          } catch (e) {
+            log.normal("Wormhole failure: %s", inspect(e))
+            const response = new structs.ErrorResponse(`Failed to fulfill hosted signing request: ${inspect(e)}`)
             conductor_stream.write(response.toMessage(header.id))
             return
           }
-        } catch (e) {
-          log.normal("Wormhole failure: %s", inspect(e))
-          const response = new structs.ErrorResponse(`Failed to fulfill hosted signing request: ${inspect(e)}`)
-          conductor_stream.write(response.toMessage(header.id))
-          return
         }
-      }
 
-      log.normal('Forwarding message to Lair')
-      header.forward(lair_stream)
-    })
+        log.normal('Forwarding message to Lair')
+        header.forward(lair_stream)
+      }
+    }
   })
   // Make sure that the socket is accessible to holochain (needs read+write access to connect)
   const prevMask = process.umask(0o000) // 000 on a file results in rw-rw-rw-
