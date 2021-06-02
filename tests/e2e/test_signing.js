@@ -31,7 +31,7 @@ describe("Wormhole tests", () => {
     log.info("Waiting for Lair to spin up");
     await setup_conductor.start_lair()
     await delay(5000);
-    shim = await init(LAIR_SOCKET, WH_SERVER_PORT, async function(pubkey, message) {
+    shim = await init(LAIR_SOCKET, WH_SERVER_PORT, function(pubkey, message) {
       console.log("Test shim...");
       return null;
     });

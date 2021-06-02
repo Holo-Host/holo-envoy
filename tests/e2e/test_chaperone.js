@@ -17,7 +17,7 @@ log.info("Host Agent ID: %s", HOST_AGENT_ID);
 
 const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
 const SUCCESSFUL_JOINING_CODE = Buffer.from(msgpack.encode('joining code')).toString('base64')
-const INVALID_JOINING_CODE = msgpack.encode('Failing joining Code').toString('base64')
+const INVALID_JOINING_CODE = Buffer.from(msgpack.encode('Failing joining Code')).toString('base64')
 
 // Note: All envoyOpts.dnas will be registered via admin interface with the paths provided here
 const envoyOpts = {
@@ -36,7 +36,7 @@ class BrowserHandler {
         launch_browser()
       })
     }
-    
+
     (async () => {
       await launch_browser()
     })()
@@ -125,7 +125,7 @@ describe("Client-Server Scenarios", () => {
       console.log(typeof err.stack, err.stack.toString())
       throw err
     }
-    
+
     browserClient = page._client
     browserClient.on('Network.webSocketCreated', ({ requestId, url }) => {
       console.log('✅ 🔓 Network.webSocketCreated', requestId, url)
@@ -148,21 +148,21 @@ describe("Client-Server Scenarios", () => {
     await wait_for_browser(browser_handler)
     await browser_handler.browser.close()
   })
-  
+
   after('Shut down all servers', async () => {
     log.debug("Shutdown Servers cleanly...")
     log.debug("Stop holochain...")
     await setup_conductor.stop_conductor()
-    
+
     log.debug("Close HTTP server...")
     await http_ctrls.close()
-    
+
     log.debug("Stop lair...")
     await setup_conductor.stop_lair()
-    
+
     log.info("Stopping Envoy...")
     await setup.stop()
-    
+
     await resetTmp()
   })
 
@@ -175,7 +175,7 @@ describe("Client-Server Scenarios", () => {
   }
 
   // This test is skipped as the signing error currently throws a panic in holochain,
-  // ** which will cause the stale ws connection to choke and thereby fail the setup for remaining tests 
+  // ** which will cause the stale ws connection to choke and thereby fail the setup for remaining tests
   it.skip('should fail to sign up without wormhole', async function () {
     this.timeout(30_000)
     const { Client: RPCWebsocketClient } = require('rpc-websockets')
@@ -257,7 +257,7 @@ describe("Client-Server Scenarios", () => {
 
     log.info("Completed signup response: %s", signupResponse);
     expect(signupResponse).to.equal(true);
-    expect(signoutResponse).to.equal(true); 
+    expect(signoutResponse).to.equal(true);
 
     // Delay is added so that the signout calls have time to finish
     await delay(15000);
@@ -428,7 +428,7 @@ describe("Client-Server Scenarios", () => {
     }
   });
 
-  it("should sign-in with incorrect joining code and fail", async function() {
+  it.only("should sign-in with incorrect joining code and fail", async function() {
     this.timeout(300_000);
     const signupError = await page.evaluate(async function (host_agent_id, registered_happ_hash, invalidJoiningCode) {
       console.log("Registered Happ Hash: %s", registered_happ_hash);
@@ -676,7 +676,7 @@ describe("Client-Server Scenarios", () => {
       console.log('envoy state correct ? : ', areEnvoyConnectionsValid)
       // check that the client is still signed in
       isChaperoneValid.userStateValid = client.anonymous === false
-      
+
       // wait for chaperone to automatically sign back in on reconnect
       await delay(3000)
       // wait for new ws socket to be ready
