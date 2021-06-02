@@ -18,12 +18,10 @@ async function init (lair_socket, shim_socket, signing_handler) {
     const lair_stream = net.createConnection(lair_socket)
     const parser = new MessageParser()
 
-    const cancel_requests = false;
     connections.push({
       lair: lair_stream,
       conductor: conductor_stream,
       parser: parser,
-      close_requests: () => cancel_requests = true
     })
 
     lair_stream.pipe(conductor_stream)
@@ -49,9 +47,6 @@ async function init (lair_socket, shim_socket, signing_handler) {
               try {
                 const signature = await signaturePromise
                 log.normal("signature received: %s", inspect(signature))
-                if (cancel_requests) {
-                  return
-                }
 
                 let response = new structs.Ed25519.SignByPublicKey.Response(
                   Codec.Signature.decode(signature)
