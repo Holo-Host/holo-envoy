@@ -18,7 +18,7 @@ const {
 const LAIR_SOCKET = path.resolve(__dirname, '../../script/install-bundles/keystore/socket');
 const CONDUCTOR_SOCKET = path.resolve(__dirname, '../../script/install-bundles/shim/socket');
 
-describe.only("Shim tests", () => {
+describe("Shim tests", () => {
   let shim;
   let fake_signature = Buffer.from("ea067251189fa64a65a33548dc8c4e2989b50d27ec915391bc1491bd52047621d27b097aa352d5470baa9356260cda206d77da5c13d32ab8465f2265bccd7970", "hex");
 
