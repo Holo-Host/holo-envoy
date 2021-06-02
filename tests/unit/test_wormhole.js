@@ -18,7 +18,7 @@ const {
 const LAIR_SOCKET = path.resolve(__dirname, '../../script/install-bundles/keystore/socket');
 const CONDUCTOR_SOCKET = path.resolve(__dirname, '../../script/install-bundles/shim/socket');
 
-describe("Shim tests", () => {
+describe.only("Shim tests", () => {
   let shim;
   let fake_signature = Buffer.from("ea067251189fa64a65a33548dc8c4e2989b50d27ec915391bc1491bd52047621d27b097aa352d5470baa9356260cda206d77da5c13d32ab8465f2265bccd7970", "hex");
 
@@ -88,6 +88,9 @@ describe("Shim tests", () => {
 
     shim = await init(LAIR_SOCKET, CONDUCTOR_SOCKET, async function(pubkey, message) {
       log.info("Signing request sent. Pending: %s", pending_requests.length)
+      if (message === Buffer.from("standalone", "utf8")) {
+        return fake_signature
+      }
       // Only resolve signing requests if they are all in flight at the same time.
       if (pending_requests.length + 1 >= concurrent_requests) {
         for (const cb of pending_requests) {
@@ -114,6 +117,9 @@ describe("Shim tests", () => {
         log.info("making request %s", i)
         resp_promises.push(shim_client.request(new structs.Ed25519.SignByPublicKey.Request(pub_key, message)));
       }
+
+      log.info("testing standalone request while others are pending")
+      await shim_client.request(new structs.Ed25519.SignByPublicKey.Request(pub_key, Buffer.from("standalone", "utf8")))
 
       resps = await Promise.all(resp_promises)
     } catch (err) {
