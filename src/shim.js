@@ -27,7 +27,8 @@ async function init (lair_socket, shim_socket, signing_handler) {
     lair_stream.pipe(conductor_stream)
     conductor_stream.pipe(parser)
 
-    for await (let header of parser) {
+    parser.map(async headerPromise => {
+      header = await headerPromise;
       if (header === null) continue
 
       if (
@@ -58,7 +59,7 @@ async function init (lair_socket, shim_socket, signing_handler) {
 
       log.normal('Forwarding message to Lair')
       header.forward(lair_stream)
-    }
+    })
   })
   // Make sure that the socket is accessible to holochain (needs read+write access to connect)
   const prevMask = process.umask(0o000) // 000 on a file results in rw-rw-rw-
