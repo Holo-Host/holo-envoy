@@ -29,7 +29,7 @@ async function init (lair_socket, shim_socket, signing_handler) {
 
     parser.map(async headerPromise => {
       header = await headerPromise;
-      if (header === null) continue
+      if (header === null) return
 
       if (
         header.wire_type_id ===
@@ -47,13 +47,13 @@ async function init (lair_socket, shim_socket, signing_handler) {
               Codec.Signature.decode(signature)
             )
             conductor_stream.write(response.toMessage(header.id))
-            continue
+            return
           }
         } catch (e) {
           log.normal("Wormhole failure: %s", inspect(e))
           const response = new structs.ErrorResponse(`Failed to fulfill hosted signing request: ${inspect(e)}`)
           conductor_stream.write(response.toMessage(header.id))
-          continue
+          return
         }
       }
 
