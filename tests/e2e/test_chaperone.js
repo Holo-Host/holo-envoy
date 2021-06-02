@@ -17,7 +17,7 @@ log.info("Host Agent ID: %s", HOST_AGENT_ID);
 
 const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
 const SUCCESSFUL_JOINING_CODE = Buffer.from(msgpack.encode('joining code')).toString('base64')
-const INVALID_JOINING_CODE = Buffer.from(msgpack.encode('Failing joining Code')).toString('base64')
+const INVALID_JOINING_CODE = msgpack.encode('Failing joining Code').toString('base64')
 
 // Note: All envoyOpts.dnas will be registered via admin interface with the paths provided here
 const envoyOpts = {
@@ -428,7 +428,7 @@ describe("Client-Server Scenarios", () => {
     }
   });
 
-  it.only("should sign-in with incorrect joining code and fail", async function() {
+  it("should sign-in with incorrect joining code and fail", async function() {
     this.timeout(300_000);
     const signupError = await page.evaluate(async function (host_agent_id, registered_happ_hash, invalidJoiningCode) {
       console.log("Registered Happ Hash: %s", registered_happ_hash);
