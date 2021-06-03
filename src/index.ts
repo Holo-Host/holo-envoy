@@ -212,13 +212,13 @@ class Envoy {
       // client-side if something is not right.
       log.silly("Incoming connection from %s", request.url);
       const url = new URL(request.url, "http://localhost");
-      
+
       const heartbeatInterval = setInterval(() => {
         if (socket.isAlive === false) {
           log.info("About to close websocket because socket is no longer alive")
             return socket.close()
         }
-  
+
         socket.isAlive = false
         socket.ping(() => { ping(socket) })
       }, 30000)
@@ -283,7 +283,7 @@ class Envoy {
 
       socket.on("close", async () => {
         log.warn("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
-        
+
         // clear ping/pong interval for keepalive check
         clearInterval(heartbeatInterval)
 
@@ -936,7 +936,6 @@ class Envoy {
     log.normal("Opening a request (#%s) for Agent (%s) signature of payload: typeof '%s'", payload_id, agent_id, typeof payload);
     const event = `${agent_id}/wormhole/request`;
     log.silly(`Agent id: ${agent_id}`);
-    console.log("Event List: ", this.ws_server.eventList(this.opts.NS));
     log.silly("Payload to be signed: %s", msgpack.decode(payload));
     if (this.ws_server.eventList(this.opts.NS).includes(event) === false) {
       log.warn("Trying to get signature from unknown Agent (%s)", agent_id);

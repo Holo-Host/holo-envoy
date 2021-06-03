@@ -21,13 +21,14 @@ async function init (lair_socket, shim_socket, signing_handler) {
     connections.push({
       lair: lair_stream,
       conductor: conductor_stream,
-      parser: parser
+      parser: parser,
     })
 
     lair_stream.pipe(conductor_stream)
     conductor_stream.pipe(parser)
 
-    for await (let header of parser) {
+    const promises = []
+    for await (const header of parser) {
       if (header === null) continue
 
       if (
@@ -39,13 +40,24 @@ async function init (lair_socket, shim_socket, signing_handler) {
         const pubkey = request.get(0)
         const message = request.get(1)
         try {
-          const signature = await signing_handler(pubkey, message)
+          const signaturePromise = signing_handler(pubkey, message)
+          // Signing handler returns null immediately without entering async if signing request should go to host.
+          if (signaturePromise !== null) {
+            promises.push((async () => {
+              try {
+                const signature = await signaturePromise
+                log.normal("signature received: %s", inspect(signature))
 
-          if (signature !== null) {
-            let response = new structs.Ed25519.SignByPublicKey.Response(
-              Codec.Signature.decode(signature)
-            )
-            conductor_stream.write(response.toMessage(header.id))
+                let response = new structs.Ed25519.SignByPublicKey.Response(
+                  Codec.Signature.decode(signature)
+                )
+                conductor_stream.write(response.toMessage(header.id))
+              } catch(e) {
+                log.normal("Wormhole failure: %s", inspect(e))
+                const response = new structs.ErrorResponse(`Failed to fulfill hosted signing request: ${inspect(e)}`)
+                conductor_stream.write(response.toMessage(header.id))
+              }
+            })())
             continue
           }
         } catch (e) {
@@ -59,6 +71,7 @@ async function init (lair_socket, shim_socket, signing_handler) {
       log.normal('Forwarding message to Lair')
       header.forward(lair_stream)
     }
+    await Promise.all(promises)
   })
   // Make sure that the socket is accessible to holochain (needs read+write access to connect)
   const prevMask = process.umask(0o000) // 000 on a file results in rw-rw-rw-
