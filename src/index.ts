@@ -657,7 +657,9 @@ class Envoy {
         const responseEncoded = Buffer.from(msgpack.encode(zomeCallResponse)).toString('base64')
 
         // Note: we're calculating bandwidth by size of zomeCallResponse in Bytes (not bits)
-        const bandwidth = Buffer.byteLength(responseEncoded);
+        const inbound_payload_buffer = Buffer.from(JSON.stringify(payload));
+        const outbound_payload_buffer = Buffer.from(JSON.stringify(zomeCallResponse));
+        const bandwidth = Buffer.byteLength(outbound_payload_buffer) + Buffer.byteLength(inbound_payload_buffer)
 
 				const host_metrics = {
 					cpu,
