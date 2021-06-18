@@ -733,7 +733,7 @@ class Envoy {
       let service_log;
       try {
         log.debug("Log service confirmation for Response ID (%s)... for agent_id (%s)", response_id, agent_id);
-        service_log = await this.logServiceConfirmation(client_req, host_res, confirmation);
+        service_log = "no-sl-logs";//await this.logServiceConfirmation(client_req, host_res, confirmation);
         log.info("Service confirmation log hash: %s", service_log);
       } catch (err) {
         const error = `servicelogger.log_service threw: ${String(err)}`
