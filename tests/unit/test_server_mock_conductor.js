@@ -396,7 +396,7 @@ describe("Server with mock Conductor", () => {
     } finally {}
   });
 
-  it.skip("should forward signal to anonymous client", async () => {
+  it("should forward signal to anonymous client", async () => {
     const expectedSignalData = "Hello signal!";
     const dna_hash = "uhC0kKinJMKs4hiOKZh6qAFM5HAKbqF7AY9LQjbnt1vNdy/Gq6NIT"
     const hha_hash = "uhCkkQPqCC-z7xCnp7y5Twm1sShm501ili6_eDDpPo08TrGivDZyn"

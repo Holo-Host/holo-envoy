@@ -237,6 +237,23 @@ class Envoy {
       const hha_hash = url.searchParams.get('hha_hash');
       log.normal("%s (%s) connection for HHA ID: %s", anonymous ? "Anonymous" : "Agent", agent_id, hha_hash);
 
+      // Signal is a message initiated in conductor which is sent to UI. In case to be able to route signals
+      // to appropriate agents UIs we need to be able to identify connection based on agent_id and hha_hash.
+
+      // Create event with unique id so that chaperone can subscribe to it.
+      // On login connection is re-established with new agent.
+      // Don't panic if event already created (might happen on reconnecting)
+      const event_id = this.createEventId(anonymous ? 'anonymous' : agent_id, hha_hash);
+      log.debug(`Creating signal event ${event_id}`);
+      try {
+        this.ws_server.event(event_id, this.opts.NS);
+      } catch(e) {
+        log.debug(`Event ${event_id} already created`);
+      }
+
+      // make sure dna2hha entry exists for given hha
+      this.recordHha(hha_hash);
+
       const installed_app_id = getInstalledAppId(hha_hash, agent_id)
       if (!this.app_states[installed_app_id]) {
         log.normal("initializing app state for installed_app_id %s", installed_app_id)
@@ -256,23 +273,6 @@ class Envoy {
           this.agent_connections[agent_id] = [];
         }
         this.agent_connections[agent_id].push(socket);
-      }
-
-      // Signal is a message initiated in conductor which is sent to UI. In case to be able to route signals
-      // to appropriate agents UIs we need to be able to identify connection based on agent_id and hha_hash.
-
-      // make sure dna2hha entry exists for given hha
-      await this.recordHha(hha_hash);
-      let event_id = this.createEventId(anonymous ? 'anonymous' : agent_id, hha_hash);
-
-      // Create event with unique id so that chaperone can subscribe to it.
-      // On login connection is re-established with new agent.
-      // Don't panic if event already created (might happen on reconnecting)
-      log.debug(`Creating signal event ${event_id}`);
-      try {
-        this.ws_server.event(event_id, this.opts.NS);
-      } catch(e) {
-        log.debug(`Event ${event_id} already created`);
       }
 
       socket.on("close", async () => {
