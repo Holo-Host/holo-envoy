@@ -237,7 +237,7 @@ class Envoy {
       const hha_hash = url.searchParams.get('hha_hash');
       log.normal("%s (%s) connection for HHA ID: %s", anonymous ? "Anonymous" : "Agent", agent_id, hha_hash);
 
-      // Signal is a message initiated in conductor which is sent to UI. In case to be able to route signals
+      // Signal is a message initiated in conductor which is sent to UI. To be able to route signals
       // to appropriate agents UIs we need to be able to identify connection based on agent_id and hha_hash.
 
       // Create event with unique id so that chaperone can subscribe to it.
