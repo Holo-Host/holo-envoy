@@ -125,7 +125,7 @@ class Envoy {
 
   hcc_clients: { app?: HcAppWebSocket, admin?: HcAdminWebSocket } = {};
 
-  dna2hha: any = {};
+  anonymous_app_by_dna: Record<string, { hha_hash: string, anonymous_agent_ids: string[] }> = {};
 
   slUpdateQueue: any[] = [];
 
@@ -237,6 +237,23 @@ class Envoy {
       const hha_hash = url.searchParams.get('hha_hash');
       log.normal("%s (%s) connection for HHA ID: %s", anonymous ? "Anonymous" : "Agent", agent_id, hha_hash);
 
+      // Signal is a message initiated in conductor which is sent to UI. To be able to route signals
+      // to appropriate agents UIs we need to be able to identify connection based on agent_id and hha_hash.
+
+      // Create event with unique id so that chaperone can subscribe to it.
+      // On login connection is re-established with new agent.
+      // Don't panic if event already created (might happen on reconnecting)
+      const event_id = this.createEventId(anonymous ? 'anonymous' : agent_id, hha_hash);
+      log.debug(`Creating signal event ${event_id}`);
+      try {
+        this.ws_server.event(event_id, this.opts.NS);
+      } catch(e) {
+        log.debug(`Event ${event_id} already created`);
+      }
+
+      // make sure dna2hha entry exists for given hha
+      this.recordHha(hha_hash);
+
       const installed_app_id = getInstalledAppId(hha_hash, agent_id)
       if (!this.app_states[installed_app_id]) {
         log.normal("initializing app state for installed_app_id %s", installed_app_id)
@@ -256,29 +273,6 @@ class Envoy {
           this.agent_connections[agent_id] = [];
         }
         this.agent_connections[agent_id].push(socket);
-      }
-
-      // Signal is a message initiated in conductor which is sent to UI. In case to be able to route signals
-      // to appropriate agents UIs we need to be able to identify connection based on agent_id and hha_hash.
-
-      // make sure dna2hha entry exists for given hha
-      await this.recordHha(hha_hash);
-      let event_id = this.createEventId(agent_id, hha_hash);
-
-      // Create event with unique id so that chaperone can subscribe to it.
-      // Events can be passed only to logged-in users, otherwise there's no way to map
-      // signal -> agent+app combo
-      // On login connection is re-established with new agent.
-      // Don't panic if event already created (might happen on reconnecting)
-      if (anonymous) {
-        log.debug(`Skipping creating signal event - anonymous user`);
-      } else {
-        log.debug(`Creating signal event ${event_id}`);
-        try {
-          this.ws_server.event(event_id, this.opts.NS);
-        } catch(e) {
-          log.debug(`Event ${event_id} already created`);
-        }
       }
 
       socket.on("close", async () => {
@@ -901,7 +895,7 @@ class Envoy {
           total_disk_usage: diskUsage
         }
 
-        const hhaHash = this.dna2hha[dnaHash]
+        const hhaHash = this.anonymous_app_by_dna[dnaHash].hha_hash
         if (hhaHash === undefined) {
           log.normal(`Couldn't log disk usage, no hhaHash (so no service logger) for dna ${dnaHash}`)
           return
@@ -1365,25 +1359,25 @@ class Envoy {
       // Does this need to change?
       appInfo.cell_data.forEach(cell => {
         let dna_hash_string = Codec.HoloHash.encode("dna", cell.cell_id[0]); // cell.cell_id[0] is binary buffer of dna_hash
-        this.dna2hha[dna_hash_string] = hha_hash;
+        this.anonymous_app_by_dna[dna_hash_string] = { hha_hash, anonymous_agent_ids: appInfo.cell_data.map(cell => Codec.AgentId.encode(cell.cell_id[1])) };
       });
     }
   }
 
   hhaExists(hha_hash) {
-    return Object.values(this.dna2hha).includes(hha_hash);
+    return Object.values(this.anonymous_app_by_dna).some(anonymous_app => anonymous_app.hha_hash === hha_hash)
   }
 
 
   getHostedDnaHashes () {
-    return Object.keys(this.dna2hha)
+    return Object.keys(this.anonymous_app_by_dna)
   }
 
   async signalHandler(signal) {
-    let cell_id = signal.data.cellId; // const signal: AppSignal = { type: "Signal" , data: { cellId: [dna_hash, agent_id], payload: decodedPayload }};
+    const cell_id = signal.data.cellId; // const signal: AppSignal = { type: "Signal" , data: { cellId: [dna_hash, agent_id], payload: decodedPayload }};
 
     // translate CellId->eventId
-    let event_id = this.cellId2eventId(cell_id);
+    const event_id = this.cellId2eventId(cell_id);
 
     log.info(`Signal handler is emitting event ${event_id}`);
     log.debug(`Signal content: ${signal.data.payload}`);
@@ -1395,13 +1389,15 @@ class Envoy {
     if (cell_id.length != 2) {
       throw new Error(`Wrong cell id: ${cell_id}`);
     }
-    let dna_hash_string = Codec.HoloHash.encode("dna", cell_id[0]); // cell_id[0] is binary buffer of dna_hash
-    let hha_hash = this.dna2hha[dna_hash_string];
+    const dna_hash_string = Codec.HoloHash.encode("dna", cell_id[0]); // cell_id[0] is binary buffer of dna_hash
+    const { hha_hash, anonymous_agent_ids } = this.anonymous_app_by_dna[dna_hash_string];
     if (!hha_hash) {
-      throw new Error(`Can't find hha_hash for DNA: ${cell_id[0]}`);
+      throw new Error(`Can't find hha_hash for DNA: ${dna_hash_string}`);
     }
-    let agent_id_string = Codec.AgentId.encode(cell_id[1]); // cell_id[1] is binary buffer of agent_id
-    return this.createEventId(agent_id_string, hha_hash);
+    const agent_id_string = Codec.AgentId.encode(cell_id[1]); // cell_id[1] is binary buffer of agent_id
+    const anonymous = anonymous_agent_ids.includes(agent_id_string)
+    const agent_for_signal = anonymous ? 'anonymous' : agent_id_string
+      return this.createEventId(agent_for_signal, hha_hash);
   }
 
   createEventId(agent_id, hha_hash) {

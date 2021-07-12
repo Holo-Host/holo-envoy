@@ -32,15 +32,15 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@holo-host/chaperone@^7.1.1":
-  version "7.1.1"
-  resolved "https://registry.yarnpkg.com/@holo-host/chaperone/-/chaperone-7.1.1.tgz#f15b1065c89c0996576d9048b62293652eaa9b48"
-  integrity sha512-9OTaln+QR3JDwRjS49GxKI9l/y/UbBf/PTZbKTirjjo0Ya9yfAAn/2JW4q+hnxhyu7PCf6Ddgb9AnKzaqzGlrQ==
+"@holo-host/chaperone@^7.1.3":
+  version "7.1.3"
+  resolved "https://registry.yarnpkg.com/@holo-host/chaperone/-/chaperone-7.1.3.tgz#e2cdb50df366f9c18ce0313cb500d0e62f2cd9b8"
+  integrity sha512-u6AUSaT2Jp6kNjrjGEO6R/ir4nnAMtUEEnhiTItP2jF3zJphuYPIRxLGJdb99kSjY2p6ndl8hI40K40Wx8Corg==
   dependencies:
     "@holo-host/comb" "^0.2.0"
     "@holo-host/cryptolib" "^0.3.0"
     "@holo-host/data-translator" "^0.1.1"
-    "@holo-host/mock-conductor" "^0.3.1"
+    "@holo-host/mock-conductor" "^0.3.2"
     "@whi/http_utils" "^0.1.0"
     "@whi/printf" "^1.0.0"
     "@whi/stdlog" "^0.3.1"
@@ -73,7 +73,7 @@
   resolved "https://registry.yarnpkg.com/@holo-host/data-translator/-/data-translator-0.1.1.tgz#aefab77086e2a65d88e77f32b1f6a7f18352fdd9"
   integrity sha512-WIg0RDj+VT2yCJPAWJWJdq5e7mfU2Xm3sSc1s6jyT+DlPzKynZ1QeE282DuwuMWeqhNyyW2haGtADTnom5oKuw==
 
-"@holo-host/mock-conductor@^0.3.1", "@holo-host/mock-conductor@^0.3.3":
+"@holo-host/mock-conductor@^0.3.2", "@holo-host/mock-conductor@^0.3.3":
   version "0.3.3"
   resolved "https://registry.yarnpkg.com/@holo-host/mock-conductor/-/mock-conductor-0.3.3.tgz#058d16a50f3635b1dcadabeb625b6263b3fb1e7c"
   integrity sha512-58xtScH7FukZgLwHRuQB999s/sIFKc+4ZwqYLU1JHgoHSPYQK6h8F4lMRamquy9Kowd3n3JrbRG1tF2c1RBB7g==

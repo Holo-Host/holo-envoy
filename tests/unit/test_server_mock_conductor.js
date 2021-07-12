@@ -44,6 +44,7 @@ describe("Server with mock Conductor", () => {
   // alice@test1.holo.host Passw0rd!
   const AGENT_ID = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
   const DNA_HASH = "uhC0kWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
+  const SL_DNA_HASH = "uhC0kHSLbocQFSn5hKAVFc_L34plLD52E37kq6Gw9O3vklQ3Jv7eL"
   const MOCK_CELL_ID = [Codec.HoloHash.decode(DNA_HASH), Codec.AgentId.decode(AGENT_ID)];
   const MOCK_CELL_DATA = {
     cell_data: [{
@@ -51,6 +52,25 @@ describe("Server with mock Conductor", () => {
       cell_nick: DNA_ALIAS
     }]
   };
+  const HOST_AGENT_ID = "uhCAkznM55n7k0VidzF2gHFjr0AXswo3BoDkBBG-8LvvN5atURyAq";
+  const ANONYMOUS_CELL_ID = [Codec.HoloHash.decode(DNA_HASH), Codec.AgentId.decode(HOST_AGENT_ID)];
+  const ANONYMOUS_CELL_DATA = {
+    cell_data: [
+      {
+        cell_id: ANONYMOUS_CELL_ID,
+        cell_nick: DNA_ALIAS,
+      }
+    ]
+  }
+  const SL_CELL_ID = [Codec.HoloHash.decode(SL_DNA_HASH), Codec.AgentId.decode(HOST_AGENT_ID)]
+  const SL_CELL_DATA = {
+    cell_data: [
+      {
+        cell_id: SL_CELL_ID,
+        cell_nick: 'servicelogger',
+      }
+    ]
+  }
 
   let envoy;
   let server;
@@ -83,7 +103,11 @@ describe("Server with mock Conductor", () => {
     await envoy.connected;
   });
   beforeEach('Set-up installed_app_ids for test', async () => {
-    appConductor.any(MOCK_CELL_DATA);
+    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
+    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
+    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
+    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, MOCK_CELL_DATA);
+    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}::servicelogger`}, SL_CELL_DATA);
     // localstorage mock
     const store = {};
     const mockLocalStorage = {
@@ -144,15 +168,11 @@ describe("Server with mock Conductor", () => {
   });
 
   it("should process request and respond", async () => {
-    client = await setup.client({
-      web_user_legend : {
-        "alice.test.1@holo.host": AGENT_ID,
-      }
-    });
+    client = await setup.client({});
 
     try {
       const callZomeData = {
-        cell_id: MOCK_CELL_ID,
+        cell_id: ANONYMOUS_CELL_ID,
         zome_name: "zome",
         fn_name: "zome_fn",
         args: {
@@ -163,7 +183,7 @@ describe("Server with mock Conductor", () => {
       appConductor.once(MockConductor.ZOME_CALL_TYPE, callZomeData, expected_response);
 
       const servicelogData = {
-        cell_id: MOCK_CELL_ID,
+        cell_id: SL_CELL_ID,
         zome_name: "service",
         fn_name: "log_activity",
         args: {
@@ -376,6 +396,30 @@ describe("Server with mock Conductor", () => {
     } finally {}
   });
 
+  it("should forward signal to anonymous client", async () => {
+    const expectedSignalData = "Hello signal!";
+    const dna_hash = "uhC0kKinJMKs4hiOKZh6qAFM5HAKbqF7AY9LQjbnt1vNdy/Gq6NIT"
+    const hha_hash = "uhCkkQPqCC-z7xCnp7y5Twm1sShm501ili6_eDDpPo08TrGivDZyn"
+    const cell_id = [Codec.HoloHash.decode(dna_hash), Codec.HoloHash.decode(AGENT_ID)]
+
+    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: hha_hash }, { cell_data: [{ cell_id }]})
+
+    client = await setup.client({ hha_hash });
+    client.skip_assign_host = true;
+
+    // mock conductor emits signal (has to be the right one)
+    log.debug(`Broadcasting signal via mock conductor`);
+    await appConductor.broadcastAppSignal(cell_id, expectedSignalData);
+
+    // wait for signal to propagate all across
+    await delay(1000)
+
+    // client receives this
+    const receivedSignalData = client.signalStore;
+
+    expect(receivedSignalData).to.equal(expectedSignalData);
+  })
+
   it("should forward signal from conductor to client with prefixed DNA hash", async () => {
     let expectedSignalData = "Hello signal!";
     // Instance of DNA that is emitting signal
@@ -573,7 +617,7 @@ describe("Server with mock Conductor", () => {
     client = await setup.client({})
 
     const callZomeData = {
-      cell_id: MOCK_CELL_ID,
+      cell_id: ANONYMOUS_CELL_ID,
       zome_name: 'zome',
       fn_name: 'zome_fn'
     }
@@ -585,7 +629,7 @@ describe("Server with mock Conductor", () => {
     )
 
     const servicelogData = {
-      cell_id: MOCK_CELL_ID,
+      cell_id: SL_CELL_ID,
       zome_name: 'service',
       fn_name: 'log_activity'
     }
@@ -635,7 +679,7 @@ describe("Server with mock Conductor", () => {
     client = await setup.client({})
 
     const callZomeData = {
-      cell_id: MOCK_CELL_ID,
+      cell_id: ANONYMOUS_CELL_ID,
       zome_name: 'zome',
       fn_name: 'zome_fn'
     }
@@ -648,7 +692,7 @@ describe("Server with mock Conductor", () => {
     )
 
     const servicelogData = {
-      cell_id: MOCK_CELL_ID,
+      cell_id: SL_CELL_ID,
       zome_name: 'service',
       fn_name: 'log_activity'
     }
@@ -677,7 +721,7 @@ describe("Server with mock Conductor", () => {
     client = await setup.client({})
 
     const callZomeData = {
-      cell_id: MOCK_CELL_ID,
+      cell_id: ANONYMOUS_CELL_ID,
       zome_name: 'zome',
       fn_name: 'zome_fn'
     }
@@ -696,7 +740,7 @@ describe("Server with mock Conductor", () => {
     )
 
     const servicelogData = {
-      cell_id: MOCK_CELL_ID,
+      cell_id: SL_CELL_ID,
       zome_name: 'service',
       fn_name: 'log_activity'
     }
@@ -765,8 +809,8 @@ describe("Server with mock Conductor", () => {
 
     adminConductor = new MockConductor(ADMIN_PORT);
     appConductor = new MockConductor(APP_PORT);
-    appConductor.any(MOCK_CELL_DATA);
-
+    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
+    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, MOCK_CELL_DATA);
     // Wait for envoy to reconnect
     await Promise.all([
       new Promise(resolve => adminConductor.adminWss.once("connection", resolve)),
@@ -785,13 +829,13 @@ describe("Server with mock Conductor", () => {
     })
 
     const serviceLoggerCall1 = {
-      cell_id: MOCK_CELL_ID,
+      cell_id: SL_CELL_ID,
       zome_name: "service",
       fn_name: "log_activity1"
     }
 
     const serviceloggerCall2 = {
-      cell_id: MOCK_CELL_ID,
+      cell_id: SL_CELL_ID,
       zome_name: "service",
       fn_name: "log_activity2"
     }
