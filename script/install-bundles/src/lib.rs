@@ -70,6 +70,8 @@ async fn main() -> anyhow::Result<()> {
     let agent_key = hc_sandbox::calls::generate_agent_pub_key(&mut cmd).await?;
 
     // Choose an app id and properties.
+    let ec_id = "ec-uid-cap-test".to_string();
+    let ec_happ = PathBuf::from("../../dnas/elemental-chat.happ");
     // Hosted App with happ_id: uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo
     let test_id = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo".to_string();
     let test_happ = PathBuf::from("../../dnas/test.happ");
@@ -78,8 +80,8 @@ async fn main() -> anyhow::Result<()> {
     let hha_happ = PathBuf::from("../../dnas/holo-hosting-app.happ");
     let sl_id = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo::servicelogger".to_string();
     let sl_happ = PathBuf::from("../../dnas/servicelogger.happ");
-    let ids = [test_id, hha_id, sl_id];
-    let happs = [test_happ, hha_happ, sl_happ];
+    let ids = [ec_id, test_id, hha_id, sl_id];
+    let happs = [ec_happ, test_happ, hha_happ, sl_happ];
 
     // Insatalling test happ
      for i in 0..3_usize {
