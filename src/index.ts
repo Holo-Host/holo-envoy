@@ -596,7 +596,7 @@ class Envoy {
         fn_name: call_spec.function,
         payload: decodedArgs,
         cap: null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
-        provenance: Buffer.from(call_spec.cell_id[1]),
+        provenance: anonymous ? Buffer.from(agent_id) : Buffer.from(call_spec.cell_id[1]),
       }
 
       const prettyZomeCallArgs = {
