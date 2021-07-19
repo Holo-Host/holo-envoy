@@ -79,8 +79,8 @@ async fn main() -> anyhow::Result<()> {
     let hha_id = "holo-hosting-happ".to_string();
     let hha_happ = PathBuf::from("../../dnas/holo-hosting-app.happ");
 
-    let ec_sl_id = "ec-happ-id::servicelogger".to_string();
-    let ec_sl_happ = PathBuf::from("../../dnas/servicelogger.happ");
+    // let ec_sl_id = "ec-happ-id::servicelogger".to_string();
+    // let ec_sl_happ = PathBuf::from("../../dnas/servicelogger.happ");
 
     let test_sl_id = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo::servicelogger".to_string();
     let test_sl_happ = PathBuf::from("../../dnas/servicelogger.happ");
@@ -89,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
     let happs = [ec_happ, test_happ, hha_happ, test_sl_happ]; // ec_sl_happ, 
 
     // Insatalling test happ
-     for i in 0..5_usize {
+     for i in 0..4_usize { // for i in 0..5_usize < increment size when add back in ec_sl_happ
          println!(" Installing {} ", ids[i]);
 
         let a = ProofPayload{
