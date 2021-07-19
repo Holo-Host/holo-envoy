@@ -70,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
     let agent_key = hc_sandbox::calls::generate_agent_pub_key(&mut cmd).await?;
 
     // Choose an app id and properties.
-    let ec_id = "ec-uid-cap-test".to_string();
+    let ec_id = "ec-happ-id".to_string();
     let ec_happ = PathBuf::from("../../dnas/elemental-chat.happ");
     // Hosted App with happ_id: uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo
     let test_id = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo".to_string();
@@ -78,13 +78,18 @@ async fn main() -> anyhow::Result<()> {
     // NB: Make sure the hha app_name matches the harded HHA_INSTALLED_APP_ID value in index.ts
     let hha_id = "holo-hosting-happ".to_string();
     let hha_happ = PathBuf::from("../../dnas/holo-hosting-app.happ");
-    let sl_id = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo::servicelogger".to_string();
-    let sl_happ = PathBuf::from("../../dnas/servicelogger.happ");
-    let ids = [ec_id, test_id, hha_id, sl_id];
-    let happs = [ec_happ, test_happ, hha_happ, sl_happ];
+
+    let ec_sl_id = "ec-happ-id::servicelogger".to_string();
+    let ec_sl_happ = PathBuf::from("../../dnas/servicelogger.happ");
+
+    let test_sl_id = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo::servicelogger".to_string();
+    let test_sl_happ = PathBuf::from("../../dnas/servicelogger.happ");
+
+    let ids = [ec_id, test_id, hha_id, test_sl_id]; // ec_sl_id, 
+    let happs = [ec_happ, test_happ, hha_happ, test_sl_happ]; // ec_sl_happ, 
 
     // Insatalling test happ
-     for i in 0..3_usize {
+     for i in 0..5_usize {
          println!(" Installing {} ", ids[i]);
 
         let a = ProofPayload{
