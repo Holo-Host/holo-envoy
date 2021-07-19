@@ -596,7 +596,7 @@ class Envoy {
         fn_name: call_spec.function,
         payload: decodedArgs,
         cap: null, // Note: when null, this call will pass when the agent has an 'Unrestricted' status (this includes all calls to an agent's own chain)
-        provenance: anonymous ? Buffer.from(agent_id) : Buffer.from(call_spec.cell_id[1]),
+        provenance: anonymous ? Codec.AgentId.decodeToHoloHash(agent_id) : Buffer.from(call_spec.cell_id[1]), // when anonymous, the agent pubkey will not be the cell's agent pubkey
       }
 
       const prettyZomeCallArgs = {
@@ -1242,8 +1242,7 @@ class Envoy {
   }
 
   async getServiceLoggerCellId(hha_hash) {
-    let servicelogger_installed_app_id;
-
+    let servicelogger_installed_app_id
     if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
       servicelogger_installed_app_id = this.opts.hosted_app.servicelogger_id;
     } else {
@@ -1271,11 +1270,12 @@ class Envoy {
     const hha_hash = client_request.request.call_spec.hha_hash;
 
     // This code should be replaceable with this.getServiceLoggerCellId, but for some reason it breaks.
-    let servicelogger_installed_app_id;
+    let servicelogger_installed_app_id
 
     if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
       servicelogger_installed_app_id = this.opts.hosted_app.servicelogger_id;
     } else {
+      console.log('>>>>>>>>>>>>>>>>>>>> hha_hash', hha_hash)
       // NB: There will be a new servicelogger app for each hosted happ (should happen at the time of self-hosted install - prompted in host console.)
       servicelogger_installed_app_id = `${hha_hash}::servicelogger`;
     }
