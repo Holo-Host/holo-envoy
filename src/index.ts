@@ -1275,7 +1275,6 @@ class Envoy {
     if (this.opts.hosted_app && this.opts.hosted_app!.servicelogger_id && this.opts.mode === Envoy.DEVELOP_MODE) {
       servicelogger_installed_app_id = this.opts.hosted_app.servicelogger_id;
     } else {
-      console.log('>>>>>>>>>>>>>>>>>>>> hha_hash', hha_hash)
       // NB: There will be a new servicelogger app for each hosted happ (should happen at the time of self-hosted install - prompted in host console.)
       servicelogger_installed_app_id = `${hha_hash}::servicelogger`;
     }
