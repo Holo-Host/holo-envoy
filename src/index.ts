@@ -44,6 +44,7 @@ const NAMESPACE = "/hosting/";
 const READY_STATES = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
 const WORMHOLE_TIMEOUT = 20_000;
 const CALL_CONDUCTOR_TIMEOUT = WORMHOLE_TIMEOUT + 10_000
+const STORAGE_POLLING_INTERVAL = 24 * 60 * 60 * 1000 // 1 day
 
 interface CallSpec {
   hha_hash: string;
@@ -869,7 +870,7 @@ class Envoy {
 
   startStoragePolling () {
     this.updateStorageUsage()
-    setInterval(this.updateStorageUsage.bind(this), 60 * 1000)
+    setInterval(this.updateStorageUsage.bind(this), STORAGE_POLLING_INTERVAL)
   }
 
   updateStorageUsage () {
