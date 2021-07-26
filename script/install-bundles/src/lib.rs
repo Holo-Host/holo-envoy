@@ -71,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Choose an app id and properties.
     // Hosted App (with ec dna) with happ_id: uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo
-    let ec_id = "uhCkklzn8qJaPj2t-sbQmGLdEMaaRHtr_cCqWsmP6nlboU4dD".to_string();
+    let ec_id = "uhCkklzn8qJaPj2t-sbQmGLdEMaaRHtr_cCqWsmP6nlboU4dDJHRH".to_string();
     let ec_happ = PathBuf::from("../../dnas/elemental-chat.happ");
 
     // Hosted App (with dummy dna) with happ_id: uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo
@@ -82,7 +82,7 @@ async fn main() -> anyhow::Result<()> {
     let hha_id = "holo-hosting-happ".to_string();
     let hha_happ = PathBuf::from("../../dnas/holo-hosting-app.happ");
 
-    let ec_sl_id = "uhCkklzn8qJaPj2t-sbQmGLdEMaaRHtr_cCqWsmP6nlboU4dD::servicelogger".to_string();
+    let ec_sl_id = "uhCkklzn8qJaPj2t-sbQmGLdEMaaRHtr_cCqWsmP6nlboU4dDJHRH::servicelogger".to_string();
     let ec_sl_happ = PathBuf::from("../../dnas/servicelogger.happ");
 
     let test_sl_id = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo::servicelogger".to_string();
