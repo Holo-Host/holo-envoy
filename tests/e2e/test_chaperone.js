@@ -16,7 +16,7 @@ const { inspect } = require('util')
 const HOST_AGENT_ID = 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k'
 log.info("Host Agent ID: %s", HOST_AGENT_ID);
 
-const EC_HAPP_ID = "ec-happ-id"
+const EC_HAPP_ID = "uhCkklzn8qJaPj2t-sbQmGLdEMaaRHtr_cCqWsmP6nlboU4dDJHRH"
 
 const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
 const SUCCESSFUL_JOINING_CODE = Buffer.from(msgpack.encode('joining code')).toString('base64')
