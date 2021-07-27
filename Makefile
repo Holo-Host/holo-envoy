@@ -21,35 +21,37 @@ nix-%:
 dnas:
 	mkdir -p ./dnas
 dnas/holo-hosting-app.happ:	dnas
-	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.1.0-alpha1/holo-hosting-app.happ' -o $@
-dnas/servicelogger.happ:	dnas
-	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.1.0-alpha2/servicelogger.happ' -o $@
+	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/0_1_0_alpha19b/core-app.0_1_0_alpha19b.happ' -o $@
+dnas/servicelogger.happ: dnas
+	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/0_1_0_alpha8b/servicelogger.0_1_0_alpha8b.happ' -o $@
+dnas/elemental-chat.happ: dnas
+	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.2.0-alpha18/elemental-chat.happ' -o $@
 dnas/test.happ:	dnas
-	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.3.0/test.happ' -o $@
+	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.3.0-alpha1/test.happ' -o $@
 
 build: node_modules build/index.js
 docs: node_modules docs/index.html
-DNAs: dnas/test.happ dnas/holo-hosting-app.happ dnas/servicelogger.happ
+DNAs: dnas/holo-hosting-app.happ dnas/servicelogger.happ dnas/elemental-chat.happ dnas/test.happ 
 
 MOCHA_OPTS		= --timeout 10000 --exit
 
-test:			build clean-tmp-shim
+test: build clean-tmp-shim
 	make test-unit;
 	make test-integration;
 	make test-e2e;
 
-test-nix:		build
+test-nix: build
 	make test-unit;
 	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make test-integration
-test-debug:		build clean-tmp-shim
+test-debug: build clean-tmp-shim
 	make test-unit-debug;
 	make test-integration-debug
 	make test-e2e-debug2
 
-test-unit:		build lair
+test-unit: build lair
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make stop-lair
-test-unit-debug:	build lair
+test-unit-debug: build lair
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make stop-lair
 
@@ -88,7 +90,7 @@ stop-conductor:
 clean-conductor:
 	rm -rf ./script/install-bundles/.sandbox
 
-test-integration:	build DNAs
+test-integration: build DNAs
 	make stop-conductor
 	make stop-lair
 	make setup-conductor
@@ -99,27 +101,28 @@ test-integration-debug:	build DNAs stop-lair lair
 	make setup-conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
 
-test-e2e:		build DNAs dist/holo_hosting_chaperone.js
+test-e2e: build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make stop-lair
 	make setup-conductor
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e
-test-e2e-%:		build DNAs dist/holo_hosting_chaperone.js
+test-e2e-%: build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make stop-lair
 	make setup-conductor
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/test_$*.js
-test-e2e-debug:		build DNAs dist/holo_hosting_chaperone.js
+test-e2e-debug: build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make stop-lair
 	make setup-conductor
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e
-test-e2e-debug-%:		build DNAs dist/holo_hosting_chaperone.js
+
+test-e2e-debug-%: build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make stop-lair
 	make setup-conductor
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/test_$*.js
-test-e2e-debug2:	build DNAs dist/holo_hosting_chaperone.js
+test-e2e-debug2: build DNAs dist/holo_hosting_chaperone.js
 	make stop-conductor
 	make stop-lair
 	make setup-conductor
