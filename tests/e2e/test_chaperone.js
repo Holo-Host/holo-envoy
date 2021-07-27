@@ -179,7 +179,7 @@ describe("Client-Server Scenarios", () => {
     })
   }
 
-  it.only("should make valid anonymous zome call", async function() {
+  it("should make valid anonymous zome call", async function() {
     this.timeout(300_000);
     try {
       const { anonymousCallResponse } = await page.evaluate(async function (host_agent_id, ec_happ_id) {
