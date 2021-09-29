@@ -22,21 +22,6 @@ use structopt::StructOpt;
 struct Input {
     #[structopt(short, long, default_value = "holochain")]
     holochain_path: PathBuf,
-    happ: Option<PathBuf>,
-}
-
-/// MembraneProof payload contaiing cell_nick
-#[derive(Debug, Deserialize)]
-pub struct ProofPayload {
-    pub cell_nick: String,
-    /// Base64-encoded MembraneProof.
-    pub proof: String,
-}
-/// payload vec of all the mem_proof for one happ
-/// current implementation is implemented to contain mem_proof for elemental_chat
-#[derive(Debug, Deserialize)]
-pub struct MembraneProofFile {
-    pub payload: Vec<ProofPayload>,
 }
 
 #[tokio::main]
@@ -92,36 +77,31 @@ async fn main() -> anyhow::Result<()> {
     let happs = [ec_happ, test_happ, hha_happ, ec_sl_happ, test_sl_happ];
     // Installing test happ
      for i in 0..5_usize {
-         println!(" Installing ids[{}] = {} ", i, ids[i]);
+        println!(" Installing ids[{}] = {} ", i, ids[i]);
 
-        let a = ProofPayload{
-            cell_nick: "test".to_string(),
-            proof:"rGpvaW5pbmcgY29kZQ==".to_string()
-        };
-        let b = MembraneProofFile{
-            payload: vec![a]
-        };
+        let proofs = [
+            (
+                "elemental-chat".to_string(),
+                "AA=="
+            ),
+            (
+                "test".to_string(),
+                "rGpvaW5pbmcgY29kZQ=="
+            ),
+        ];
 
-        let successful_membrane_proof: Result<HashMap<String, MembraneProof>> = b
-        .payload
-        .into_iter()
-        .map(|p| {
-            base64::decode(p.proof.clone())
-                .map(|proof| (p.cell_nick, MembraneProof::from(UnsafeBytes::from(proof))))
-                .map_err(|e| anyhow!("failed to decode proof: {:?}", e))
-        })
+        let membrane_proofs: HashMap<String, MembraneProof> = std::array::IntoIter::new(proofs)
+        .map(|(nick, proof)| (nick, MembraneProof::from(UnsafeBytes::from(base64::decode( proof).unwrap()))))
         .collect();
 
-        println!("memproof: {:?}", successful_membrane_proof);
-
-         let happ: PathBuf = hc_sandbox::bundles::parse_happ(Some(happs[i].clone()))?;
-         let bundle = AppBundleSource::Path(happ.clone()).resolve().await?;
+        let happ: PathBuf = hc_sandbox::bundles::parse_happ(Some(happs[i].clone()))?;
+        let bundle = AppBundleSource::Path(happ.clone()).resolve().await?;
         // Create the raw InstallAppBundlePayload request.
         let payload = InstallAppBundlePayload {
             installed_app_id: Some(ids[i].clone()),
             agent_key: agent_key.clone(),
             source: AppBundleSource::Bundle(bundle),
-            membrane_proofs: successful_membrane_proof?,
+            membrane_proofs,
             uid: None,
         };
         let r = AdminRequest::InstallAppBundle(Box::new(payload));
