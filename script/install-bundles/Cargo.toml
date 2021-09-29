@@ -11,12 +11,8 @@ path = "src/lib.rs"
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 base64 = "0.13.0"
-holochain_cli_sandbox = {git = "https://github.com/holochain/holochain", rev = "4a17800218369a4d8dbc113e71777580ce55a9da", package = "holochain_cli_sandbox"}
-holochain_conductor_api = {git = "https://github.com/holochain/holochain", rev = "4a17800218369a4d8dbc113e71777580ce55a9da", package = "holochain_conductor_api"}
-holochain_types = {git = "https://github.com/holochain/holochain", rev = "4a17800218369a4d8dbc113e71777580ce55a9da", package = "holochain_types"}
+holochain_cli_sandbox = {git ="https://github.com/holochain/holochain", rev = "a1206a694fe3b521440fe633db99a50b8255c1b2", package = "holochain_cli_sandbox"}
+holochain_conductor_api = {git ="https://github.com/holochain/holochain", rev = "a1206a694fe3b521440fe633db99a50b8255c1b2", package = "holochain_conductor_api"}
+holochain_types = {git ="https://github.com/holochain/holochain", rev = "a1206a694fe3b521440fe633db99a50b8255c1b2", package = "holochain_types"}
 structopt = "0.3"
 tokio = { version = "1.3", features = ["full"] }
-
-[patch.crates-io]
-rkv = { git = "https://github.com/holochain/rkv.git", branch = "master" }
-lmdb-rkv = { git = "https://github.com/holochain/lmdb-rs.git" }

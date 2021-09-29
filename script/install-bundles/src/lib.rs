@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use serde::Deserialize;
 
-use hc_sandbox::calls::ActivateApp;
+use hc_sandbox::calls::EnableApp;
 use hc_sandbox::expect_match;
 use hc_sandbox::CmdRunner;
 use holochain_cli_sandbox as hc_sandbox;
@@ -88,11 +88,11 @@ async fn main() -> anyhow::Result<()> {
     let test_sl_id = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo::servicelogger".to_string();
     let test_sl_happ = PathBuf::from("../../dnas/servicelogger.happ");
 
-    let ids = [ec_id, test_id, hha_id, ec_sl_id, test_sl_id];  
+    let ids = [ec_id, test_id, hha_id, ec_sl_id, test_sl_id];
     let happs = [ec_happ, test_happ, hha_happ, ec_sl_happ, test_sl_happ];
     // Installing test happ
      for i in 0..5_usize {
-         println!(" Installing {} ", ids[i]);
+         println!(" Installing ids[{}] = {} ", i, ids[i]);
 
         let a = ProofPayload{
             cell_nick: "test".to_string(),
@@ -112,6 +112,8 @@ async fn main() -> anyhow::Result<()> {
         })
         .collect();
 
+        println!("memproof: {:?}", successful_membrane_proof);
+
          let happ: PathBuf = hc_sandbox::bundles::parse_happ(Some(happs[i].clone()))?;
          let bundle = AppBundleSource::Path(happ.clone()).resolve().await?;
         // Create the raw InstallAppBundlePayload request.
@@ -127,10 +129,10 @@ async fn main() -> anyhow::Result<()> {
         let installed_app = cmd.command(r).await?;
         // Check you got the correct response and get the inner value.
         let installed_app = expect_match!(installed_app => AdminResponse::AppBundleInstalled, "Failed to install app");
-        // Activate the app using the simple calls api.
-        hc_sandbox::calls::activate_app(
+        // Enable the app using the simple calls api.
+        hc_sandbox::calls::enable_app(
             &mut cmd,
-            ActivateApp {
+            EnableApp {
                 app_id: installed_app.installed_app_id,
             },
         )

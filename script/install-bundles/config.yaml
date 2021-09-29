@@ -6,7 +6,9 @@ encryption_service_uri: ~
 decryption_service_uri: ~
 dpki: ~
 keystore_path: "./shim"
-passphrase_service: ~
+passphrase_service:
+  type: danger_insecure_from_config
+  passphrase: "pass"
 admin_interfaces:
   - driver:
       type: websocket

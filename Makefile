@@ -21,17 +21,17 @@ nix-%:
 dnas:
 	mkdir -p ./dnas
 dnas/holo-hosting-app.happ:	dnas
-	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/0_1_0_alpha19b/core-app.0_1_0_alpha19b.happ' -o $@
+	cp ../holo-hosting-app-rsm/core-app.happ $@
 dnas/servicelogger.happ: dnas
-	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/0_1_0_alpha8b/servicelogger.0_1_0_alpha8b.happ' -o $@
+	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.1.0-alpha11/servicelogger.happ' -o $@
 dnas/elemental-chat.happ: dnas
-	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.2.0-alpha18/elemental-chat.happ' -o $@
+	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.2.0-alpha20/elemental-chat.happ' -o $@
 dnas/test.happ:	dnas
-	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.3.0-alpha1/test.happ' -o $@
+	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.4.0/test.happ' -o $@
 
 build: node_modules build/index.js
 docs: node_modules docs/index.html
-DNAs: dnas/holo-hosting-app.happ dnas/servicelogger.happ dnas/elemental-chat.happ dnas/test.happ 
+DNAs: dnas/holo-hosting-app.happ dnas/servicelogger.happ dnas/elemental-chat.happ dnas/test.happ
 
 MOCHA_OPTS		= --timeout 10000 --exit
 
