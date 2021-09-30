@@ -31,14 +31,12 @@ jobs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('script/setup-install-bundle.sh') }}
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Configure Nix substituters
       run: |
         set -xe
         mkdir -p ~/.config/nix/
         cp ./.github/nix.conf ~/.config/nix/
-    - name: Prepare cargo pkg
-      run: sh ./script/setup-install-bundle.sh
     - name: Prepare Nix environment
       run: nix-shell --command "echo Completed"
     - name: Check Holochain version
