@@ -1,17 +1,17 @@
-use std::path::PathBuf;
 use serde::Deserialize;
+use std::path::PathBuf;
 
+use anyhow::{anyhow, Result};
 use hc_sandbox::calls::EnableApp;
 use hc_sandbox::expect_match;
 use hc_sandbox::CmdRunner;
 use holochain_cli_sandbox as hc_sandbox;
+use holochain_conductor_api::conductor::ConductorConfig;
 use holochain_conductor_api::AdminRequest;
 use holochain_conductor_api::AdminResponse;
-use holochain_conductor_api::conductor::ConductorConfig;
 use holochain_types::prelude::AppBundleSource;
 use holochain_types::prelude::InstallAppBundlePayload;
 use holochain_types::prelude::{MembraneProof, UnsafeBytes};
-use anyhow::{anyhow, Result};
 use std::path::Path;
 
 use std::collections::HashMap;
@@ -35,10 +35,14 @@ async fn main() -> anyhow::Result<()> {
     // let network = KitsuneP2pConfig::default();
 
     // Create a conductor config.
-    let hc_dir =  PathBuf::from("./");
+    let hc_dir = PathBuf::from("./");
     let config = ConductorConfig::load_yaml(Path::new("./config.yaml"))?;
     println!("Generating sandbox..");
-    let path = hc_sandbox::generate::generate_with_config(Some(config), Some(hc_dir.clone()), Some(PathBuf::from(".sandbox")))?;
+    let path = hc_sandbox::generate::generate_with_config(
+        Some(config),
+        Some(hc_dir.clone()),
+        Some(PathBuf::from(".sandbox")),
+    )?;
     println!("Saving in .hc s..");
     hc_sandbox::save::save(hc_dir, vec![path.clone()])?;
 
@@ -67,32 +71,33 @@ async fn main() -> anyhow::Result<()> {
     let hha_id = "holo-hosting-happ".to_string();
     let hha_happ = PathBuf::from("../../dnas/holo-hosting-app.happ");
 
-    let ec_sl_id = "uhCkklzn8qJaPj2t-sbQmGLdEMaaRHtr_cCqWsmP6nlboU4dDJHRH::servicelogger".to_string();
+    let ec_sl_id =
+        "uhCkklzn8qJaPj2t-sbQmGLdEMaaRHtr_cCqWsmP6nlboU4dDJHRH::servicelogger".to_string();
     let ec_sl_happ = PathBuf::from("../../dnas/servicelogger.happ");
 
-    let test_sl_id = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo::servicelogger".to_string();
+    let test_sl_id =
+        "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo::servicelogger".to_string();
     let test_sl_happ = PathBuf::from("../../dnas/servicelogger.happ");
 
     let ids = [ec_id, test_id, hha_id, ec_sl_id, test_sl_id];
     let happs = [ec_happ, test_happ, hha_happ, ec_sl_happ, test_sl_happ];
     // Installing test happ
-     for i in 0..5_usize {
+    for i in 0..5_usize {
         println!(" Installing ids[{}] = {} ", i, ids[i]);
 
         let proofs = [
-            (
-                "elemental-chat".to_string(),
-                "AA=="
-            ),
-            (
-                "test".to_string(),
-                "rGpvaW5pbmcgY29kZQ=="
-            ),
+            ("elemental-chat".to_string(), "AA=="),
+            ("test".to_string(), "rGpvaW5pbmcgY29kZQ=="),
         ];
 
         let membrane_proofs: HashMap<String, MembraneProof> = std::array::IntoIter::new(proofs)
-        .map(|(nick, proof)| (nick, MembraneProof::from(UnsafeBytes::from(base64::decode( proof).unwrap()))))
-        .collect();
+            .map(|(nick, proof)| {
+                (
+                    nick,
+                    MembraneProof::from(UnsafeBytes::from(base64::decode(proof).unwrap())),
+                )
+            })
+            .collect();
 
         let happ: PathBuf = hc_sandbox::bundles::parse_happ(Some(happs[i].clone()))?;
         let bundle = AppBundleSource::Path(happ.clone()).resolve().await?;
