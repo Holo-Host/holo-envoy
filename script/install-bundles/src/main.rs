@@ -1,7 +1,5 @@
-use serde::Deserialize;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
 use hc_sandbox::calls::EnableApp;
 use hc_sandbox::expect_match;
 use hc_sandbox::CmdRunner;
