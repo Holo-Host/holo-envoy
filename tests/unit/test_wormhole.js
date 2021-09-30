@@ -32,7 +32,8 @@ describe("Shim tests", () => {
     });
 
     let shim_client, resp;
-    let recv_unlock = false;
+    let on_receive_unlock_passphrase;
+    const receive_unlock_passphrase = new Promise(resolve => on_receive_unlock_passphrase = resolve)
 
     try {
       shim_client = await lair.connect(CONDUCTOR_SOCKET);
@@ -40,9 +41,10 @@ describe("Shim tests", () => {
 
       shim_client.on('UnlockPassphrase', request => {
         log.normal("Received UnlockPassphrase request");
-        recv_unlock = true;
-        request.reply("Passw0rd!");
+        request.reply("pass");
+        on_receive_unlock_passphrase()
       });
+      await receive_unlock_passphrase
       resp = await shim_client.request(new structs.TLS.CreateCert.Request(512));
     } catch (err) {
       console.error(err);
@@ -54,7 +56,6 @@ describe("Shim tests", () => {
     expect(resp.get(0)).to.be.a('number');
     expect(resp.get(1)).to.be.a('uint8array');
     expect(resp.get(2)).to.be.a('uint8array');
-    expect(recv_unlock).to.be.true;
   });
 
   it("should complete round-trip request to Envoy", async () => {

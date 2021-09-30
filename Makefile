@@ -49,12 +49,15 @@ test-debug: build clean-tmp-shim
 	make test-integration-debug
 	make test-e2e-debug2
 
-test-unit: build lair
+test-unit: build
+	make stop-lair
+	make clean-lair
+	make clean-tmp-shim
+	make lair
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
 	make stop-lair
-test-unit-debug: build lair
-	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
-	make stop-lair
+test-unit-debug:
+	LOG_LEVEL=silly make test-unit
 
 lair:
 	RUST_LOG=trace lair-keystore --lair-dir ./script/install-bundles/keystore &> hc-lair.log &
