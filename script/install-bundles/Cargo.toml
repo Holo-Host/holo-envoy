@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
+anyhow = "1.0"
 base64 = "0.13.0"
 holochain_cli_sandbox = {git ="https://github.com/holochain/holochain", rev = "a1206a694fe3b521440fe633db99a50b8255c1b2", package = "holochain_cli_sandbox"}
 holochain_conductor_api = {git ="https://github.com/holochain/holochain", rev = "a1206a694fe3b521440fe633db99a50b8255c1b2", package = "holochain_conductor_api"}

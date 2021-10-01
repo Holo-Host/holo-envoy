@@ -1931,6 +1931,7 @@ dependencies = [
 name = "install_bundles"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "base64",
  "holochain_cli_sandbox",
  "holochain_conductor_api",
