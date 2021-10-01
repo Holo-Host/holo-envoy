@@ -257,7 +257,7 @@ describe("Client-Server Scenarios", () => {
     await closedPromise
   })
 
-  it("should return 'inactive' appInfo status after app is deactivated", async function() {
+  it("should return 'disabled' appInfo status after app is deactivated", async function() {
     this.timeout(300_000);
     // 1. sign agent in successfully
     const { signupResponse , signoutResponse} = await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {
@@ -310,7 +310,7 @@ describe("Client-Server Scenarios", () => {
     // Delay is added so that the signout calls have time to finish
     await delay(15000);
 
-    // 2. Then make appInfo call using the agent   pubkey (since the agent has signed out and closed their ws, their cell should have been deactivated and the app should return as 'inactive')
+    // 2. Then make appInfo call using the agent   pubkey (since the agent has signed out and closed their ws, their cell should have been deactivated and the app should return as 'disabled')
     // cannot make call from within chaperone instance bc the getAppInfo call doesn't accept provided a `installed_app_id`
     const agentId = 'uhCAksf0kcVKuSnekpvYn1a_b9d1i2-tu6BMoiCbB9hndAA0cwEyU'
     const hhaHash = 'uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo'
@@ -323,7 +323,7 @@ describe("Client-Server Scenarios", () => {
     }
     const appInfoResponse = await rpc_client.call('holo/app_info', { installed_app_id: `${hhaHash}:${agentId}` })
     log.info("Completed appInfo response: %s", appInfoResponse);
-    expect(appInfoResponse.payload.status).equal('inactive')
+    expect(appInfoResponse.payload.status).to.deep.equal({ disabled: { reason: { user: null }}})
     const closedPromise = new Promise(resolve => rpc_client.once("close", resolve))
     rpc_client.close()
     await closedPromise
@@ -331,7 +331,7 @@ describe("Client-Server Scenarios", () => {
 
   it("should sign-up on this Host")
 
-  it("should sign-in, make a zome function call and sign-out for two different agents", async function() {
+  it.only("should sign-in, make a zome function call and sign-out for two different agents", async function() {
     this.timeout(300_000);
     try {
       const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {
@@ -375,7 +375,8 @@ describe("Client-Server Scenarios", () => {
 
         // Delay is added so that the zomeCall has time to finish all the signing required
         //and by signing out too soon it would not be able to get all the signature its needs and the test would fail
-        await delay(15000);
+        await delay(30_000);
+        console.log('^^^^^ signing out now')
         await client.signOut();
         console.log("Bobbo anonymous after sign-up: ", client.anonymous);
 

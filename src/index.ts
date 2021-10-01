@@ -525,20 +525,8 @@ class Envoy {
         if (!appInfo) {
           log.error("Conductor call 'appInfo' returned non-success response: %s", appInfo);
           throw new HoloError(`Failed to call 'appInfo' for installed_app_id'${installed_app_id}'.`);
-        } else if (appInfo.status && appInfo.status!.inactive) {
-          log.error("Conductor call 'appInfo' returned as inactive because: %s", JSON.stringify(appInfo.status!.inactive));
-          if (appInfo.status!.inactive!.reason!.quarantined) {
-             //NB: Occurs when the app was automatically deactivated due to an unrecoverable error by one of its Cells
-            throw new HoloError(`App with installed_app_id'${installed_app_id}' has been quarantined because ${appInfo.status!.inactive!.reason!.quarantined.error}`).toJSON()
-          } else {
-            // return a string rather than rust tuple with null value
-            const status = appInfo.status!.inactive!.reason!.never_activated ? 'never-activated' : 'inactive'
-            appInfo.status = status
-          }
-        } else {
-          // return a string rather than rust tuple with null value
-          appInfo.status = 'active'
         }
+        log.info("appInfo.status", inspect(appInfo.status))
       } catch (err) {
         log.error("Failed during Conductor AppInfo call: %s", String(err));
         if (err instanceof HoloError) {
@@ -775,14 +763,12 @@ class Envoy {
         try {
           const appInfo = await this.callConductor("app", { installed_app_id: installed_app_id });
           // Check that the appInfo result was not null (would indicate app not installed)
-          if (appInfo.installed_app_id !== undefined && !appInfo.status!.inactive) {
+          if (appInfo.installed_app_id !== undefined && appInfo.status.running) {
             log.normal("Completed activateApp process for installed_app_id (%s)", installed_app_id);
             return
-          } else if (appInfo.status!.inactive) {
-            if (appInfo.status!.inactive!.reason!.quarantined) {
-              log.error("'appInfo' revealed app as inactive because: %s", JSON.stringify(appInfo.status!.inactive!.reason!.quarantined.error));
-              throw new HoloError(`Failed to complete activation for installed_app_id'${installed_app_id}'. App Quarantined Error: ${appInfo.status!.inactive!.reason!.quarantined.error}`).toJSON()
-            }
+          } else if (appInfo.status!.disabled?.reason!.error) {
+            log.error("'appInfo' revealed app as permanently disabled because: %s", JSON.stringify(appInfo.status.disabled.reason.error));
+            throw new HoloError(`Failed to complete activation for installed_app_id'${installed_app_id}'. App permanently disabled due to error: ${appInfo.status.disabled.reason.error}`).toJSON()
           }
           throw new HoloError(`Failed to complete activation for installed_app_id'${installed_app_id}'.`).toJSON()
         } catch (appInfoErr) {
@@ -1072,10 +1058,10 @@ class Envoy {
         console.log("CONDUCTOR CALL ERROR: ");
         console.log(error);
 
-        if (error.data.data.includes("GenesisFailure")) {
-          throw new HoloError(error.data.data)
+        if (inspect(error).includes("GenesisFailure")) {
+          throw new HoloError(inspect(error))
         } else {
-          throw new Error(`CONDUCTOR CALL ERROR: ${JSON.stringify(error.data)}`);
+          throw new Error(`CONDUCTOR CALL ERROR: ${inspect(error)}`);
         }
       }
 
