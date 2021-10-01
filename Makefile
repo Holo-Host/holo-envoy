@@ -23,9 +23,7 @@ nix-%:
 dnas:
 	mkdir -p ./dnas
 dnas/elemental-chat.happ: dnas
-	cp ../elemental-chat/elemental-chat.happ $@
-# FIXME update to a release once https://github.com/holochain/elemental-chat/pull/97 is in
-#	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.2.0-alpha20/elemental-chat.happ' -o $@
+	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.2.0-alpha21/elemental-chat.happ' -o $@
 dnas/test.happ:	dnas
 	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.4.0/test.happ' -o $@
 dnas/holo-hosting-app.happ:	dnas
