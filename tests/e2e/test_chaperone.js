@@ -331,7 +331,7 @@ describe("Client-Server Scenarios", () => {
 
   it("should sign-up on this Host")
 
-  it.only("should sign-in, make a zome function call and sign-out for two different agents", async function() {
+  it("should sign-in, make a zome function call and sign-out for two different agents", async function() {
     this.timeout(300_000);
     try {
       const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {

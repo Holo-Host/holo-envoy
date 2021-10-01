@@ -769,7 +769,14 @@ describe("Server with mock Conductor", () => {
         source: 'HoloError',
         error: 'HoloError',
         message:
-          'Error: CONDUCTOR CALL ERROR: {"type":"fake conductor error type","data":"fake conductor error data"}',
+          `Error: \
+CONDUCTOR CALL ERROR: {
+  type: 'error',
+  data: {
+    type: 'fake conductor error type',
+    data: 'fake conductor error data'
+  }
+}`,
         stack: []
       }
     })
