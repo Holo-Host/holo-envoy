@@ -33,6 +33,7 @@ jobs:
       uses: cachix/cachix-action@v10
       with:
         name: holochain-ci
+        authToken: '${{ secrets.CACHIX_HOLOCHAIN_CI }}'
     - name: Prepare Nix environment
       run: nix-shell --command "echo Completed"
     - name: Check Holochain version
