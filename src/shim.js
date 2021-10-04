@@ -76,6 +76,9 @@ async function init (lair_socket, shim_dir, signing_handler) {
     await Promise.all(promises)
   })
   await mkdir(shim_dir, { recursive: true })
+
+  const listening = new Promise(resolve => shim.once('listening', resolve))
+
   // Make sure that the socket is accessible to holochain (needs read+write access to connect)
   const prevMask = process.umask(0o000) // 000 on a file results in rw-rw-rw-
   shim.listen(path.join(shim_dir, 'socket'))
@@ -88,6 +91,8 @@ async function init (lair_socket, shim_dir, signing_handler) {
       )}`
     )
   }
+
+  await listening
 
   return {
     stop () {
