@@ -1,15 +1,6 @@
 node_modules
 dnas
 dist
-.cache
-lib
 build
-docs
-result
-hc-conductor.log
-hc-lair.log
-script/install-bundles/.hc*
-script/install-bundles/.sandbox
-script/install-bundles/keystore
-script/install-bundles/target
-script/install-bundles/shim
+/tmp/
+/log/

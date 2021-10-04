@@ -1,102 +1,81 @@
-const { exec, execSync } = require("child_process");
+const { spawn } = require('child_process')
+const { createWriteStream } = require('fs')
+const { promises: { mkdir, rmdir } } = require('fs')
+const path = require('path')
 
-async function start_lair() {
-  console.log("Starting Lair ...");
-  console.log("Note: See hc-lair.log file for logs");
-  exec("make lair", (error, stdout, stderr) => {
-      if (error) {
-          console.log(`Lair Start Up error: ${error.message}`);
-          return;
-      }
-      if (stderr) {
-          console.log(`Lair Start Up stderr: ${stderr}`);
-          return;
-      }
-      console.log(`Lair Start Up stdout: ${stdout}`);
-  });
-}
-async function stop_lair() {
-  console.log("Stopping Lair ...");
-  exec("make stop-lair", (error, stdout, stderr) => {
-      if (error) {
-          console.log(`Lair stop Up error: ${error.message}`);
-          return;
-      }
-      if (stderr) {
-          console.log(`Lair stop Up stderr: ${stderr}`);
-          return;
-      }
-      console.log(`Lair stop Up stdout: ${stdout}`);
-  });
-}
-async function setup_conductor() {
-  console.log("Setting up Holochain ...");
-  console.log("Note: See hc-conductor.log file for logs");
-  execSync("make setup-conductor", (error, stdout, stderr) => {
-      if (error) {
-          console.log(`Holochain Conductor Start Up error: ${error.message}`);
-          // return;
-      }
-      if (stderr) {
-          console.log(`Holochain Conductor Start Up stderr: ${stderr}`);
-          // return;
-      }
-      console.log(`Holochain Conductor Start Up stdout: ${stdout}`);
-  });
+const testName = path.basename(module.parent.filename, '.js')
+const logDir = path.join(__dirname, '..', 'log', testName)
+const tmpDir = path.join(__dirname, '..', 'tmp')
+const lairDir = path.join(tmpDir, 'keystore')
+const shimDir = path.join(tmpDir, 'shim')
+const holochainConfig = path.join(__dirname, 'holochain-config.yaml')
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+function runCommand(command, ...args) {
+    const logPath = path.join(logDir, `${command}.txt`)
+    console.log(`Executing "${command} ${args.join(' ')}"... (Logs at ${logPath})`);
+    const process = spawn(command, args, {
+        cwd: __dirname
+    })
+    const dead = new Promise(resolve => process.once('exit', resolve))
+    const outfile = createWriteStream(logPath)
+    process.stdout.pipe(outfile)
+    process.stderr.pipe(outfile)
+    const kill = async () => {
+        process.kill()
+        await dead
+    }
+    return kill
 }
 
-async function start_conductor() {
-  console.log("Starting Holochain ...");
-  console.log("Note: See hc-conductor.log file for logs");
-  exec("make conductor", (error, stdout, stderr) => {
-      if (error) {
-          console.log(`Holochain Conductor Start Up error: ${error.message}`);
-          return;
-      }
-      if (stderr) {
-          console.log(`Holochain Conductor Start Up stderr: ${stderr}`);
-          return;
-      }
-      console.log(`Holochain Conductor Start Up stdout: ${stdout}`);
-  });
+let killLair = null
+let killShim = null
+let killHolochain = null
+
+async function start (setup_shim) {
+    await rmdir(tmpDir, { recursive: true })
+    await mkdir(logDir, { recursive: true })
+    await mkdir(shimDir, { recursive: true })
+
+    killLair = runCommand('lair-keystore', '--lair-dir', lairDir)
+    await wait(1_000)
+
+    killShim = setup_shim()
+    await wait(5_000)
+
+    killHolochain = runCommand('holochain', '--config-path', holochainConfig)
+    await wait(5_000)
 }
 
-async function start_conductor_2() {
-  console.log("Starting Holochain ...");
-  console.log("Note: See hc-conductor.log file for logs");
-  exec("make tmp-conductor", (error, stdout, stderr) => {
-      if (error) {
-          console.log(`Holochain Conductor Start Up error: ${error.message}`);
-          return;
-      }
-      if (stderr) {
-          console.log(`Holochain Conductor Start Up stderr: ${stderr}`);
-          return;
-      }
-      console.log(`Holochain Conductor Start Up stdout: ${stdout}`);
-  });
-}
+async function stop () {
+    let killShimError = null
+    try {
+        if (killShim) {
+            console.log('Cleaning up lair shim/envoy')
+            await killShim()
+        }
+    } catch (e) {
+        killShimError = e
+        console.log('Error cleaning up shim:', killShimError)
+    }
 
-async function stop_conductor(timeout) {
-  console.log("Closing Conductor...");
-  exec("make stop-conductor", (error, stdout, stderr) => {
-      if (error) {
-          console.log(`Holochain Conductor Stop error: ${error.message}`);
-          return;
-      }
-      if (stderr) {
-          console.log(`Holochain Conductor Stop stderr: ${stderr}`);
-          return;
-      }
-      console.log(`Holochain Conductor Stop stdout: ${stdout}`);
-  });
+    if (killHolochain) {
+        console.log('Cleaning up holochain')
+        await killHolochain()
+    }
+
+    if (killLair) {
+        console.log('Cleaning up lair')
+        await killLair()
+    }
+
+    if (killShimError) {
+        throw killShimError
+    }
+
 }
 
 module.exports = {
-  start_conductor,
-  start_conductor_2,
-  setup_conductor,
-  stop_conductor,
-  start_lair,
-  stop_lair
+    start, stop
 };

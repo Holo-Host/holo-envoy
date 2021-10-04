@@ -1,11 +1,11 @@
 ---
-environment_path: ./.sandbox
+environment_path: ../tmp/databases
 use_dangerous_test_keystore: false
 signing_service_uri: ~
 encryption_service_uri: ~
 decryption_service_uri: ~
 dpki: ~
-keystore_path: "./shim"
+keystore_path: ../tmp/shim
 passphrase_service:
   type: danger_insecure_from_config
   passphrase: "pass"

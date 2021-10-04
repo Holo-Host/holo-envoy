@@ -1,24 +1,24 @@
 const path = require('path');
+
 const log = require('@whi/stdlog')(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
 const expect = require('chai').expect;
 const puppeteer = require('puppeteer');
 const { Client: RPCWebsocketClient } = require('rpc-websockets')
-const http_servers = require('../setup_http_server.js');
-const setup = require("../setup_envoy.js");
-const setup_conductor = require("../setup_conductor.js");
-const { create_page, fetchServiceloggerCellId, setupServiceLoggerSettings, PageTestUtils, envoy_mode_map, resetTmp, delay } = require("../utils")
 const msgpack = require('@msgpack/msgpack');
-const { inspect } = require('util')
+const { AdminWebsocket } = require('@holochain/conductor-api')
+
+const http_servers = require('../setup_http_server.js');
+const setup_envoy = require("../setup_envoy.js");
+const setup_conductor = require("../setup_conductor.js");
+const installHapps = require("../install_happs")
+const { create_page, setupServiceLoggerSettings, PageTestUtils, envoy_mode_map, delay } = require("../utils")
 
 // NB: The 'host_agent_id' *is not* in the holohash format as it is a holo host pubkey (as generated from the hpos-seed)
 const HOST_AGENT_ID = 'd5xbtnrazkxx8wjxqum7c77qj919pl2agrqd3j2mmxm62vd3k'
 log.info("Host Agent ID: %s", HOST_AGENT_ID);
 
-const EC_HAPP_ID = "uhCkklzn8qJaPj2t-sbQmGLdEMaaRHtr_cCqWsmP6nlboU4dDJHRH"
-
-const REGISTERED_HAPP_HASH = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
 const SUCCESSFUL_JOINING_CODE = Buffer.from(msgpack.encode('joining code')).toString('base64')
 const INVALID_JOINING_CODE = msgpack.encode('Failing joining Code').toString('base64')
 
@@ -56,24 +56,29 @@ const wait_for_browser = browser_handler => new Promise((resolve, reject) => {
 })
 
 describe("Client-Server Scenarios", () => {
-  let envoy, server, browser_handler, browserClient;
+  let envoy, server, browser_handler, browserClient, happs;
   let http_ctrls, http_url, page_url, page;
 
   before('Spin up lair, envoy, conductor, chaperone, and the browser, then sign-in', async function() {
     this.timeout(100_000)
 
-    log.info("Waiting for Lair to spin up")
-    setup_conductor.start_lair()
-    await delay(10000)
+    await setup_conductor.start(() => {
+      log.info("Starting Envoy")
+      // Note: envoy will try to connect to the conductor but the conductor is not started so it needs to retry
+      envoy = setup_envoy.start(envoyOpts)
+      server = envoy.ws_server
 
-    log.info("Starting Envoy")
-    // Note: envoy will try to connect to the conductor but the conductor is not started so it needs to retry
-    envoy = await setup.start(envoyOpts)
-    server = envoy.ws_server
+      return () => {
+        log.info('Stopping Envoy')
+        return setup_envoy.stop()
+      }
+    })
 
-    log.info("Waiting for Conductor to spin up")
-    setup_conductor.start_conductor()
-    await delay(10000);
+    log.info('Installing hApps')
+    const adminWs = await AdminWebsocket.connect('ws://localhost:4444')
+    happs = await installHapps(adminWs)
+
+    await adminWs.attachAppInterface({ port: 42233 })
 
     log.info("Waiting to connect to Conductor")
     await envoy.connected
@@ -84,7 +89,7 @@ describe("Client-Server Scenarios", () => {
     log.info("http servers running")
   }, 500_000)
 
-  beforeEach('reset netwok ws listeners ', async () => {
+  beforeEach('reset network ws listeners ', async () => {
     browser_handler = new BrowserHandler
     await wait_for_browser(browser_handler)
     log.debug("Setup config: %s", http_ctrls.ports)
@@ -121,7 +126,7 @@ describe("Client-Server Scenarios", () => {
 
     // Set logger settings for hosted app (in real word scenario - will be done when host installs app):
     try {
-      const servicelogger_cell_id = await fetchServiceloggerCellId(envoy.hcc_clients.app)
+      const servicelogger_cell_id = happs.test_servicelogger.cell_data[0].cell_id
       console.log("Found servicelogger cell_id: %s", servicelogger_cell_id)
       // NOTE: The host settings must be set prior to creating a service activity log with servicelogger (eg: when making a zome call from web client)
       const logger_settings = await setupServiceLoggerSettings(envoy.hcc_clients.app, servicelogger_cell_id)
@@ -155,20 +160,12 @@ describe("Client-Server Scenarios", () => {
   })
 
   after('Shut down all servers', async () => {
-    log.debug("Shutdown Servers cleanly...")
-    log.debug("Stop holochain...")
-    await setup_conductor.stop_conductor()
+    await setup_conductor.stop()
 
-    log.debug("Close HTTP server...")
-    await http_ctrls.close()
-
-    log.debug("Stop lair...")
-    await setup_conductor.stop_lair()
-
-    log.info("Stopping Envoy...")
-    await setup.stop()
-
-    await resetTmp()
+    if (http_ctrls) {
+      log.debug("Close HTTP server...")
+      await http_ctrls.close()
+    }
   })
 
   const setNetworkEventHandler = (fn) => {
@@ -182,8 +179,8 @@ describe("Client-Server Scenarios", () => {
   it("should make valid anonymous zome call", async function() {
     this.timeout(300_000);
     try {
-      const { anonymousCallResponse } = await page.evaluate(async function (host_agent_id, ec_happ_id) {
-        console.log("ec Happ Hash: %s", ec_happ_id);
+      const { anonymousCallResponse } = await page.evaluate(async function (host_agent_id, hha_hash) {
+        console.log("ec Happ Hash: %s", hha_hash);
         const client = new Chaperone({
           "mode": Chaperone.DEVELOP,
           "web_user_legend": {},
@@ -193,7 +190,7 @@ describe("Client-Server Scenarios", () => {
             "port": 4656,
           },
           host_agent_id, // used to assign host (id generated by hpos-seed)
-          app_id: ec_happ_id, // NOT RANDOM: this needs to match the ec installed app id used during install script
+          app_id: hha_hash, // NOT RANDOM: this needs to match the ec installed app id used during install script
           "timeout": 50000,
           "debug": true,
         });
@@ -213,7 +210,7 @@ describe("Client-Server Scenarios", () => {
         }
 
         return { anonymousCallResponse }
-      }, HOST_AGENT_ID, EC_HAPP_ID);
+      }, HOST_AGENT_ID, happs.chat.installed_app_id);
 
       expect(Object.keys(anonymousCallResponse).length).to.equal(2)
       expect(anonymousCallResponse).to.have.property("agents").which.equals(0)
@@ -301,7 +298,7 @@ describe("Client-Server Scenarios", () => {
       console.log('signoutResponse : ', signoutResponse)
 
       return { signupResponse, signoutResponse }
-    }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, SUCCESSFUL_JOINING_CODE);
+    }, HOST_AGENT_ID, happs.test.installed_app_id, SUCCESSFUL_JOINING_CODE);
 
     log.info("Completed signup response: %s", signupResponse);
     expect(signupResponse).to.equal(true);
@@ -313,15 +310,14 @@ describe("Client-Server Scenarios", () => {
     // 2. Then make appInfo call using the agent   pubkey (since the agent has signed out and closed their ws, their cell should have been deactivated and the app should return as 'disabled')
     // cannot make call from within chaperone instance bc the getAppInfo call doesn't accept provided a `installed_app_id`
     const agentId = 'uhCAksf0kcVKuSnekpvYn1a_b9d1i2-tu6BMoiCbB9hndAA0cwEyU'
-    const hhaHash = 'uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo'
     const rpc_client = new RPCWebsocketClient(
-      `ws://localhost:${envoy.ws_server.port}/hosting/?anonymous=false&hha_hash=${hhaHash}&agent_id=${agentId}`
+      `ws://localhost:${envoy.ws_server.port}/hosting/?anonymous=false&hha_hash=${happs.test.installed_app_id}&agent_id=${agentId}`
     )
     const openedPromise = new Promise(resolve => rpc_client.once('open', resolve))
     if (rpc_client.socket.readyState === 0) {
       await openedPromise
     }
-    const appInfoResponse = await rpc_client.call('holo/app_info', { installed_app_id: `${hhaHash}:${agentId}` })
+    const appInfoResponse = await rpc_client.call('holo/app_info', { installed_app_id: `${happs.test.installed_app_id}:${agentId}` })
     log.info("Completed appInfo response: %s", appInfoResponse);
     expect(appInfoResponse.payload.status).to.deep.equal({ disabled: { reason: { user: null }}})
     const closedPromise = new Promise(resolve => rpc_client.once("close", resolve))
@@ -396,7 +392,7 @@ describe("Client-Server Scenarios", () => {
           responseOne,
           responseTwo
         }
-      }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, SUCCESSFUL_JOINING_CODE);
+      }, HOST_AGENT_ID, happs.test.installed_app_id, SUCCESSFUL_JOINING_CODE);
 
       log.info("Completed evaluation: %s", responseOne);
       log.info("Completed evaluation: %s", responseTwo);
@@ -462,7 +458,7 @@ describe("Client-Server Scenarios", () => {
           signedIn,
           signedOutTwice
         }
-      }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, SUCCESSFUL_JOINING_CODE);
+      }, HOST_AGENT_ID, happs.test.installed_app_id, SUCCESSFUL_JOINING_CODE);
 
       log.info("Completed evaluation signedUp: %s", signedUp);
       log.info("Completed evaluation signedOutONce: %s", signedOutOnce);
@@ -510,7 +506,7 @@ describe("Client-Server Scenarios", () => {
       }
       console.log("Finished signed-up agent: %s", client.agent_id);
       return signupError
-    }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, INVALID_JOINING_CODE);
+    }, HOST_AGENT_ID, happs.test.installed_app_id, INVALID_JOINING_CODE);
 
     log.info("Completed evaluation: %s", signupError);
     expect(signupError.name).to.equal('UserError');
@@ -550,7 +546,7 @@ describe("Client-Server Scenarios", () => {
       }
       console.log("Finished signed-up agent: %s", client.agent_id);
       return signupError
-    }, HOST_AGENT_ID, REGISTERED_HAPP_HASH);
+    }, HOST_AGENT_ID, happs.test.installed_app_id);
 
     log.info("Completed evaluation: %s", signupError)
     expect(signupError.name).to.equal('UserError')
@@ -597,7 +593,7 @@ describe("Client-Server Scenarios", () => {
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
         }
-      }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, SUCCESSFUL_JOINING_CODE);
+      }, HOST_AGENT_ID, happs.test.installed_app_id, SUCCESSFUL_JOINING_CODE);
 
       await page.close()
       page = await create_page(page_url, browser_handler.browser);
@@ -641,7 +637,7 @@ describe("Client-Server Scenarios", () => {
           throw err
         }
         return response
-      }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, SUCCESSFUL_JOINING_CODE);
+      }, HOST_AGENT_ID, happs.test.installed_app_id, SUCCESSFUL_JOINING_CODE);
 
       log.info('Completed evaluation: %s', response)
       expect(response).to.have.property('value').which.equals('This is the returned value')
@@ -658,7 +654,7 @@ describe("Client-Server Scenarios", () => {
         if (JSON.parse(response.payloadData).method === 'holo/call' && callZomeCount === 0) {
           addZomeCallCount()
           log.info('!! closing chaperone client !!')
-          await setup.close_connections(server.wss.clients)
+          await setup_envoy.close_connections(server.wss.clients)
         } else if (JSON.parse(response.payloadData).method === 'holo/call' && callZomeCount >= 1) {
           addZomeCallCount()
         }
@@ -750,7 +746,7 @@ describe("Client-Server Scenarios", () => {
         isChaperoneValid.pendingQueueValid = Object.keys(client.pending_confirms).length === 0
 
         return { hasSignedUp, areEnvoyConnectionsValid, isChaperoneValid, responseSuccess }
-      }, HOST_AGENT_ID, REGISTERED_HAPP_HASH, SUCCESSFUL_JOINING_CODE)
+      }, HOST_AGENT_ID, happs.test.installed_app_id, SUCCESSFUL_JOINING_CODE)
 
       expect(hasSignedUp).to.equal(true)
       expect(areEnvoyConnectionsValid).to.equal(true)
