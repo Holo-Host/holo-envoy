@@ -34,7 +34,7 @@ Arguments
       "anonymous"            : boolean,
       "agent_id"             : string,
       "payload": {
-          "timestamp"        : string,
+          "timestamp"        : number,
           "host_id"          : string,
           "call_spec": {
               "hha_hash"     : string,
