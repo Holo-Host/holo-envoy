@@ -33,7 +33,7 @@ const getInstalledAppId = (hha_hash, agent_id) => {
 }
 
 const WS_SERVER_PORT = 4656; // holo
-const SHIM_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '..', 'tests', 'tmp', 'shim', 'socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim/socket');
+const SHIM_DIR = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '..', 'tests', 'tmp', 'shim') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim');
 const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '..', 'tests', 'tmp', 'keystore', 'socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
 const RPC_CLIENT_OPTS = {
   "reconnect_interval": 1000,
@@ -169,7 +169,7 @@ class Envoy {
   }
 
   async startWormhole() {
-    this.shim = await shimInit(LAIR_SOCKET, SHIM_SOCKET, this.wormhole.bind(this));
+    this.shim = await shimInit(LAIR_SOCKET, SHIM_DIR, this.wormhole.bind(this));
   }
 
   async connections() {
