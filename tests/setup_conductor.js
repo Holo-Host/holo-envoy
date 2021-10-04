@@ -3,7 +3,7 @@ const { createWriteStream } = require('fs')
 const { promises: { mkdir, rmdir } } = require('fs')
 const path = require('path')
 
-const logDir = path.join(__dirname, '..', 'log')
+const logDir = path.join(__dirname, '..', 'log', new Date().toString())
 const tmpDir = path.join(__dirname, '..', 'tmp')
 const lairDir = path.join(tmpDir, 'keystore')
 const shimDir = path.join(tmpDir, 'shim')
