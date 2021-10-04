@@ -75,7 +75,9 @@ async function init (lair_socket, shim_dir, signing_handler) {
     }
     await Promise.all(promises)
   })
+  console.log('### 0')
   await mkdir(shim_dir, { recursive: true })
+  console.log('### 1')
 
   const listening = new Promise(resolve => shim.once('listening', resolve))
 
@@ -93,6 +95,7 @@ async function init (lair_socket, shim_dir, signing_handler) {
   }
 
   await listening
+  console.log('### 2')
 
   return {
     stop () {

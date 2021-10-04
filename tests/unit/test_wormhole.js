@@ -65,11 +65,13 @@ describe("Shim tests", () => {
     shim = await init(LAIR_SOCKET, SHIM_SOCKET, async function(pubkey, message) {
       return fake_signature;
     });
+    console.log('### 3')
 
     let shim_client, resp;
 
     try {
       shim_client = await lair.connect(SHIM_SOCKET);
+      console.log('### 4')
       log.info("Lair client", shim_client);
 
       const pub_key = Buffer.from("3ffae1d875986b6bbac03eb277eee505fc36ca3022968f66fb412c4b477dc51c", "hex");
