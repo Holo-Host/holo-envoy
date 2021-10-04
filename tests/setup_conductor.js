@@ -32,13 +32,21 @@ let killLair = null
 let killShim = null
 let killHolochain = null
 
-async function start ({setup_shim}) {
+async function start_lair () {
+    if (killLair) {
+        throw new Error('previous test not properly cleaned up')
+    }
+
     await rmdir(tmpDir, { recursive: true })
     await mkdir(logDir, { recursive: true })
     await mkdir(shimDir, { recursive: true })
 
     killLair = runCommand('lair-keystore', '--lair-dir', lairDir)
     await wait(1_000)
+}
+
+async function start ({setup_shim}) {
+    await start_lair()
 
     const { kill_shim } = setup_shim()
     killShim = kill_shim
@@ -54,6 +62,7 @@ async function stop () {
         if (killShim) {
             console.log('Cleaning up lair shim/envoy')
             await killShim()
+            killShim = null
         }
     } catch (e) {
         killShimError = e
@@ -63,11 +72,13 @@ async function stop () {
     if (killHolochain) {
         console.log('Cleaning up holochain')
         await killHolochain()
+        killHolochain = null
     }
 
     if (killLair) {
         console.log('Cleaning up lair')
         await killLair()
+        killLair = null
     }
 
     if (killShimError) {
@@ -77,5 +88,5 @@ async function stop () {
 }
 
 module.exports = {
-    start, stop
+    start, stop, start_lair
 };
