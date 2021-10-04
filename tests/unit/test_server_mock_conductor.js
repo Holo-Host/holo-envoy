@@ -4,7 +4,6 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 });
 
 const expect = require('chai').expect;
-const fetch = require('node-fetch');
 const portscanner = require('portscanner');
 const msgpack = require('@msgpack/msgpack');
 

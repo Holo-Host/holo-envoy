@@ -33,8 +33,8 @@ const getInstalledAppId = (hha_hash, agent_id) => {
 }
 
 const WS_SERVER_PORT = 4656; // holo
-const SHIM_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '..', 'tmp', 'shim', 'socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim/socket');
-const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '..', 'tmp', 'keystore', 'socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
+const SHIM_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '..', 'tests', 'tmp', 'shim', 'socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim/socket');
+const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '..', 'tests', 'tmp', 'keystore', 'socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
 const RPC_CLIENT_OPTS = {
   "reconnect_interval": 1000,
   "max_reconnects": 300,

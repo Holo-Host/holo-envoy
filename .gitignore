@@ -2,5 +2,5 @@ node_modules
 dnas
 dist
 build
-/tmp/
-/log/
+/tests/tmp/
+/tests/log/
