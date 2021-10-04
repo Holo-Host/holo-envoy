@@ -43,15 +43,10 @@ MOCHA_OPTS		= --timeout 10000 --exit
 
 test: build
 	make test-unit;
-	make test-integration;
 	make test-e2e;
 
-test-nix: build
-	make test-unit;
-	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make test-integration
 test-debug: build
 	make test-unit-debug;
-	make test-integration-debug
 	make test-e2e-debug2
 
 test-unit: build
