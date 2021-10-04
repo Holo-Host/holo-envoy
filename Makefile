@@ -59,11 +59,6 @@ test-unit: build
 test-unit-debug:
 	LOG_LEVEL=silly make test-unit
 
-test-integration: build DNAs
-	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
-test-integration-debug:	build DNAs
-	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
-
 test-e2e: build DNAs dist/holo_hosting_chaperone.js
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e
 test-e2e-%: build DNAs dist/holo_hosting_chaperone.js
