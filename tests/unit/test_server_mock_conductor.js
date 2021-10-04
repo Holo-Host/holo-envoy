@@ -411,7 +411,7 @@ describe("Server with mock Conductor", () => {
     await appConductor.broadcastAppSignal(cell_id, expectedSignalData);
 
     // wait for signal to propagate all across
-    await delay(1000)
+    await delay(2_000)
 
     // client receives this
     const receivedSignalData = client.signalStore;
