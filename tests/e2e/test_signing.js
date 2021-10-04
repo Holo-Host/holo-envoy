@@ -17,13 +17,17 @@ describe("Wormhole tests", () => {
   before(async function() {
     this.timeout(100_000);
 
-    await setup_conductor.start(() => {
-      shim = init(LAIR_SOCKET, WH_SERVER_PORT, function(pubkey, message) {
-        console.log("Test shim...");
-        return null;
-      });
+    await setup_conductor.start({
+      setup_shim: () => {
+        shim = init(LAIR_SOCKET, WH_SERVER_PORT, function(pubkey, message) {
+          console.log("Test shim...");
+          return null;
+        });
 
-      return async () => await (await shim).stop()
+        return {
+          kill_shim: async () => await (await shim).stop()
+        }
+      }
     })
 
     const adminWs = await AdminWebsocket.connect("ws://localhost:4444/")

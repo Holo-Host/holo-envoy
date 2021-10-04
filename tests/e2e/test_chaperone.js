@@ -62,15 +62,19 @@ describe("Client-Server Scenarios", () => {
   before('Spin up lair, envoy, conductor, chaperone, and the browser, then sign-in', async function() {
     this.timeout(100_000)
 
-    await setup_conductor.start(() => {
-      log.info("Starting Envoy")
-      // Note: envoy will try to connect to the conductor but the conductor is not started so it needs to retry
-      envoy = setup_envoy.start(envoyOpts)
-      server = envoy.ws_server
+    await setup_conductor.start({
+      setup_shim: () => {
+        log.info("Starting Envoy")
+        // Note: envoy will try to connect to the conductor but the conductor is not started so it needs to retry
+        envoy = setup_envoy.start(envoyOpts)
+        server = envoy.ws_server
 
-      return () => {
-        log.info('Stopping Envoy')
-        return setup_envoy.stop()
+        return {
+          kill_shim: () => {
+            log.info('Stopping Envoy')
+            return setup_envoy.stop()
+          }
+        }
       }
     })
 

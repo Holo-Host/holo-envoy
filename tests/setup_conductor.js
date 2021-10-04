@@ -32,7 +32,7 @@ let killLair = null
 let killShim = null
 let killHolochain = null
 
-async function start (setup_shim) {
+async function start ({setup_shim}) {
     await rmdir(tmpDir, { recursive: true })
     await mkdir(logDir, { recursive: true })
     await mkdir(shimDir, { recursive: true })
@@ -40,7 +40,8 @@ async function start (setup_shim) {
     killLair = runCommand('lair-keystore', '--lair-dir', lairDir)
     await wait(1_000)
 
-    killShim = setup_shim()
+    const { kill_shim } = setup_shim()
+    killShim = kill_shim
     await wait(5_000)
 
     killHolochain = runCommand('holochain', '--config-path', holochainConfig)
