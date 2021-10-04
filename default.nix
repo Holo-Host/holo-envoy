@@ -16,8 +16,8 @@ let
        hc = "hc";
      };
      lairKeystoreHashes = {
-        sha256 = "0khg5s5fgdp1sg22vqyzsb2ri7znbxiwl7vr2zx6bwn744wy2cyv";
-        cargoSha256 = "1lm8vrsh7fw7gcir9lq85frfd0rdcca9p7883nikjfbn21ac4sn4";
+        sha256 = "1ibynj1mn1mc59x7b2jn8l1vv9m8czwcvpq81qgbpa52jgjqlf14";
+        cargoSha256 = "1dnfjdk3b4l7ysvm81r061mxly889bbcmg2h11nkgmfj79djka9s";
       };
     };
     holochainOtherDepsNames = ["lair-keystore"];
