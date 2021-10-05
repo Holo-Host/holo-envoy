@@ -14,118 +14,56 @@ docs/index.html:	build/index.js
 .PRECIOUS:	keystore-%.key
 .PHONY:		src build docs docs-watch build-watch
 
+build: node_modules build/index.js
+docs: node_modules docs/index.html
+
 # nix-test, nix-install, ...
 nix-%:
 	nix-shell --run "make $*"
 
+.PHONY: DNAs
+
+DNAs: dnas/holo-hosting-app.happ dnas/servicelogger.happ dnas/elemental-chat.happ dnas/test.happ
+
 dnas:
 	mkdir -p ./dnas
-dnas/holo-hosting-app.happ:	dnas
-	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/0_1_0_alpha19b/core-app.0_1_0_alpha19b.happ' -o $@
-dnas/servicelogger.happ: dnas
-	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/0_1_0_alpha8b/servicelogger.0_1_0_alpha8b.happ' -o $@
 dnas/elemental-chat.happ: dnas
-	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.2.0-alpha18/elemental-chat.happ' -o $@
+	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.2.0-alpha21/elemental-chat.happ' -o $@
 dnas/test.happ:	dnas
-	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.3.0-alpha1/test.happ' -o $@
+	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.4.0/test.happ' -o $@
+dnas/holo-hosting-app.happ:	dnas
+	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.1.1-alpha2/core-app-skip-proof.happ' -o $@
+dnas/servicelogger.happ: dnas
+# servicelogger v0.1.0-alpha11 never requires membrane proofs. If in the future it does require them, make sure to use a download that has `skip_proof: true`
+	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.1.0-alpha11/servicelogger.happ' -o $@
 
-build: node_modules build/index.js
-docs: node_modules docs/index.html
-DNAs: dnas/holo-hosting-app.happ dnas/servicelogger.happ dnas/elemental-chat.happ dnas/test.happ 
+
 
 MOCHA_OPTS		= --timeout 10000 --exit
 
-test: build clean-tmp-shim
+test: build
 	make test-unit;
-	make test-integration;
 	make test-e2e;
 
-test-nix: build
-	make test-unit;
-	CONDUCTOR_LOGS=error,warn LOG_LEVEL=silly make test-integration
-test-debug: build clean-tmp-shim
+test-debug: build
 	make test-unit-debug;
-	make test-integration-debug
 	make test-e2e-debug2
 
-test-unit: build lair
+test-unit: build
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
-	make stop-lair
-test-unit-debug: build lair
-	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/unit/
-	make stop-lair
-
-lair:
-	RUST_LOG=trace lair-keystore --lair-dir ./script/install-bundles/keystore &> hc-lair.log &
-stop-lair:
-	killall lair-keystore &
-clean-lair:
-	rm -rf ./script/install-bundles/keystore
-
-tmp-shim:
-	node script/test-shim-init.js &
-clean-tmp-shim:
-	mkdir -p ./script/install-bundles/shim
-	rm -rf ./script/install-bundles/shim/*
-
-setup-conductor:
-	make lair
-	sleep 5
-	make clean-tmp-shim
-	make tmp-shim
-	sleep 1
-	rm -rf ./script/install-bundles/.sandbox
-	# enforce using nix version of holochain
-	cd script/install-bundles && cargo run -- -h $(shell which holochain)
-	make stop-lair
-	make clean-tmp-shim
-conductor:
-	cd script/install-bundles && hc sandbox -f=4444 run -l -p=42233 > ../../hc-conductor.log 2>&1 &
-tmp-conductor:
-	cd script/install-bundles && hc sandbox run -l -p=42244 > ../../hc-conductor.log 2>&1 &
-
-stop-conductor:
-	yarn run stop-conductor
-	yarn run stop-hc
-clean-conductor:
-	rm -rf ./script/install-bundles/.sandbox
-
-test-integration: build DNAs
-	make stop-conductor
-	make stop-lair
-	make setup-conductor
-	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
-test-integration-debug:	build DNAs stop-lair lair
-	make stop-conductor
-	make stop-lair
-	make setup-conductor
-	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/integration/
+test-unit-debug:
+	LOG_LEVEL=silly make test-unit
 
 test-e2e: build DNAs dist/holo_hosting_chaperone.js
-	make stop-conductor
-	make stop-lair
-	make setup-conductor
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e
 test-e2e-%: build DNAs dist/holo_hosting_chaperone.js
-	make stop-conductor
-	make stop-lair
-	make setup-conductor
 	NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/test_$*.js
 test-e2e-debug: build DNAs dist/holo_hosting_chaperone.js
-	make stop-conductor
-	make stop-lair
-	make setup-conductor
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e
 
 test-e2e-debug-%: build DNAs dist/holo_hosting_chaperone.js
-	make stop-conductor
-	make stop-lair
-	make setup-conductor
 	LOG_LEVEL=silly NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/test_$*.js
 test-e2e-debug2: build DNAs dist/holo_hosting_chaperone.js
-	make stop-conductor
-	make stop-lair
-	make setup-conductor
 	LOG_LEVEL=silly CONDUCTOR_LOGS=error,warn NODE_ENV=test npx mocha $(MOCHA_OPTS) ./tests/e2e/
 
 docs-watch:

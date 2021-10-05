@@ -5,16 +5,18 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 const { inspect } = require('util')
 
 const net = require('net')
+const { promises: { mkdir } } = require('fs')
 
 const { structs, MessageParser } = require('@holochain/lair-client')
 const { Codec } = require('@holo-host/cryptolib')
 
-async function init (lair_socket, shim_socket, signing_handler) {
+async function init (lair_socket, shim_dir, signing_handler) {
   log.normal('init wormhole')
   let connections = []
 
   const shim = net.createServer(async function (conductor_stream) {
     log.info('New conductor connections')
+
     const lair_stream = net.createConnection(lair_socket)
     const parser = new MessageParser()
 
@@ -73,9 +75,13 @@ async function init (lair_socket, shim_socket, signing_handler) {
     }
     await Promise.all(promises)
   })
+  await mkdir(shim_dir, { recursive: true })
+
+  const listening = new Promise(resolve => shim.once('listening', resolve))
+
   // Make sure that the socket is accessible to holochain (needs read+write access to connect)
   const prevMask = process.umask(0o000) // 000 on a file results in rw-rw-rw-
-  shim.listen(shim_socket)
+  shim.listen(path.join(shim_dir, 'socket'))
   // Reset umask and check if it changed since we last set it
   const prevMask2 = process.umask(prevMask)
   if (prevMask2 !== 0o000) {
@@ -85,6 +91,8 @@ async function init (lair_socket, shim_socket, signing_handler) {
       )}`
     )
   }
+
+  await listening
 
   return {
     stop () {

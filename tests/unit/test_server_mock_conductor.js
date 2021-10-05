@@ -4,7 +4,6 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 });
 
 const expect = require('chai').expect;
-const fetch = require('node-fetch');
 const portscanner = require('portscanner');
 const msgpack = require('@msgpack/msgpack');
 
@@ -154,12 +153,16 @@ describe("Server with mock Conductor", () => {
     }
   });
   after("Close mock conductor with envoy", async () => {
-    log.info("Stopping Envoy...");
-    await setup.stop();
+    try {
+      log.info("Stopping Envoy...");
+      await setup.stop();
 
-    log.info("Stopping Conductor...");
-    await adminConductor.close();
-    await appConductor.close();
+    } finally {
+      log.info("Stopping Conductor...");
+      await adminConductor.close();
+      await appConductor.close();
+    }
+
   });
 
   it("should encode and decode back agent id", async () => {
@@ -412,7 +415,7 @@ describe("Server with mock Conductor", () => {
     await appConductor.broadcastAppSignal(cell_id, expectedSignalData);
 
     // wait for signal to propagate all across
-    await delay(1000)
+    await delay(2_000)
 
     // client receives this
     const receivedSignalData = client.signalStore;
@@ -769,7 +772,14 @@ describe("Server with mock Conductor", () => {
         source: 'HoloError',
         error: 'HoloError',
         message:
-          'Error: CONDUCTOR CALL ERROR: {"type":"fake conductor error type","data":"fake conductor error data"}',
+          `Error: \
+CONDUCTOR CALL ERROR: {
+  type: 'error',
+  data: {
+    type: 'fake conductor error type',
+    data: 'fake conductor error data'
+  }
+}`,
         stack: []
       }
     })

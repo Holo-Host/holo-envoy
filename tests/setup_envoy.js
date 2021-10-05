@@ -3,10 +3,6 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
 
-const fs = require('fs');
-const {
-  Codec
-} = require("@holo-host/cryptolib");
 
 const {
   Envoy
@@ -18,24 +14,25 @@ const { config } = require('fetch-mock');
 
 
 let envoy;
-const clients = [];
 
-async function start_envoy(opts = {}) {
+function start_envoy(opts = {}) {
   envoy = new Envoy(opts);
   return envoy;
 }
 
 async function close_ws_connections(clients) {
-  for (let [i, client] of clients.entries()) {  
+  for (let [i, client] of clients.entries()) {
     log.debug("Closing Chaperone client[%s]: %o", i); // locate and display url in log
     await client.close();
   }
 }
 
 async function stop_envoy() {
-  await close_ws_connections(envoy.ws_server.wss.clients)
-  log.debug("Closing Envoy...");
-  await envoy.close();
+  if (envoy) {
+    await close_ws_connections(envoy.ws_server.wss.clients)
+    log.debug("Closing Envoy...");
+    await envoy.close();
+  }
 }
 
 async function create_client({ mode, port, hha_hash, agent_id, web_user_legend, timeout }) {
