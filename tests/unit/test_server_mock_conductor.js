@@ -153,12 +153,16 @@ describe("Server with mock Conductor", () => {
     }
   });
   after("Close mock conductor with envoy", async () => {
-    log.info("Stopping Envoy...");
-    await setup.stop();
+    try {
+      log.info("Stopping Envoy...");
+      await setup.stop();
 
-    log.info("Stopping Conductor...");
-    await adminConductor.close();
-    await appConductor.close();
+    } finally {
+      log.info("Stopping Conductor...");
+      await adminConductor.close();
+      await appConductor.close();
+    }
+
   });
 
   it("should encode and decode back agent id", async () => {

@@ -9,7 +9,7 @@ const {
 const setup_conductor = require("../setup_conductor.js");
 const { init } = require("../../src/shim.js");
 const installHapps = require('../install_happs.js');
-const SHIM_SOCKET = path.resolve(__dirname, '..', 'tmp', 'shim', 'socket');
+const SHIM_DIR = path.resolve(__dirname, '..', 'tmp', 'shim');
 const LAIR_SOCKET = path.resolve(__dirname, '..', 'tmp', 'keystore', 'socket');
 
 describe("Wormhole tests", () => {
@@ -19,7 +19,7 @@ describe("Wormhole tests", () => {
 
     await setup_conductor.start({
       setup_shim: () => {
-        shim = init(LAIR_SOCKET, SHIM_SOCKET, function(pubkey, message) {
+        shim = init(LAIR_SOCKET, SHIM_DIR, function(pubkey, message) {
           console.log("Test shim...");
           return null;
         });

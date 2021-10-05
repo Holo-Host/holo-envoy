@@ -10,7 +10,8 @@ const { init } = require("../../src/shim.js");
 const setup_conductor = require('../setup_conductor')
 
 const LAIR_SOCKET = path.resolve(__dirname, '../tmp/keystore/socket');
-const SHIM_SOCKET = path.resolve(__dirname, '../tmp/shim/socket');
+const SHIM_DIR = path.resolve(__dirname, '../tmp/shim');
+const SHIM_SOCKET = path.resolve(SHIM_DIR, 'socket')
 
 describe("Shim tests", () => {
   let shim;
@@ -30,10 +31,9 @@ describe("Shim tests", () => {
   });
 
   it("should complete round-trip request to Lair", async () => {
-    shim = await init(LAIR_SOCKET, SHIM_SOCKET, async function(pubkey, message) {
+    shim = await init(LAIR_SOCKET, SHIM_DIR, async function(pubkey, message) {
       return fake_signature;
     });
-    console.log('### 3')
 
     let shim_client, resp;
     let on_receive_unlock_passphrase;
@@ -41,7 +41,6 @@ describe("Shim tests", () => {
 
     try {
       shim_client = await lair.connect(SHIM_SOCKET);
-      console.log('### 4')
       log.info("Lair client", shim_client);
 
       shim_client.on('UnlockPassphrase', request => {
@@ -64,7 +63,7 @@ describe("Shim tests", () => {
   });
 
   it("should complete round-trip request to Envoy", async () => {
-    shim = await init(LAIR_SOCKET, SHIM_SOCKET, async function(pubkey, message) {
+    shim = await init(LAIR_SOCKET, SHIM_DIR, async function(pubkey, message) {
       return fake_signature;
     });
 
@@ -92,7 +91,7 @@ describe("Shim tests", () => {
     const concurrent_requests = 5
     const pending_requests = []
 
-    shim = await init(LAIR_SOCKET, SHIM_SOCKET, async function(pubkey, message) {
+    shim = await init(LAIR_SOCKET, SHIM_DIR, async function(pubkey, message) {
       log.info("Signing request sent. Pending: %s", pending_requests.length)
       if (message === Buffer.from("standalone", "utf8")) {
         return fake_signature
