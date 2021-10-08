@@ -715,7 +715,7 @@ class Envoy {
 
     const installed_app_id = getInstalledAppId(hha_hash, agent_id);
 
-    log.normal('Is app already activating: ', this.app_is_activating[installed_app_id]);
+    log.normal('Is app already activating: ', this.app_is_activating[installed_app_id] ?? false);
 
     while (this.app_is_activating[installed_app_id]) {
       await delay(5000)

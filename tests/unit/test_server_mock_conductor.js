@@ -128,18 +128,8 @@ describe("Server with mock Conductor", () => {
   afterEach("Close client", async function() {
     this.timeout(20_000)
     if (client && client.opened) {
-      if (!client.anonymous) {
-        let onDeactivateApp
-        const appDeactivated = new Promise((resolve, reject) => onDeactivateApp = resolve)
-        const installed_app_id = `${client.hha_hash}:${client.agent_id}`
-        adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id }, onDeactivateApp)
-        log.info("Closing client...");
-        await client.close();
-        await appDeactivated
-      } else {
-        log.info("Closing client...");
-        await client.close();
-      }
+      log.info("Closing client...");
+      await client.close();
       const unusedAdminResponses = Object.entries(adminConductor.responseQueues).filter(([fn, queue]) => queue.length !== 0)
       if (unusedAdminResponses.length) {
         log.warn("Mock admin conductor contains unused responses: %j", unusedAdminResponses)
@@ -540,80 +530,6 @@ describe("Server with mock Conductor", () => {
   it("should fail to sign-in because this host doesn't know this Agent");
   it("should handle obscure error from Conductor");
   it("should disconnect Envoy's websocket clients on conductor disconnect");
-
-  it("should call deactivate on conductor when client disconnects", async function() {
-    this.timeout(20_000)
-    const agent_id = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
-    let activateAppCalled = false;
-    let deactivateAppCalled = false;
-    let onDeactivateApp;
-    const deactivateAppPromise = new Promise((resolve, reject) => onDeactivateApp = resolve);
-
-    adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
-      activateAppCalled = true;
-      return { type: "success" }
-    });
-
-    adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${agent_id}` }, () => {
-      deactivateAppCalled = true;
-      onDeactivateApp();
-      return { type: "success" }
-    });
-
-    client = await setup.client({});
-
-    expect(activateAppCalled).to.be.false;
-    expect(deactivateAppCalled).to.be.false;
-
-    await client.signIn("alice.test.1@holo.host", "Passw0rd!");
-
-    expect(activateAppCalled).to.be.true;
-    expect(deactivateAppCalled).to.be.false;
-
-    await client.close();
-    await delay(2500);
-    // shouldn't deactivate too soon after activating
-    expect(deactivateAppCalled).to.be.false;
-    await deactivateAppPromise;
-    expect(deactivateAppCalled).to.be.true;
-  });
-
-  it("should call deactivate on conductor when client signs out", async function() {
-    this.timeout(20_000)
-    let activateAppCalled = false;
-    let deactivateAppCalled = false;
-    let onDeactivateApp;
-    const deactivateAppPromise = new Promise((resolve, reject) => onDeactivateApp = resolve);
-
-    adminConductor.once(MockConductor.ACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, () => {
-      activateAppCalled = true;
-      return { type: "success" }
-    });
-
-    adminConductor.once(MockConductor.DEACTIVATE_APP_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, () => {
-      deactivateAppCalled = true;
-      onDeactivateApp();
-      return { type: "success" }
-    });
-
-
-    client = await setup.client({});
-
-    expect(activateAppCalled).to.be.false;
-    expect(deactivateAppCalled).to.be.false;
-
-    await client.signIn("alice.test.1@holo.host", "Passw0rd!");
-
-    expect(activateAppCalled).to.be.true;
-    expect(deactivateAppCalled).to.be.false;
-
-    await client.signOut();
-    await delay(2500);
-    // shouldn't deactivate too soon after activating
-    expect(deactivateAppCalled).to.be.false;
-    await deactivateAppPromise;
-    expect(deactivateAppCalled).to.be.true;
-  });
 
   // TODO: Why is this failing?
   it.skip('should retry service logger confirm if it fails with head moved', async () => {
