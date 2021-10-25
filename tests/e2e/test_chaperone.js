@@ -59,6 +59,40 @@ describe("Client-Server Scenarios", () => {
   let http_ctrls, http_url, page_url, page;
 
   before('Spin up lair, envoy, conductor, chaperone, and the browser, then sign-in', async function() {
+    // this.timeout(100_000)
+
+    // await setup_conductor.start({
+    //   setup_shim: () => {
+    //     log.info("Starting Envoy")
+    //     // Note: envoy will try to connect to the conductor but the conductor is not started so it needs to retry
+    //     envoy = setup_envoy.start(envoyOpts)
+    //     server = envoy.ws_server
+
+    //     return {
+    //       kill_shim: () => {
+    //         log.info('Stopping Envoy')
+    //         return setup_envoy.stop()
+    //       }
+    //     }
+    //   }
+    // })
+
+    // log.info('Installing hApps')
+    // const adminWs = await AdminWebsocket.connect('ws://localhost:4444')
+    // happs = await installHapps(adminWs)
+
+    // await adminWs.attachAppInterface({ port: 42233 })
+
+    // log.info("Waiting to connect to Conductor")
+    // await envoy.connected
+
+    // log.info("Envoy Connected")
+
+    // http_ctrls = http_servers()
+    // log.info("http servers running")
+  }, 500_000)
+
+  beforeEach('reset network ws listeners ', async function () {
     this.timeout(100_000)
 
     await setup_conductor.start({
@@ -90,9 +124,18 @@ describe("Client-Server Scenarios", () => {
 
     http_ctrls = http_servers()
     log.info("http servers running")
-  }, 500_000)
+    console.log('**************')
+    console.log('**************')
+    console.log('**************')
+    console.log('**************')
+    console.log('**************')
+    console.log('before each')
+    console.log('**************')
+    console.log('**************')
+    console.log('**************')
+    console.log('**************')
+    console.log('**************')
 
-  beforeEach('reset network ws listeners ', async () => {
     browser_handler = new BrowserHandler
     await wait_for_browser(browser_handler)
     log.debug("Setup config: %s", http_ctrls.ports)
@@ -160,15 +203,22 @@ describe("Client-Server Scenarios", () => {
     log.debug("Close browser...")
     await wait_for_browser(browser_handler)
     await browser_handler.browser.close()
-  })
 
-  after('Shut down all servers', async () => {
     await setup_conductor.stop()
 
     if (http_ctrls) {
       log.debug("Close HTTP server...")
       await http_ctrls.close()
     }
+  })
+
+  after('Shut down all servers', async () => {
+    // await setup_conductor.stop()
+
+    // if (http_ctrls) {
+    //   log.debug("Close HTTP server...")
+    //   await http_ctrls.close()
+    // }
   })
 
   const setNetworkEventHandler = (fn) => {
