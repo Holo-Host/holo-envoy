@@ -7,6 +7,7 @@ const expect = require('chai').expect;
 const puppeteer = require('puppeteer');
 const msgpack = require('@msgpack/msgpack');
 const { AdminWebsocket } = require('@holochain/conductor-api')
+const { promises: { mkdir, rmdir } } = require('fs')
 
 const http_servers = require('../setup_http_server.js');
 const setup_envoy = require("../setup_envoy.js");
@@ -94,6 +95,9 @@ describe("Client-Server Scenarios", () => {
 
   beforeEach('reset network ws listeners ', async function () {
     this.timeout(100_000)
+    const SHIM_DIR = path.resolve(__dirname, '..', 'tmp', 'shim')
+    await rmdir(SHIM_DIR, { recursive: true })    
+    await mkdir(SHIM_DIR, { recursive: true })
 
     await setup_conductor.start({
       setup_shim: () => {
@@ -109,6 +113,9 @@ describe("Client-Server Scenarios", () => {
           }
         }
       }
+
+      // await mkdir(SHIM_DIR, { recursive: true })
+
     })
 
     log.info('Installing hApps')

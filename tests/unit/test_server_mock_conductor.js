@@ -3,6 +3,8 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
 
+const { promises: { mkdir, rmdir } } = require('fs')
+
 const expect = require('chai').expect;
 const portscanner = require('portscanner');
 const msgpack = require('@msgpack/msgpack');
@@ -14,6 +16,8 @@ const { Codec } = require('@holo-host/cryptolib');
 const {
   ZomeAPIResult
 } = MockConductor;
+
+const SHIM_DIR = path.resolve(__dirname, '..', 'tmp', 'shim')
 
 const ADMIN_PORT = 4444;
 const FAKE_PORT = 4443;
@@ -88,6 +92,8 @@ describe("Server with mock Conductor", () => {
   }
 
   before("Start mock conductor with envoy and client", async () => {
+    await mkdir(SHIM_DIR, { recursive: true })
+
     await checkPorts([ADMIN_PORT, FAKE_PORT, APP_PORT]);
 
     // FAKE_PORT is used in appConducotr because of the way MockConductor works:
@@ -101,6 +107,7 @@ describe("Server with mock Conductor", () => {
     log.info("Waiting for Conductor connections...");
     await envoy.connected;
   });
+
   beforeEach('Set-up installed_app_ids for test', async () => {
     appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
     appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
@@ -151,6 +158,7 @@ describe("Server with mock Conductor", () => {
       log.info("Stopping Conductor...");
       await adminConductor.close();
       await appConductor.close();
+      await rmdir(SHIM_DIR, { recursive: true })
     }
 
   });
