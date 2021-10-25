@@ -81,9 +81,6 @@ async function init (lair_socket, shim_dir, signing_handler) {
 
   await mkdir(shim_dir, { recursive: true })
 
-  // const listening = new Promise(resolve => shim.once('listening', resolve))
-
-
   shim.listen(path.join(shim_dir, 'socket'))
   // Reset umask and check if it changed since we last set it
   const prevMask2 = process.umask(prevMask)
@@ -94,8 +91,6 @@ async function init (lair_socket, shim_dir, signing_handler) {
       )}`
     )
   }
-
-  // await listening
 
   return {
     stop () {

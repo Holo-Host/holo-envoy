@@ -6,7 +6,6 @@ const path = require('path')
 const logDir = path.join(__dirname, 'log', new Date().toString())
 const tmpDir = path.join(__dirname, 'tmp')
 const lairDir = path.join(tmpDir, 'keystore')
-const shimDir = path.join(tmpDir, 'shim')
 const holochainConfig = path.join(__dirname, 'holochain-config.yaml')
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -37,11 +36,10 @@ async function start_lair () {
         throw new Error('previous test not properly cleaned up')
     }
 
-    await mkdir(logDir, { recursive: true })
-
     await rmdir(tmpDir, { recursive: true })
     await mkdir(tmpDir, { recursive: true })
-    await mkdir(shimDir, { recursive: true })    
+
+    await mkdir(logDir, { recursive: true })
 
     killLair = runCommand('lair-keystore', '--lair-dir', lairDir)
     await wait(1_000)

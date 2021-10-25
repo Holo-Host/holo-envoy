@@ -272,8 +272,6 @@ class Envoy {
         } else {
           const idx = this.agent_connections[agent_id].indexOf(socket);
           delete this.agent_connections[agent_id][idx];
-          // const installed_app_id = getInstalledAppId(hha_hash, agent_id);
-          // TODO maybe delete this.app_states[installed_app_id]
         }
       });
     });
