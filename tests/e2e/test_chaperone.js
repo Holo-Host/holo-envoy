@@ -58,41 +58,7 @@ describe("Client-Server Scenarios", () => {
   let envoy, server, browser_handler, browserClient, happs;
   let http_ctrls, http_url, page_url, page;
 
-  before('Spin up lair, envoy, conductor, chaperone, and the browser, then sign-in', async function() {
-    // this.timeout(100_000)
-
-    // await setup_conductor.start({
-    //   setup_shim: () => {
-    //     log.info("Starting Envoy")
-    //     // Note: envoy will try to connect to the conductor but the conductor is not started so it needs to retry
-    //     envoy = setup_envoy.start(envoyOpts)
-    //     server = envoy.ws_server
-
-    //     return {
-    //       kill_shim: () => {
-    //         log.info('Stopping Envoy')
-    //         return setup_envoy.stop()
-    //       }
-    //     }
-    //   }
-    // })
-
-    // log.info('Installing hApps')
-    // const adminWs = await AdminWebsocket.connect('ws://localhost:4444')
-    // happs = await installHapps(adminWs)
-
-    // await adminWs.attachAppInterface({ port: 42233 })
-
-    // log.info("Waiting to connect to Conductor")
-    // await envoy.connected
-
-    // log.info("Envoy Connected")
-
-    // http_ctrls = http_servers()
-    // log.info("http servers running")
-  }, 500_000)
-
-  beforeEach('reset network ws listeners ', async function () {
+  beforeEach('reset network ws listeners, spin up lair, envoy, conductor, chaperone, and the browser, then sign-in ', async function () {
     this.timeout(100_000)
 
     await setup_conductor.start({
@@ -109,7 +75,6 @@ describe("Client-Server Scenarios", () => {
           }
         }
       }
-
     })
 
     log.info('Installing hApps')
@@ -187,7 +152,7 @@ describe("Client-Server Scenarios", () => {
     })
   })
 
-  afterEach('Close browser', async () => {
+  afterEach('Close browser and shut down all servers', async () => {
     log.debug("Shutdown Browser cleanly...")
     await delay(5_000)
     log.debug("Close browser...")
@@ -200,15 +165,6 @@ describe("Client-Server Scenarios", () => {
       log.debug("Close HTTP server...")
       await http_ctrls.close()
     }
-  })
-
-  after('Shut down all servers', async () => {
-    // await setup_conductor.stop()
-
-    // if (http_ctrls) {
-    //   log.debug("Close HTTP server...")
-    //   await http_ctrls.close()
-    // }
   })
 
   const setNetworkEventHandler = (fn) => {
