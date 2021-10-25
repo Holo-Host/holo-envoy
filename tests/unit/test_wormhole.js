@@ -5,8 +5,6 @@ const log = require('@whi/stdlog')(path.basename(__filename), {
 });
 const expect = require('chai').expect;
 const lair = require('@holochain/lair-client');
-const { promises: { mkdir } } = require('fs')
-
 
 const { init } = require("../../src/shim.js");
 const setup_conductor = require('../setup_conductor')
@@ -21,7 +19,6 @@ describe("Shim tests", () => {
 
   beforeEach(async () => {
     await setup_conductor.start_lair()
-    await mkdir(SHIM_DIR, { recursive: true })
   })
 
 

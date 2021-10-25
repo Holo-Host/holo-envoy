@@ -2,10 +2,10 @@ const path = require('path')
 const log = require('@whi/stdlog')(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal'
 })
-const { inspect } = require('util')
+const { inspect, promisify } = require('util')
 
 const net = require('net')
-// const { promises: { mkdir } } = require('fs')
+const mkdir = promisify(require('fs').mkdir)
 
 const { structs, MessageParser } = require('@holochain/lair-client')
 const { Codec } = require('@holo-host/cryptolib')
@@ -75,12 +75,15 @@ async function init (lair_socket, shim_dir, signing_handler) {
     }
     await Promise.all(promises)
   })
-  // await mkdir(shim_dir, { recursive: true })
+  
+  // Make sure that the socket is accessible to holochain (needs read+write access to connect)
+  const prevMask = process.umask(0o000) // 000 on a file results in rw-rw-rw-
+
+  await mkdir(shim_dir, { recursive: true })
 
   // const listening = new Promise(resolve => shim.once('listening', resolve))
 
-  // Make sure that the socket is accessible to holochain (needs read+write access to connect)
-  const prevMask = process.umask(0o000) // 000 on a file results in rw-rw-rw-
+
   shim.listen(path.join(shim_dir, 'socket'))
   // Reset umask and check if it changed since we last set it
   const prevMask2 = process.umask(prevMask)
