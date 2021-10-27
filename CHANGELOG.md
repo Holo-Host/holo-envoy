@@ -1,7 +1,6 @@
 # Changelog
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [#150](https://github.com/Holo-Host/holo-envoy/pull/150)
 
 ### Added
 
@@ -23,3 +22,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Delete any code related to stopping or starting holochain/lair from the Makefile
   - Delete rust caching in github actions (no more rust code present)
 - Delete `tests/integration` because all of the tests were skipped anyway so it didn't seem worth updating to the new format
+- Simplified the management of activation and deactivation. Envoy no longer tries to deactivate apps, instead let's holochain handle that. [(#152)][]
+
+## [#152](https://github.com/Holo-Host/holo-envoy/pull/152)
