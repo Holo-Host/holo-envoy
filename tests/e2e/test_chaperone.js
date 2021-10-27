@@ -58,7 +58,7 @@ describe("Client-Server Scenarios", () => {
   let envoy, server, browser_handler, browserClient, happs;
   let http_ctrls, http_url, page_url, page;
 
-  before('Spin up lair, envoy, conductor, chaperone, and the browser, then sign-in', async function() {
+  beforeEach('reset network ws listeners, spin up lair, envoy, conductor, chaperone, and the browser, then sign-in ', async function () {
     this.timeout(100_000)
 
     await setup_conductor.start({
@@ -90,9 +90,7 @@ describe("Client-Server Scenarios", () => {
 
     http_ctrls = http_servers()
     log.info("http servers running")
-  }, 500_000)
 
-  beforeEach('reset network ws listeners ', async () => {
     browser_handler = new BrowserHandler
     await wait_for_browser(browser_handler)
     log.debug("Setup config: %s", http_ctrls.ports)
@@ -154,15 +152,13 @@ describe("Client-Server Scenarios", () => {
     })
   })
 
-  afterEach('Close browser', async () => {
+  afterEach('Close browser and shut down all servers', async () => {
     log.debug("Shutdown Browser cleanly...")
     await delay(5_000)
     log.debug("Close browser...")
     await wait_for_browser(browser_handler)
     await browser_handler.browser.close()
-  })
 
-  after('Shut down all servers', async () => {
     await setup_conductor.stop()
 
     if (http_ctrls) {

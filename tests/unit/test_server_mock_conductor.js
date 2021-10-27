@@ -101,6 +101,7 @@ describe("Server with mock Conductor", () => {
     log.info("Waiting for Conductor connections...");
     await envoy.connected;
   });
+
   beforeEach('Set-up installed_app_ids for test', async () => {
     appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
     appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
