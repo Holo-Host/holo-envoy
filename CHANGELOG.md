@@ -1,5 +1,13 @@
 # Changelog
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+## [#153](https://github.com/Holo-Host/holo-envoy/pull/153)
+
+### Changed
+
+- a tmp holochain optimization: [holochain/holochain#1059](https://github.com/holochain/holochain/pull/1059)
+  - Update the post-fix to hosted happ id with the string `###zero###`
 
 ## [#152](https://github.com/Holo-Host/holo-envoy/pull/152)
 

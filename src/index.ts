@@ -29,7 +29,7 @@ const hash = (payload) => {
 
 // Not ever used for anonymous installed_app_ids, which are just the hha_hash
 const getInstalledAppId = (hha_hash, agent_id) => {
-  return `${hha_hash}:${agent_id}`
+  return `${hha_hash}:${agent_id}:###zero###`
 }
 
 const WS_SERVER_PORT = 4656; // holo
