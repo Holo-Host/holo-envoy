@@ -393,7 +393,7 @@ describe("Server with mock Conductor", () => {
 
   it("should forward signal to anonymous client", async () => {
     const expectedSignalData = "Hello signal!";
-    const dna_hash = "uhC0kKinJMKs4hiOKZh6qAFM5HAKbqF7AY9LQjbnt1vNdy/Gq6NIT"
+    const dna_hash = "uhC0kKinJMKs4hiOKZh6qAFM5HAKbqF7AY9LQjbnt1vNdy_Gq6NIT"
     const hha_hash = "uhCkkQPqCC-z7xCnp7y5Twm1sShm501ili6_eDDpPo08TrGivDZyn"
     const cell_id = [Codec.HoloHash.decode(dna_hash), Codec.HoloHash.decode(AGENT_ID)]
 

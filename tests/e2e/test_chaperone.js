@@ -133,7 +133,7 @@ describe("Client-Server Scenarios", () => {
       const logger_settings = await setupServiceLoggerSettings(envoy.hcc_clients.app, servicelogger_cell_id)
       console.log("happ service preferences set in servicelogger as: %s", logger_settings)
     } catch (err) {
-      console.log(typeof err.stack, err.stack.toString())
+      console.log(err)
       throw err
     }
 

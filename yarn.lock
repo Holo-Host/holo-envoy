@@ -32,7 +32,7 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@holo-host/chaperone@^8.0.0":
+"@holo-host/chaperone@^8.0.2":
   version "8.0.2"
   resolved "https://registry.yarnpkg.com/@holo-host/chaperone/-/chaperone-8.0.2.tgz#7a4690b964a823c661e4523d61a9f5aeac4681d0"
   integrity sha512-k4/Xui8oCahsx67xK7txqeYnZxvsrs1DVZgVl/2FfVPSc54UBanWjzZD0yg6qA1HjZMdvCUJk240DRHRr+fWrw==
