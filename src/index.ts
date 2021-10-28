@@ -132,12 +132,7 @@ class Envoy {
 
   awakenSlQueueConsumer: (() => void) | null = null
 
-  app_states: Record<string, {
-    activation_state: 'deactivated' | 'activated' | 'deactivating' | 'activating',
-    desired_activation_state: 'activated' | 'deactivated',
-    activation_state_changed_at: number,
-    desired_activation_state_changed_at: number
-  }> = {};
+  app_is_activating: Record<string, boolean> = {};
 
   static PRODUCT_MODE: number = 0;
   static DEVELOP_MODE: number = 1;
@@ -255,17 +250,6 @@ class Envoy {
       // make sure dna2hha entry exists for given hha
       this.recordHha(hha_hash);
 
-      const installed_app_id = getInstalledAppId(hha_hash, agent_id)
-      if (!this.app_states[installed_app_id]) {
-        log.normal("initializing app state for installed_app_id %s", installed_app_id)
-        this.app_states[installed_app_id] = {
-          activation_state: 'deactivated',
-          activation_state_changed_at: 0,
-          desired_activation_state: 'deactivated',
-          desired_activation_state_changed_at: 0
-        }
-      }
-
       if (anonymous) {
         log.debug(`Adding Agent ${agent_id} to anonymous list with HHA ID ${hha_hash}`);
         this.anonymous_agents[agent_id] = hha_hash;
@@ -288,66 +272,6 @@ class Envoy {
         } else {
           const idx = this.agent_connections[agent_id].indexOf(socket);
           delete this.agent_connections[agent_id][idx];
-          const installed_app_id = getInstalledAppId(hha_hash, agent_id);
-          const app_state = this.app_states[installed_app_id]
-
-          log.normal("app_state prior to deactivation loop: %s", inspect(app_state))
-          app_state.desired_activation_state = 'deactivated'
-          app_state.desired_activation_state_changed_at = Date.now()
-          log.normal('Set desired state to deactivated. actual: %s', this.app_states[installed_app_id].desired_activation_state)
-
-          if (app_state.activation_state === 'deactivated') {
-            log.normal('Skipping deactivation loop because app already assigned to deactive state');
-            return;
-          }
-
-          // start deactivation loop :
-          const when_this_interval = Date.now().toLocaleString()
-          let deactivationInterval = setInterval(() => {
-            log.normal("In deactivation loop for installed_app_id: %s. Checking desired_activation_state: %s", installed_app_id, app_state.desired_activation_state)
-            log.normal("this interval initiated at: %s", when_this_interval)
-            log.normal("app_state inside deactivation loop: %s", inspect(app_state))
-
-            if (app_state.desired_activation_state === 'activated') {
-              log.normal("Clearing deactivation interval initiated at: %s because desired_activation_state is now 'activated'", when_this_interval)
-              clearInterval(deactivationInterval)
-              return
-            }
-
-            // don't deactivate too soon or if currently transitioning
-            if (app_state.activation_state_changed_at + 5000 >= Date.now() ||
-                app_state.desired_activation_state_changed_at + 5000 >= Date.now() ||
-                app_state.activation_state === "deactivating" || app_state.activation_state === "activating"
-            ) {
-              return;
-            }
-            app_state.activation_state = 'deactivating'
-            app_state.activation_state_changed_at = Date.now()
-
-            this.callConductor("admin", "deactivateApp", { installed_app_id })
-            .then(() => {
-              app_state.activation_state = 'deactivated'
-              app_state.activation_state_changed_at = Date.now()
-              log.normal("clearing deactivation interval initiated at: %s because sucessfully deactivated", when_this_interval)
-
-              clearInterval(deactivationInterval)
-            })
-            .catch(err => {
-              log.normal("clearing deactivation interval initiated at: %s because error deactivating", when_this_interval)
-
-              clearInterval(deactivationInterval)
-              if (err.toString().includes("AppNotActive")) {
-                app_state.activation_state = 'deactivated'
-                app_state.activation_state_changed_at = Date.now()
-                log.warn(`Tried to deactivate non active app with installed_app_id: ${installed_app_id}`)
-              } else {
-                app_state.activation_state = 'activated'
-                app_state.activation_state_changed_at = Date.now()
-                log.error("Failed to deactivate app with installed_app_id (%s): %s", installed_app_id, inspect(err));
-              }
-            });
-
-          }, 5000)
         }
       });
     });
@@ -787,60 +711,20 @@ class Envoy {
       return true;
     }
 
-    const when_this_interval = Date.now().toLocaleString()
     const installed_app_id = getInstalledAppId(hha_hash, agent_id);
-    const app_state = this.app_states[installed_app_id]
 
-    log.normal("app_state prior to activation sequence: %s", inspect(app_state))
+    log.normal('Is app already activating: ', this.app_is_activating[installed_app_id] ?? false);
 
-    app_state.desired_activation_state = 'activated'
-    app_state.desired_activation_state_changed_at = Date.now()
-    log.normal('Set desired state to activated. actual: %s', this.app_states[installed_app_id].desired_activation_state)
-
-    if (app_state.activation_state === 'activated') {
-      log.normal('Skipping activation loop because app already assigned to active state');
-      return true;
+    while (this.app_is_activating[installed_app_id]) {
+      await delay(5000)
     }
 
-    let activation_interval
-    // let the record show, we're not happy with this code.
+    this.app_is_activating[installed_app_id] = true
+
     try {
-      await new Promise<void>((resolve, reject) => {
-        const tryToActivate = async () => {
-          log.normal("In activation loop for installed_app_id : %s. Checking desired_activation_state: %s", installed_app_id, app_state.desired_activation_state)
-          log.normal("this interval initiated at: %s", when_this_interval)
-          log.normal("app_state inside activation loop: %s", inspect(app_state))
-
-          if (app_state.desired_activation_state === 'deactivated') {
-            // nobody should ever see this error, because chaperone is disconnected
-            reject('App already trying to deactivate')
-            return
-          }
-
-          // don't try and change state too soon or if already transitioning
-          if (app_state.activation_state_changed_at + 5000 >= Date.now() || app_state.activation_state === "activating" || app_state.activation_state === "deactivating") return
-
-          try {
-            app_state.activation_state = 'activating'
-            app_state.activation_state_changed_at = Date.now()
-            await this.activateApp(installed_app_id)
-            app_state.activation_state = 'activated'
-            app_state.activation_state_changed_at = Date.now()
-            resolve()
-          } catch (e) {
-            log.normal("Encountered error while trying to activate app: %s", String(e));
-            log.info('Setting activation state to deactivated.')
-            app_state.activation_state = 'deactivated'
-            app_state.activation_state_changed_at = Date.now()
-            reject(e)
-          }
-        }
-        tryToActivate()
-        activation_interval = setInterval(tryToActivate, 5000)
-      })
+      await this.activateApp(installed_app_id)
     } finally {
-      log.normal("clearing Activation Interval started at: %s", when_this_interval)
-      clearInterval(activation_interval)
+      delete this.app_is_activating[installed_app_id]
     }
 
     log.normal("Completed sign-in process for installed_app_id (%s)", installed_app_id);

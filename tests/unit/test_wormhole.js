@@ -31,6 +31,7 @@ describe("Shim tests", () => {
   });
 
   it("should complete round-trip request to Lair", async () => {
+
     shim = await init(LAIR_SOCKET, SHIM_DIR, async function(pubkey, message) {
       return fake_signature;
     });

@@ -1,6 +1,13 @@
 # Changelog
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [#152](https://github.com/Holo-Host/holo-envoy/pull/152)
+
+### Changed
+
+- Simplified the management of activation and deactivation. Envoy no longer tries to deactivate apps, instead lets holochain handle that.
+- Lair shim automatically creates the directory it needs.
+
 ## [#150](https://github.com/Holo-Host/holo-envoy/pull/150)
 
 ### Added

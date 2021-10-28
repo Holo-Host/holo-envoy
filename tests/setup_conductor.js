@@ -37,8 +37,9 @@ async function start_lair () {
     }
 
     await rmdir(tmpDir, { recursive: true })
-    await mkdir(logDir, { recursive: true })
     await mkdir(tmpDir, { recursive: true })
+
+    await mkdir(logDir, { recursive: true })
 
     killLair = runCommand('lair-keystore', '--lair-dir', lairDir)
     await wait(1_000)
