@@ -40,6 +40,7 @@ describe("Server with mock Conductor", () => {
   // ** must match the hha_hash pased to the chaperone server (in setup_envoy.js)
   const HOSTED_INSTALLED_APP_ID = "uhCkkCQHxC8aG3v3qwD_5Velo1IHE1RdxEr9-tuNSK15u73m1LPOo"
   const DNA_ALIAS = "dna_alias";
+  const HOLO_SUFFIX = ":###zero###";
   // alice@test1.holo.host Passw0rd!
   const AGENT_ID = "uhCAk6n7bFZ2_28kUYCDKmU8-2K9z3BzUH4exiyocxR6N5HvshouY";
   const DNA_HASH = "uhC0kWCsAgoKkkfwyJAglj30xX_GLLV-3BXuFy436a2SqpcEwyBzm";
@@ -106,7 +107,7 @@ describe("Server with mock Conductor", () => {
     appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
     appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
     appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
-    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, MOCK_CELL_DATA);
+    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}${HOLO_SUFFIX}` }, MOCK_CELL_DATA);
     appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}::servicelogger`}, SL_CELL_DATA);
     // localstorage mock
     const store = {};
@@ -260,7 +261,7 @@ describe("Server with mock Conductor", () => {
       };
       appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_1_details_response);
 
-      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${agentId}`
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${agentId}${HOLO_SUFFIX}`
 
       const appInfo = {
         installed_app_id,
@@ -314,7 +315,7 @@ describe("Server with mock Conductor", () => {
       };
       appConductor.once(MockConductor.ZOME_CALL_TYPE, hhaData, happ_bundle_2_details_response);
 
-      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}${HOLO_SUFFIX}`
 
       const appInfo = {
         installed_app_id,
@@ -358,7 +359,7 @@ describe("Server with mock Conductor", () => {
     client.skip_assign_host = true;
 
     try {
-      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}${HOLO_SUFFIX}`
 
       const appInfo = {
         installed_app_id,
@@ -424,7 +425,7 @@ describe("Server with mock Conductor", () => {
     client.skip_assign_host = true;
 
     try {
-      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}`
+      const installed_app_id = `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}${HOLO_SUFFIX}`
 
       const appInfo = {
         installed_app_id,
@@ -737,7 +738,7 @@ CONDUCTOR CALL ERROR: {
     adminConductor = new MockConductor(ADMIN_PORT);
     appConductor = new MockConductor(APP_PORT);
     appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: HOSTED_INSTALLED_APP_ID }, ANONYMOUS_CELL_DATA);
-    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}` }, MOCK_CELL_DATA);
+    appConductor.once(MockConductor.APP_INFO_TYPE, { installed_app_id: `${HOSTED_INSTALLED_APP_ID}:${AGENT_ID}${HOLO_SUFFIX}` }, MOCK_CELL_DATA);
     // Wait for envoy to reconnect
     await Promise.all([
       new Promise(resolve => adminConductor.adminWss.once("connection", resolve)),
