@@ -627,6 +627,10 @@ class Envoy {
     // Chaperone Call to Envoy Server to confirm service
     this.ws_server.register("holo/service/confirm", async ([response_id, response_signature, confirmation]) => {
       log.normal("Received confirmation request for call response (%s)...", response_id);
+      if (process.env.SKIP_LOG_ACTIVITY) {
+        log.silly("Skipping confirmation request")
+        return new Package(true, { "type": "success" }, { response_id });
+      }
       if (typeof response_id !== "string") {
         log.error("Invalid type '%s' for response ID, should be of type 'string'", typeof response_id);
         return false;
@@ -1049,6 +1053,10 @@ class Envoy {
   }
 
   addPendingConfirmation(response_id, client_req, host_res, agent_id) {
+    if (process.env.SKIP_LOG_ACTIVITY) {
+      log.silly("Skipping addPendingConfirmation")
+      return
+    }
     log.info("Add response ID (%s)... from pending confirmations", response_id);
     log.silly("Add response ID (%s)... to pending confirmations for Agent (%s) with client request (%s) and host response (%s)", response_id, agent_id, client_req, host_res);
     this.pending_confirms[response_id] = {
