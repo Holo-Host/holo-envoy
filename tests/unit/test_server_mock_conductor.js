@@ -166,6 +166,7 @@ describe("Server with mock Conductor", () => {
     client = await setup.client({});
 
     try {
+      let sl_called = false
       const callZomeData = {
         cell_id: ANONYMOUS_CELL_ID,
         zome_name: "zome",
@@ -186,7 +187,10 @@ describe("Server with mock Conductor", () => {
         }
       };
       const activity_log_response = 'Activity Log Success Hash';
-      appConductor.once(MockConductor.ZOME_CALL_TYPE, servicelogData, activity_log_response);
+      appConductor.once(MockConductor.ZOME_CALL_TYPE, servicelogData, () => {
+        sl_called = true
+        return activity_log_response
+      });
 
       const response = await client.callZomeFunction("dna_alias", "zome", "zome_fn", {
         zomeFnArgs: "String Input"
@@ -194,7 +198,58 @@ describe("Server with mock Conductor", () => {
 
       log.debug("Response: %s", response);
       expect(response).to.equal("Hello World");
+      await delay(1000)
+      expect(sl_called).to.be.true
     } finally {}
+  });
+
+  it("should process request and respond with SKIP_LOG_ACTIVITY=true", async () => {
+    const old_env_val = process.env.SKIP_LOG_ACTIVITY
+    client = await setup.client({});
+
+    try {
+      process.env.SKIP_LOG_ACTIVITY = "true"
+      let sl_called = false
+      const callZomeData = {
+        cell_id: ANONYMOUS_CELL_ID,
+        zome_name: "zome",
+        fn_name: "zome_fn",
+        args: {
+          zomeFnArgs: "String Input"
+        }
+      };
+      const expected_response = "Hello World";
+      appConductor.once(MockConductor.ZOME_CALL_TYPE, callZomeData, expected_response);
+
+      const servicelogData = {
+        cell_id: SL_CELL_ID,
+        zome_name: "service",
+        fn_name: "log_activity",
+        args: {
+          zomeFnArgs: "Activity Log"
+        }
+      };
+      const activity_log_response = 'Activity Log Success Hash';
+      appConductor.once(MockConductor.ZOME_CALL_TYPE, servicelogData, () => {
+        sl_called = true
+        return activity_log_response
+      });
+
+      const response = await client.callZomeFunction("dna_alias", "zome", "zome_fn", {
+        zomeFnArgs: "String Input"
+      });
+
+      log.debug("Response: %s", response);
+      expect(response).to.equal("Hello World");
+      await delay(1000)
+      expect(sl_called).to.be.false
+    } finally {
+      if (old_env_val === undefined) {
+        delete process.env.SKIP_LOG_ACTIVITY
+      } else {
+        process.env.SKIP_LOG_ACTIVITY = old_env_val
+      }
+    }
   });
 
   it('should call service logger to update disk usage', async () => {
