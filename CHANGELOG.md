@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [#154](https://github.com/Holo-Host/holo-envoy/pull/154)
 
 ### Added
-- Environment option `SKIP_LOG_ACTIVITY` to prevent Envoy for calling `log_activity` in servicelogger
+- Environment option `SKIP_LOG_ACTIVITY` to prevent Envoy from calling `log_activity` in servicelogger
 
 ## [#153](https://github.com/Holo-Host/holo-envoy/pull/153)
 
