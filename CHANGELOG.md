@@ -2,6 +2,14 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [#155](https://github.com/Holo-Host/holo-envoy/pull/155)
+
+### updated
+- Makes envoy compatable with holochain `v0.0.117`
+  - updates `nick` to `role_id`
+- Works with chaperone `v9.0.0.`
+- holochain updater script (`make update`)
+
 ## [#154](https://github.com/Holo-Host/holo-envoy/pull/154)
 
 ### Added
