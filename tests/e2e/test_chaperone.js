@@ -51,7 +51,7 @@ const wait_for_browser = browser_handler => new Promise((resolve, reject) => {
       clearInterval(browser_check)
       resolve(true)
     }
-  }, 100 )
+  }, 100)
 })
 
 describe("Client-Server Scenarios", () => {
@@ -116,7 +116,7 @@ describe("Client-Server Scenarios", () => {
       }
     })
 
-    page.exposeFunction('showServiceTicketBanner', () => {})
+    page.exposeFunction('showServiceTicketBanner', () => { })
 
     await page.exposeFunction('checkEnvoyConnections', (agentId, numReconnects) => {
       const isBrowserConnectionValid = envoy.agent_connections[agentId].length === numReconnects + 1
@@ -141,13 +141,13 @@ describe("Client-Server Scenarios", () => {
     browserClient.on('Network.webSocketCreated', ({ requestId, url }) => {
       console.log('✅ 🔓 Network.webSocketCreated', requestId, url)
     })
-    browserClient.on('Network.webSocketFrameSent', ({requestId, timestamp, response}) => {
+    browserClient.on('Network.webSocketFrameSent', ({ requestId, timestamp, response }) => {
       console.log(' 📤 Network.webSocketFrameSent', requestId, timestamp, response.payloadData)
     })
-    browserClient.on('Network.webSocketFrameReceived', ({requestId, timestamp, response}) => {
+    browserClient.on('Network.webSocketFrameReceived', ({ requestId, timestamp, response }) => {
       console.log(' 📥 Network.webSocketFrameReceived', requestId, timestamp, response.payloadData)
     })
-    browserClient.on('Network.webSocketClosed', ({requestId, timestamp}) => {
+    browserClient.on('Network.webSocketClosed', ({ requestId, timestamp }) => {
       console.log('⛔ 🔐 Network.webSocketClosed', requestId, timestamp)
     })
   })
@@ -175,7 +175,7 @@ describe("Client-Server Scenarios", () => {
     })
   }
 
-  it("should make valid anonymous zome call", async function() {
+  it("should make valid anonymous zome call", async function () {
     this.timeout(300_000);
     try {
       const { anonymousCallResponse } = await page.evaluate(async function (host_agent_id, ec_happ_id) {
@@ -255,7 +255,7 @@ describe("Client-Server Scenarios", () => {
 
   it("should sign-up on this Host")
 
-  it("should sign-in, make a zome function call and sign-out for two different agents", async function() {
+  it("should sign-in, make a zome function call and sign-out for two different agents", async function () {
     this.timeout(300_000);
     try {
       const { responseOne, responseTwo } = await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {
@@ -290,7 +290,7 @@ describe("Client-Server Scenarios", () => {
 
         let responseOne, responseTwo;
         try {
-          responseOne = await client.callZomeFunction(`test`, "test", "pass_obj", {'value': "This is the returned value"});
+          responseOne = await client.callZomeFunction(`test`, "test", "pass_obj", { 'value': "This is the returned value" });
           responseTwo = await client.callZomeFunction(`test`, "test", "returns_obj", null);
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
@@ -329,7 +329,7 @@ describe("Client-Server Scenarios", () => {
     }
   });
 
-  it("should sign-up, sign-out, sign-in, and sign back out successfully", async function() {
+  it("should sign-up, sign-out, sign-in, and sign back out successfully", async function () {
     this.timeout(300_000);
     try {
       const { signedUp, signedOutOnce, signedIn, signedOutTwice } = await page.evaluate(async function (host_agent_id, registered_happ_hash, joiningCode) {
@@ -400,7 +400,7 @@ describe("Client-Server Scenarios", () => {
     }
   });
 
-  it("should sign-in with incorrect joining code and fail", async function() {
+  it("should sign-in with incorrect joining code and fail", async function () {
     this.timeout(300_000);
     const signupError = await page.evaluate(async function (host_agent_id, registered_happ_hash, invalidJoiningCode) {
       console.log("Registered Happ Hash: %s", registered_happ_hash);
@@ -440,7 +440,7 @@ describe("Client-Server Scenarios", () => {
     expect(signupError.message).to.equal('Invalid joining code')
   });
 
-  it("should sign-in with null joining code and fail", async function() {
+  it("should sign-in with null joining code and fail", async function () {
     this.timeout(300_000);
     const signupError = await page.evaluate(async function (host_agent_id, registered_happ_hash) {
       console.log("Registered Happ Hash: %s", registered_happ_hash);
@@ -514,8 +514,8 @@ describe("Client-Server Scenarios", () => {
 
         try {
           // simulate multiple ui calls to server
-          client.callZomeFunction('test', 'test', 'pass_obj', {'value': 'This is the returned value'})
-          client.callZomeFunction('test', 'test', 'pass_obj', {'value': 'This is the returned value'})
+          client.callZomeFunction('test', 'test', 'pass_obj', { 'value': 'This is the returned value' })
+          client.callZomeFunction('test', 'test', 'pass_obj', { 'value': 'This is the returned value' })
           client.callZomeFunction('test', 'test', 'returns_obj', null);
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
@@ -558,7 +558,7 @@ describe("Client-Server Scenarios", () => {
 
         let response;
         try {
-          response = client.callZomeFunction(`test`, 'test', 'pass_obj', {'value': 'This is the returned value'});
+          response = client.callZomeFunction(`test`, 'test', 'pass_obj', { 'value': 'This is the returned value' });
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
@@ -625,7 +625,7 @@ describe("Client-Server Scenarios", () => {
         try {
           // TEMPORARY: remove race condition and only call zome call once chaperone is updated to return a timeout / server down error after a certain duration of failed connection
           Promise.race([
-            client.callZomeFunction('test', 'test', 'pass_obj', {'value': 'This is the returned value'}),
+            client.callZomeFunction('test', 'test', 'pass_obj', { 'value': 'This is the returned value' }),
             new Promise((resolve, reject) => {
               let waitId = setTimeout(() => {
                 clearTimeout(waitId);
@@ -663,11 +663,13 @@ describe("Client-Server Scenarios", () => {
         // test call again once sigend back in
         let responseSuccess = {}
         try {
-          responseSuccess = await client.callZomeFunction('test', 'test', 'pass_obj', {'value': 'This is the returned value'})
+          responseSuccess = await client.callZomeFunction('test', 'test', 'pass_obj', { 'value': 'This is the returned value' })
         } catch (err) {
           console.log(typeof err.stack, err.stack.toString());
           throw err
         }
+        // wait for envoy to complete SL requests
+        await delay(8000)
 
         // expect that pending confirms is still empty
         isChaperoneValid.pendingQueueValid = Object.keys(client.pending_confirms).length === 0
@@ -686,12 +688,12 @@ describe("Client-Server Scenarios", () => {
     }
   })
 
-  it("should have no pending confirmations", async function() {
+  it("should have no pending confirmations", async function () {
     // Give confirmation request some time to finish
     this.timeout(5_000)
     try {
       await delay(2_000);
       expect(envoy.pending_confirms).to.be.empty;
-    } finally {}
+    } finally { }
   })
 })

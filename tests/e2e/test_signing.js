@@ -14,12 +14,12 @@ const LAIR_SOCKET = path.resolve(__dirname, '..', 'tmp', 'keystore', 'socket');
 
 describe("Wormhole tests", () => {
   let shim, appWs, testCellId;
-  before(async function() {
+  before(async function () {
     this.timeout(100_000);
 
     await setup_conductor.start({
       setup_shim: () => {
-        shim = init(LAIR_SOCKET, SHIM_DIR, function(pubkey, message) {
+        shim = init(LAIR_SOCKET, SHIM_DIR, function (pubkey, message) {
           console.log("Test shim...");
           return null;
         });
@@ -55,7 +55,7 @@ describe("Wormhole tests", () => {
       });
       console.log("return from signing test: ", response);
       expect(response).to.be.ok
-    } catch(e) {
+    } catch (e) {
       console.log("Failing...", e);
       expect(false).to.be.ok
     }
