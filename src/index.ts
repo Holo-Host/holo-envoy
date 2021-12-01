@@ -56,7 +56,7 @@ interface CallSpec {
 }
 
 interface AppDna {
-  nick?: string;
+  role_id?: string;
 	path: string;
 	src_path: string;
 }
@@ -341,7 +341,7 @@ class Envoy {
 
       try {
         let adminResponse;
-        // - Install App - This admin function creates cells for each dna with associated nick, under the hood.
+        // - Install App - This admin function creates cells for each dna with associated role_id, under the hood.
         try {
           log.info("Installing App with HHA ID (%s) as Installed App ID (%s) ", hha_hash, hosted_agent_instance_app_id);
           let dnas;
@@ -349,7 +349,7 @@ class Envoy {
           if (this.opts.hosted_app && this.opts.hosted_app!.dnas && this.opts.mode === Envoy.DEVELOP_MODE) {
             dnas = this.opts.hosted_app.dnas;
 					} else {
-            dnas = appInfo.cell_data.map(({cell_id, cell_nick}) => ({ nick: cell_nick, hash: cell_id[0], membrane_proof }));
+            dnas = appInfo.cell_data.map(({cell_id, role_id }) => ({ role_id, hash: cell_id[0], membrane_proof }));
 					}
 
           if (membrane_proof) {
@@ -614,8 +614,8 @@ class Envoy {
 
       let result
       try {
-        const cell_data: Array<{cell_id: Buffer, cell_nick: Buffer}> = appInfo.cell_data;
-        const {cell_id} = cell_data.find(({cell_id, cell_nick}) => dna_alias === cell_nick);
+        const cell_data: Array<{cell_id: Buffer, role_id: Buffer}> = appInfo.cell_data;
+        const {cell_id} = cell_data.find(({cell_id, role_id}) => dna_alias === role_id);
         result = await this.callConductor("admin", "dumpState", { cell_id });
       } catch (err) {
         log.error("Failed during Conductor StateDump call: %s", String(err));
