@@ -28,14 +28,14 @@ DNAs: dnas/holo-hosting-app.happ dnas/servicelogger.happ dnas/elemental-chat.hap
 dnas:
 	mkdir -p ./dnas
 dnas/elemental-chat.happ: dnas
-	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.2.0-alpha21/elemental-chat.happ' -o $@
+	curl -LJ 'https://github.com/holochain/elemental-chat/releases/download/v0.2.1-alpha3/elemental-chat.happ' -o $@
 dnas/test.happ:	dnas
-	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.4.0/test.happ' -o $@
+	curl -LJ 'https://github.com/Holo-Host/dummy-dna/releases/download/v0.4.2/test.happ' -o $@
 dnas/holo-hosting-app.happ:	dnas
-	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.1.1-alpha2/core-app-skip-proof.happ' -o $@
+	curl 'https://holo-host.github.io/holo-hosting-app-rsm/releases/downloads/v0.1.1-alpha5/core-app.skip-proof.happ' -o $@
 dnas/servicelogger.happ: dnas
 # servicelogger v0.1.0-alpha11 never requires membrane proofs. If in the future it does require them, make sure to use a download that has `skip_proof: true`
-	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/v0.1.0-alpha11/servicelogger.happ' -o $@
+	curl 'https://holo-host.github.io/servicelogger-rsm/releases/downloads/0_1_0_alpha13/servicelogger.0_1_0_alpha13.happ' -o $@
 
 
 
@@ -108,48 +108,14 @@ use-yarn-chaperone-%:
 #############################
 # How to update holochain?
 # In envoy you will have to update the holo-nixpkgs
-# make HOLO_REV="HOLO_REV" HC_REV="" DNA_VERSION="" update-hc
-# Example use: make HOLO_REV="f0e38fd9895054115d8755572e29a5d3639f69e6" update-hc
-# Note: After running this we should run the tests and check
+# make update
 
-update-hc:
-	make HOLO_REV=$(HC_REV) update-holochain
-	make HOLO_REV=$(HOLO_REV) update-holo-sha
-	make DNA_VERSION=$(DNA_VERSION) update-holo-sha
-	git checkout -b update-hc-$(HC_REV)
-	git add nixpkgs.nix
-	git commit -m hc-rev:$(HC_REV)
-	git push origin HEAD
-
-update-dnas:
-	@if [ $(DNA_VERSION) ]; then\
-		sed -i "24s/.*/  curl 'https:\/\/holo-host.github.io\/holo-hosting-app-rsm\/releases\/downloads\/$(shell echo $(DNA_VERSION) | tr .- _)\/core-app.$(shell echo $(DNA_VERSION) | tr .- _).happ' -o dnas\/holo-hosting-app.happ/" Makefile;\
-		sed -i "26s/.*/  curl 'https:\/\/holo-host.github.io\/servicelogger-rsm\/releases\/downloads\/$(shell echo $(DNA_VERSION) | tr .- _)\/servicelogger.$(shell echo $(DNA_VERSION) | tr .- _).happ' -o dnas\/servicelogger.happ/" Makefile;\
-		sed -i "28s/.*/  curl -LJ 'https:\/\/github.com\/Holo-Host\/dummy-dna\/releases\/download\/v$(DNA_VERSION)\/test.happ' -o dnas\/test.happ/" Makefile;\
-	else \
-		echo "No dna version provided"; \
-	fi
-
-update-holochain:
-	@if [ $(HC_REV) ]; then\
-		echo "⚙️  Updating holo-envoy using holochain rev: $(HC_REV)";\
-		echo "✔  Updating creates rev in install-script...";\
-		echo "✔  Replacing rev...";\
-		sed -i -e 's/^holochain_cli_sandbox = .*/holochain_cli_sandbox = {git ="https:\/\/github.com\/holochain\/holochain", rev = "$(HC_REV)", package = "holochain_cli_sandbox"}/' ./script/install-bundles/Cargo.toml;\
-		sed -i -e 's/^holochain_conductor_api = .*/holochain_conductor_api = {git ="https:\/\/github.com\/holochain\/holochain", rev = "$(HC_REV)", package = "holochain_conductor_api"}/' ./script/install-bundles/Cargo.toml;\
-		sed -i -e 's/^holochain_types = .*/holochain_types = {git ="https:\/\/github.com\/holochain\/holochain", rev = "$(HC_REV)", package = "holochain_types"}/' ./script/install-bundles/Cargo.toml;\
-	else \
-		echo "No holochain rev provided"; \
-	fi
-
-update-holo-sha:
-	@if [ $(HOLO_REV) ]; then\
-		echo "⚙️  Updating holo-envoy using holo-nixpkgs rev: $(HOLO_REV)";\
-		echo "✔  Updating holo-nixpkgs rev in nixpkgs.nix...";\
-		echo "✔  Replacing rev...";\
-		sed -i -e 's/^  url = .*/  url = "https:\/\/github.com\/Holo-Host\/holo-nixpkgs\/archive\/$(HOLO_REV).tar.gz";/' nixpkgs.nix;\
-		echo "✔  Replacing sha256...";\
-		sed -i 's/^  sha256 = .*/  sha256 = "$(shell nix-prefetch-url --unpack "https://github.com/Holo-Host/holo-nixpkgs/archive/$(HOLO_REV).tar.gz")";/' nixpkgs.nix;\
-	else \
-		echo "No holo-nixpkgs rev provided"; \
-  fi
+update:
+	echo '⚙️  Updating holochainVersionId in nix...'
+	sed -i -e 's/^  holonixRevision = .*/  holonixRevision = $(shell jq .holonix_rev ./version-manager.json);/' config.nix;\
+	sed -i -e 's/^  holochainVersionId = .*/  holochainVersionId = $(shell jq .holochain_rev ./version-manager.json);/' config.nix;\
+	echo '⚙️  Building...'
+	make nix-build
+	echo '⚙️  Running tests...'
+	make nix-test
+	

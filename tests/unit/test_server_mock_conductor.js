@@ -28,7 +28,7 @@ const envoyOpts = {
   mode: envoy_mode_map.develop,
   hosted_app: {
     dnas: [{
-      nick: 'test-hha',
+      role_id: 'test-hha',
       path: './dnas/elemental-chat.dna'
     }],
     usingURL: false
@@ -49,7 +49,7 @@ describe("Server with mock Conductor", () => {
   const MOCK_CELL_DATA = {
     cell_data: [{
       cell_id: MOCK_CELL_ID,
-      cell_nick: DNA_ALIAS
+      role_id: DNA_ALIAS
     }]
   };
   const HOST_AGENT_ID = "uhCAkznM55n7k0VidzF2gHFjr0AXswo3BoDkBBG-8LvvN5atURyAq";
@@ -58,7 +58,7 @@ describe("Server with mock Conductor", () => {
     cell_data: [
       {
         cell_id: ANONYMOUS_CELL_ID,
-        cell_nick: DNA_ALIAS,
+        role_id: DNA_ALIAS,
       }
     ]
   }
@@ -67,7 +67,7 @@ describe("Server with mock Conductor", () => {
     cell_data: [
       {
         cell_id: SL_CELL_ID,
-        cell_nick: 'servicelogger',
+        role_id: 'servicelogger',
       }
     ]
   }

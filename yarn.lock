@@ -32,10 +32,10 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@holo-host/chaperone@^8.0.2":
-  version "8.0.2"
-  resolved "https://registry.yarnpkg.com/@holo-host/chaperone/-/chaperone-8.0.2.tgz#7a4690b964a823c661e4523d61a9f5aeac4681d0"
-  integrity sha512-k4/Xui8oCahsx67xK7txqeYnZxvsrs1DVZgVl/2FfVPSc54UBanWjzZD0yg6qA1HjZMdvCUJk240DRHRr+fWrw==
+"@holo-host/chaperone@^9.0.0":
+  version "9.0.0"
+  resolved "https://registry.yarnpkg.com/@holo-host/chaperone/-/chaperone-9.0.0.tgz#0f3c960e50a7baf10a3b349915d8bcb00118b1bb"
+  integrity sha512-5IJBCGbXro3kLpOEOl/Ov4Mik32JFP9YNSPyzdTeKk6nzkii+DpN3Qm1TQ/dQJ8L28DV++KyXBinyppb+FHXwA==
   dependencies:
     "@holo-host/comb" "^0.2.0"
     "@holo-host/cryptolib" "^0.3.0"

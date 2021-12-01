@@ -5,7 +5,10 @@ signing_service_uri: ~
 encryption_service_uri: ~
 decryption_service_uri: ~
 dpki: ~
-keystore_path: ./tmp/shim
+keystore:
+  type: lair_server_legacy_deprecated
+  keystore_path: ./tmp/shim
+  danger_passphrase_insecure_from_config: "pass"
 passphrase_service:
   type: danger_insecure_from_config
   passphrase: "pass"
