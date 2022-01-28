@@ -1,6 +1,7 @@
 import { readdirSync } from 'fs'
 import { inspect } from 'util'
 import { groupBy, uniq } from 'lodash'
+import path from 'path'
 
 if (process.env.NODE_ENV === 'production' && !process.env.HOLOCHAIN_DATABASE_DIRECTORY) {
   throw new Error('HOLOCHAIN_DATABASE_DIRECTORY environment variable was not specified')
@@ -52,3 +53,17 @@ export function getUsagePerDna (hostedHashes) {
     }
   }), {})
 }
+
+export function loadShimDirPath() {
+  return process.env.NODE_ENV === 'test'
+    ? path.resolve(__dirname, '..', 'tests', 'tmp', 'shim')
+    : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim')
+}
+
+export function loadRpcClientOPTSPath() {
+  return (process.env.NODE_ENV === "test")
+    ? path.resolve(__dirname, '..', 'tests', 'tmp', 'keystore', 'socket')
+    : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
+}
+
+export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
