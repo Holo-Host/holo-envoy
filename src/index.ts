@@ -12,6 +12,9 @@ import Websocket from 'ws';
 import { v4 as uuid } from 'uuid';
 import * as crypto from 'crypto';
 import { delay, getUsagePerDna, loadRpcClientOPTSPath, loadShimDirPath } from './utils';
+import { EnvoyConfig } from './interfaces/envoy-config-interface';
+import { HoloError } from './errors/holo-error';
+import { UserError } from './errors/user-error';
 const { inspect } = require('util')
 
 const msgpack = require('@msgpack/msgpack');
@@ -40,54 +43,6 @@ const NAMESPACE: string = "/hosting/";
 const WORMHOLE_TIMEOUT: number = Number(process.env.WORMHOLE_TIMEOUT)|| 20_000;
 const CALL_CONDUCTOR_TIMEOUT: number = Number(process.env.CALL_CONDUCTOR_TIMEOUT) as any + WORMHOLE_TIMEOUT;
 const STORAGE_POLLING_INTERVAL: number = Number(process.env.STORAGE_POLLING_INTERVAL) || 24 * 60 * 60 * 1000; // 1 day
-
-interface AppDna {
-  role_id?: string;
-	path: string;
-	src_path: string;
-}
-
-interface HostedAppConfig {
-  servicelogger_id: string;
-	dnas: [AppDna];
-	usingURL: boolean
-}
-
-interface EnvoyConfig {
-  mode: number;
-  port?: number;
-  NS?: string;
-  hosted_app?: HostedAppConfig;
-}
-
-
-class CustomError extends Error {
-  constructor(message) {
-    // Pass remaining arguments (including vendor specific ones) to parent constructor
-    super(message);
-
-    // Maintains proper stack trace for where our error was thrown (only available on V8)
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, this.constructor);
-    }
-
-    this.name = this.constructor.name;
-
-    // Fix for Typescript
-    //   - https://github.com/Microsoft/TypeScript/wiki/Breaking-Changes#extending-built-ins-like-error-array-and-map-may-no-longer-work
-    Object.setPrototypeOf(this, this.constructor.prototype);
-  }
-
-  toJSON() {
-    return {
-      "name": this.name,
-      "message": this.message,
-    };
-  }
-}
-
-class HoloError extends CustomError {}
-class UserError extends CustomError {}
 class Envoy {
   ws_server: WebSocketServer;
   shim: { stop: () => Promise<void> };
