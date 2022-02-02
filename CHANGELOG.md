@@ -4,9 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [#156](https://github.com/Holo-Host/holo-envoy/pull/156)
 - Improvements in index.ts code
-- add dotenv and .env.example
-- change some variables to use values from process.env
-
+- organize class's errors and interfaces to improve code readings 
+- add dot-env in this project to easily change some parameters with the .env file
+- split HcAdminWebSocket and HcAppWebSocket class into two files
+- add some useful logs 
 ## [#155](https://github.com/Holo-Host/holo-envoy/pull/155)
 
 ### updated
