@@ -4,3 +4,4 @@ dist
 build
 /tests/tmp/
 /tests/log/
+.env
