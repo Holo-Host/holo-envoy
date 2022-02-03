@@ -5,10 +5,7 @@ const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
 
-
 const RPCWebSocketServer = require('rpc-websockets').Server;
-
-
 class WebSocketServer extends RPCWebSocketServer {
 
   port: number;

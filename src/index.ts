@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import path from 'path';
 import logger from '@whi/stdlog';
 import concat_stream from 'concat-stream';
@@ -10,16 +11,19 @@ import { init as shimInit } from './shim.js';
 import Websocket from 'ws';
 import { v4 as uuid } from 'uuid';
 import * as crypto from 'crypto';
-import { getUsagePerDna } from './utils';
+import { delay, getUsagePerDna, loadRpcClientOPTSPath, loadShimDirPath } from './utils';
+import { EnvoyConfig } from './interfaces/envoy-config-interface';
+import { HoloError } from './errors/holo-error';
+import { UserError } from './errors/user-error';
 const { inspect } = require('util')
 
 const msgpack = require('@msgpack/msgpack');
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 const log = logger(path.basename(__filename), {
   level: process.env.LOG_LEVEL || 'fatal',
 });
+
+const WEBSOCKET_HOST: string = process.env.WEBSOCKET_HOST || '0.0.0.0'
 
 const hash = (payload) => {
   const serialized_args = typeof payload === "string" ? payload : SerializeJSON(payload);
@@ -28,88 +32,17 @@ const hash = (payload) => {
 }
 
 // Not ever used for anonymous installed_app_ids, which are just the hha_hash
-const getInstalledAppId = (hha_hash, agent_id) => {
-  return `${hha_hash}:${agent_id}:###zero###`
+const getInstalledAppId = (hha_hash, agent_id): string => {
+  return `${hha_hash}:${agent_id}:###zero###`;
 }
 
-const WS_SERVER_PORT = 4656; // holo
-const SHIM_DIR = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '..', 'tests', 'tmp', 'shim') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-shim');
-const LAIR_SOCKET = (process.env.NODE_ENV === "test") ? path.resolve(__dirname, '..', 'tests', 'tmp', 'keystore', 'socket') : path.resolve(__dirname, '/var/lib/holochain-rsm/lair-keystore/socket');
-const RPC_CLIENT_OPTS = {
-  "reconnect_interval": 1000,
-  "max_reconnects": 300,
-};
-const CONDUCTOR_TIMEOUT = RPC_CLIENT_OPTS.reconnect_interval * RPC_CLIENT_OPTS.max_reconnects;
-const NAMESPACE = "/hosting/";
-const READY_STATES = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
-const WORMHOLE_TIMEOUT = 20_000;
-const CALL_CONDUCTOR_TIMEOUT = WORMHOLE_TIMEOUT + 10_000
-const STORAGE_POLLING_INTERVAL = 24 * 60 * 60 * 1000 // 1 day
-
-interface CallSpec {
-  hha_hash: string;
-  dna_alias: string;
-  cell_id?: string;
-  zome?: string;
-  function?: string;
-  args?: any;
-}
-
-interface AppDna {
-  role_id?: string;
-	path: string;
-	src_path: string;
-}
-
-interface HostedAppConfig {
-  servicelogger_id: string;
-	dnas: [AppDna];
-	usingURL: boolean
-}
-
-interface EnvoyConfig {
-  mode: number;
-  port?: number;
-  NS?: string;
-  hosted_app?: HostedAppConfig;
-}
-
-
-class CustomError extends Error {
-  constructor(message) {
-    // Pass remaining arguments (including vendor specific ones) to parent constructor
-    super(message);
-
-    // Maintains proper stack trace for where our error was thrown (only available on V8)
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, this.constructor);
-    }
-
-    this.name = this.constructor.name;
-
-    // Fix for Typescript
-    //   - https://github.com/Microsoft/TypeScript/wiki/Breaking-Changes#extending-built-ins-like-error-array-and-map-may-no-longer-work
-    Object.setPrototypeOf(this, this.constructor.prototype);
-  }
-
-  toJSON() {
-    return {
-      "name": this.name,
-      "message": this.message,
-    };
-  }
-}
-
-class HoloError extends CustomError {}
-class UserError extends CustomError {}
-
-async function promiseMap (array, fn) {
-  const resolvedArray = await array;
-  const promiseArray = resolvedArray.map(fn);
-  const resolved = await Promise.all(promiseArray);
-  return resolved;
-}
-
+const WS_SERVER_PORT: number = Number(process.env.WS_SERVER_PORT) || 4656; // holo
+const SHIM_DIR: string = loadShimDirPath();
+const LAIR_SOCKET: string = loadRpcClientOPTSPath();
+const NAMESPACE: string = "/hosting/";
+const WORMHOLE_TIMEOUT: number = Number(process.env.WORMHOLE_TIMEOUT)|| 20_000;
+const CALL_CONDUCTOR_TIMEOUT: number = Number(process.env.CALL_CONDUCTOR_TIMEOUT) as any + WORMHOLE_TIMEOUT;
+const STORAGE_POLLING_INTERVAL: number = Number(process.env.STORAGE_POLLING_INTERVAL) || 24 * 60 * 60 * 1000; // 1 day
 class Envoy {
   ws_server: WebSocketServer;
   shim: { stop: () => Promise<void> };
@@ -137,6 +70,9 @@ class Envoy {
   static PRODUCT_MODE: number = 0;
   static DEVELOP_MODE: number = 1;
 
+  admin_port: number = Number(process.env.ADMIN_PORT) || 4444;
+  app_port: number = Number(process.env.APP_PORT) || 42233;
+
   constructor(opts: EnvoyConfig) {
     log.silly("Initializing Envoy with input: %s", opts);
     const environmentMode = opts.mode || Envoy.PRODUCT_MODE;
@@ -150,8 +86,8 @@ class Envoy {
 
     this.conductor_opts = {
       "interfaces": {
-        "admin_port": 4444,
-        "app_port": 42233,
+        "admin_port": this.admin_port,
+        "app_port": this.app_port,
       },
     };
 
@@ -169,18 +105,19 @@ class Envoy {
 
   async connections() {
     const ifaces = this.conductor_opts.interfaces;
+
+    log.info(`start clients admin in ws://localhost:${ifaces.admin_port}`);
     this.hcc_clients.admin = new HcAdminWebSocket(`ws://localhost:${ifaces.admin_port}`);
+
+    log.info(`start client app in ws://localhost:${ifaces.app_port}`);
     this.hcc_clients.app = new HcAppWebSocket(`ws://localhost:${ifaces.app_port}`, this.signalHandler.bind(this));
 
     const clients = Object.entries(this.hcc_clients);
     return Promise.all(
-      clients.map(async (pair) => {
-        const [name, client] = pair;
-        await client.opened();
-        log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", name, client.client.socket.readyState);
-      })
+      clients.map(pair => this.mapConnections(pair))
     );
   }
+  
 
   // --------------------------------------------------------------------------------------------
 
@@ -189,36 +126,25 @@ class Envoy {
   async startWebsocketServer() {
     this.ws_server = new WebSocketServer({
       "port": this.opts.port,
-      "host": "0.0.0.0", // "localhost",
+      "host": WEBSOCKET_HOST, // "localhost",
     });
 
     const heartbeat = ws => {
-      ws.isAlive = true
+      ws.isAlive = true;
     }
 
     const ping = socket => {
-      console.log('Pinging to keep socket alive.  Socket readystate : ', socket.readyState)
+      console.log('Pinging to keep socket alive.  Socket readystate : ', socket.readyState);
     }
 
     this.ws_server.on("connection", async (socket, request) => {
-      socket.isAlive = true
-      socket.on("pong", () => { heartbeat(socket) })
+      socket.isAlive = true;
+      socket.on("pong", () => { heartbeat(socket) });
 
       // path should contain the HHA ID and Agent ID so we can do some checks and alert the
       // client-side if something is not right.
       log.silly("Incoming connection from %s", request.url);
       const url = new URL(request.url, "http://localhost");
-
-      const heartbeatInterval = setInterval(() => {
-        if (socket.isAlive === false) {
-          log.info("About to close websocket because socket is no longer alive")
-            return socket.close()
-        }
-
-        socket.isAlive = false
-        socket.ping(() => { ping(socket) })
-      }, 30000)
-
 
       socket.on("message", (data) => {
         try {
@@ -262,10 +188,10 @@ class Envoy {
 
       socket.on("close", async () => {
         log.warn("Socket is closing for Agent (%s) using HHA ID %s", agent_id, hha_hash);
-
+    
         // clear ping/pong interval for keepalive check
-        clearInterval(heartbeatInterval)
-
+        clearInterval(this.heartbeatInterval(socket, ping))
+    
         if (anonymous) {
           log.debug("Remove anonymous Agent (%s) from anonymous list", agent_id);
           delete this.anonymous_agents[agent_id];
@@ -1281,6 +1207,23 @@ class Envoy {
   createEventId(agent_id, hha_hash) {
     return `signal:${agent_id}:${hha_hash}`;
   }
+
+  private async mapConnections(pair) {
+    const [name, client] = pair;
+    await client.opened();
+    log.debug("Conductor client '%s' is 'CONNECTED': readyState = %s", name, client.client.socket.readyState);
+  }
+
+  private heartbeatInterval = (socket, ping) => setInterval(() => {
+    if (socket.isAlive === false) {
+      log.info("About to close websocket because socket is no longer alive");
+        return socket.close();
+    }
+
+    socket.isAlive = false;
+    socket.ping(() => { ping(socket) });
+  }, )
+
 }
 
 async function httpRequestStream(req): Promise<any> {
